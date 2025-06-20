@@ -1,7 +1,4 @@
-# Gandalf Context Intelligence Configuration
-
 enabled: true
-
 weights:
   recent_modification: 5.0
   file_size_optimal: 2.0
@@ -10,66 +7,32 @@ weights:
   git_activity: 3.5
   file_type_priority: 1.5
   directory_importance: 1.0
-
-# Display limits
-# These are the max number of files to display in the conversation window, unrelated to
-# how many files the user adds to the conversation.
 display:
   max_high_priority: 5
   max_medium_priority: 10
   max_top_files: 10
-
-# Score thresholds for categorization
 thresholds:
   high_priority: 5.0
   medium_priority: 2.0
   top_files_count: 10
-
-# Scoring parameters
 scoring:
-  min_score: 0.1 # Fallback needed to not break the conversation
-  git_cache_ttl: 300 # Seconds
+  min_score: 0.1
+  git_cache_ttl: 300
   git_lookback_days: 7
   git_timeout: 10
-
   file_size:
-    # These are very subjective and would vary by project.
     optimal_min: 1000
     optimal_max: 50000
     acceptable_max: 200000
     acceptable_multiplier: 0.6
     large_multiplier: 0.2
-
   recent_modifications:
     hour_threshold: 1
     day_threshold: 24
     week_threshold: 168
     day_multiplier: 0.7
     week_multiplier: 0.4
-
-# Add and test as you need.
 file_extensions:
   py: 3.0
-  js: 2.5
-  ts: 2.5
-  jsx: 2.0
-  tsx: 2.0
-  md: 1.5
-  yml: 1.0
-  yaml: 1.0
-  json: 1.0
-  toml: 1.0
-
-# Directory priorities
-# Starting basic to support python and js projects.
 directories:
   src: 3.0
-  lib: 2.5
-  components: 2.0
-  utils: 2.0
-  api: 2.0
-  services: 2.0
-  models: 2.0
-  views: 1.5
-  tests: 1.0
-  docs: 0.5

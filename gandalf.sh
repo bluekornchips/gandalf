@@ -13,22 +13,39 @@ SERVER_DIR="$GANDALF_ROOT/server"
 SCRIPTS_DIR="$GANDALF_ROOT/scripts"
 TESTS_DIR="$GANDALF_ROOT/tests"
 
+# Helper function to get the correct Python executable (no venv support)
+get_python_executable() {
+    echo "python3"
+}
+
 show_usage() {
     cat <<EOF
-Gandalf CLI
+$MCP_SERVER_NAME CLI
 
 USAGE:
     gandalf.sh <command> [options]
 
 COMMANDS:
     conv <subcommand>           Conversation management
-    setup [options]             Setup MCP server requirements
     install [repo] [options]    Install MCP server to repository/directory
-    reset [options]             Reset MCP configuration (does not clear conversations)
+    analyze_messages [options]  Analyze comprehensive message logs
     run [options]               Run MCP server directly (debugging)
-    test [test-name]            Run tests
+    test [test-name]            Run tests (defaults to all tests)
     lembas [repo] [-f|--force]  Run lembas: test -> reset -> install -> test
     help                        Show this help message
+
+EXAMPLES:
+    gandalf.sh install                          # Install to current repo
+    gandalf.sh install -r                       # Reset existing server and install fresh
+    gandalf.sh test                             # Run all tests
+    gandalf.sh test core                        # Run core tests only
+    gandalf.sh lembas /path/to/repo             # Full test cycle
+
+NOTES:
+    - 'install' verifies requirements, configures MCP server, and tests connectivity
+    - 'install -r' combines reset and install for a fresh setup
+    - 'install' updates Cursor's config but doesn't restart the server
+    - Set MCP Logs level to DEBUG/INFO in Cursor for detailed visibility
 
 EOF
 }
@@ -42,11 +59,22 @@ fi
 
 case "$COMMAND" in
 "conv") shift 1 && "$SCRIPTS_DIR/conversations.sh" "$@" ;;
-"setup") shift 1 && "$SCRIPTS_DIR/setup.sh" "$@" ;;
 "install") shift 1 && "$SCRIPTS_DIR/install.sh" "$@" ;;
-"reset") shift 1 && "$SCRIPTS_DIR/reset.sh" "$@" ;;
-"run") shift 1 && python3 "$SERVER_DIR/main.py" "$@" ;;
-"test") shift 1 && "$TESTS_DIR/test-suite.sh" "$@" ;;
+"analyze_messages") shift 1 && "$SCRIPTS_DIR/analyze_messages.sh" "$@" ;;
+"run")
+    shift 1
+    python_exec=$(get_python_executable)
+    "$python_exec" "$SERVER_DIR/main.py" "$@"
+    ;;
+"test")
+    shift 1
+    # Use bash explicitly to handle associative arrays in test-suite-manager.sh
+    if [[ $# -eq 0 ]]; then
+        bash "$TESTS_DIR/test-suite-manager.sh"
+    else
+        bash "$TESTS_DIR/test-suite-manager.sh" "$@"
+    fi
+    ;;
 "lembas") shift 1 && "$SCRIPTS_DIR/lembas.sh" "$@" ;;
 "help" | "-h" | "--help") show_usage ;;
 *)
