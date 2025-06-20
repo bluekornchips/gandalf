@@ -1,0 +1,85 @@
+# Sauron's Extreme Weights - All Maximum Values
+# Test configuration with extremely high weights for testing edge cases
+# "One Ring to rule them all" - maximum scores for everything
+
+file_scoring:
+  recent_modification_weight: 10.0
+  file_size_weight: 10.0
+  file_type_weight: 10.0
+  directory_importance_weight: 10.0
+  git_activity_weight: 10.0
+  import_relationship_weight: 10.0
+
+file_type_weights:
+  py: 10.0
+  js: 10.0
+  ts: 10.0
+  jsx: 10.0
+  tsx: 10.0
+  java: 10.0
+  cpp: 10.0
+  c: 10.0
+  h: 10.0
+  go: 10.0
+  rs: 10.0
+  rb: 10.0
+  php: 10.0
+  swift: 10.0
+  kt: 10.0
+  scala: 10.0
+  cs: 10.0
+  vb: 10.0
+  sql: 10.0
+  html: 10.0
+  css: 10.0
+  scss: 10.0
+  less: 10.0
+  vue: 10.0
+  md: 10.0
+  rst: 10.0
+  txt: 10.0
+  json: 10.0
+  yaml: 10.0
+  yml: 10.0
+  xml: 10.0
+  toml: 10.0
+  ini: 10.0
+  cfg: 10.0
+  conf: 10.0
+  sh: 10.0
+  bash: 10.0
+  zsh: 10.0
+  fish: 10.0
+  ps1: 10.0
+  bat: 10.0
+  dockerfile: 10.0
+  makefile: 10.0
+  cmake: 10.0
+  gradle: 10.0
+  maven: 10.0
+  requirements: 10.0
+  package: 10.0
+  gemfile: 10.0
+  podfile: 10.0
+
+directory_importance:
+  src: 10.0
+  lib: 10.0
+  app: 10.0
+  server: 10.0
+  client: 10.0
+  frontend: 10.0
+  backend: 10.0
+  api: 10.0
+  core: 10.0
+  common: 10.0
+  shared: 10.0
+  utils: 10.0
+  helpers: 10.0
+  services: 10.0
+  models: 10.0
+  views: 10.0
+  controllers: 10.0
+  components: 10.0
+  modules: 10.0
+  packages: 10.0 

@@ -28,6 +28,9 @@ venv/
 ENV/
 env/
 
+# Gandalf MCP server virtual environment
+gandalf/venv/
+
 # IDEs
 .vscode/
 .idea/
