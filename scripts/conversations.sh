@@ -43,7 +43,7 @@ call_mcp_tool() {
     local tool_name="$1"
     local args="$2"
 
-    python3 "$SERVER_SCRIPT" --project-root "$(pwd)" <<EOF | jq -s '.[] | select(.id == 2 and has("result")) | .result.content[0].text' | jq -r
+    python3 "$SERVER_SCRIPT" --project-root "$(pwd -P)" <<EOF | jq -s '.[] | select(.id == 2 and has("result")) | .result.content[0].text' | jq -r
 {"jsonrpc": "2.0", "method": "initialize", "id": 1, "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "gandalf-cli", "version": "1.0.0"}}}
 {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}
 {"jsonrpc": "2.0", "method": "tools/call", "id": 2, "params": {"name": "$tool_name", "arguments": $args}}

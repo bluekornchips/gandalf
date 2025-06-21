@@ -4,17 +4,54 @@
 
 set -euo pipefail
 
-GIT_ROOT=$(git rev-parse --show-toplevel)
-GANDALF_ROOT="$GIT_ROOT/gandalf"
-SERVER_DIR="$GANDALF_ROOT/server"
-TEST_ID_COUNTER=0
-export GANDALF_TEST_MODE="false"  # Disable debug output by default
-export MCP_DEBUG="false"
+# Centralized path calculation function
+# Usage: source this file and call `setup_gandalf_paths`
+setup_gandalf_paths() {
+    # Find the gandalf root by looking for the characteristic server directory
+    local current_dir="$(pwd -P)"
+    local search_dir="$current_dir"
 
-# Helper function to get the correct Python executable
+    # If called from a script, use the script's directory as starting point
+    if [[ -n "${BASH_SOURCE[1]:-}" ]]; then
+        # Kind of hard to read for non shell lovers, so lets break it down:
+        # "${BASH_SOURCE[1]}" - This is the path to the script that is sourcing this file
+        # "$(dirname "${BASH_SOURCE[1]}")" - Adding in 'dirname' we get the directory of the script that is sourcing this file
+        # "pwd -P" - Finds the pwd with the full path, no symlinks
+        # Putting it all together, we get the path to the directory of the script that is sourcing this file
+        search_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd -P)"
+    fi
+
+    # Try walking up the directory tree to find gandalf root, if we can't find it, we'll use the fallback
+    while [[ "$search_dir" != "/" ]]; do
+        if [[ -d "$search_dir/server" && -f "$search_dir/server/main.py" ]]; then
+            export GANDALF_ROOT="$search_dir"
+            export SERVER_DIR="$GANDALF_ROOT/server"
+            export TESTS_DIR="$GANDALF_ROOT/tests"
+            export SCRIPTS_DIR="$GANDALF_ROOT/scripts"
+            return 0
+        fi
+        search_dir="$(dirname "$search_dir")"
+    done
+
+    # Fallback: if we can't find it, assume we're in tests and go up
+    echo "Warning: Could not auto-detect GANDALF_ROOT, using fallback" >&2
+    export GANDALF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd -P)"
+    export SERVER_DIR="$GANDALF_ROOT/server"
+    export TESTS_DIR="$GANDALF_ROOT/tests"
+    export SCRIPTS_DIR="$GANDALF_ROOT/scripts"
+}
+
+# Auto-setup paths when this file is sourced
+setup_gandalf_paths
+
+# Get Python executable (simplified version for tests)
 get_python_executable() {
     echo "python3"
 }
+
+TEST_ID_COUNTER=0
+export GANDALF_TEST_MODE="false"
+export MCP_DEBUG="false"
 
 # Generate unique test ID for each request
 generate_test_id() {
@@ -48,45 +85,43 @@ execute_rpc() {
             "params": $params
         }')
 
-    # Execute and filter to get only the response with matching ID
-    local python_exec
-    python_exec=$(get_python_executable)
-
     # Debug output in test mode
     if [[ "${GANDALF_TEST_MODE:-}" == "true" ]]; then
-        echo "DEBUG: Request: $request" >&2
-        echo "DEBUG: Python exec: $python_exec" >&2
-        echo "DEBUG: Project root: $project_root" >&2
-        echo "DEBUG: PYTHONPATH: $PYTHONPATH" >&2
-        echo "DEBUG: Server path: $SERVER_DIR/main.py" >&2
+        cat <<EOF >&2
+        DEBUG: Request: $request
+        DEBUG: Project root: $project_root
+        DEBUG: PYTHONPATH: $PYTHONPATH
+        DEBUG: Server path: $SERVER_DIR/main.py
+EOF
     fi
 
     # Separate stdout and stderr - only capture stdout for JSON responses
     local temp_stdout=$(mktemp)
     local temp_stderr=$(mktemp)
-    
-    echo "$request" | "$python_exec" "$SERVER_DIR/main.py" --project-root "$project_root" >"$temp_stdout" 2>"$temp_stderr"
+
+    echo "$request" | python3 "$SERVER_DIR/main.py" --project-root "$project_root" >"$temp_stdout" 2>"$temp_stderr"
     local exit_code=$?
-    
+
     local full_output
     full_output=$(cat "$temp_stdout")
     local error_output
     error_output=$(cat "$temp_stderr")
-    
+
     # Debug output in test mode
     if [[ "${GANDALF_TEST_MODE:-}" == "true" ]]; then
-        echo "DEBUG: Exit code: $exit_code" >&2
-        echo "DEBUG: Full output length: ${#full_output}" >&2
-        echo "DEBUG: Error output length: ${#error_output}" >&2
+        cat <<EOF >&2
+DEBUG: Exit code: $exit_code
+DEBUG: Full output length: ${#full_output}
+DEBUG: Error output length: ${#error_output}
+EOF
         if [[ -n "$error_output" ]]; then
             echo "DEBUG: Error output (first 300 chars): ${error_output:0:300}" >&2
         fi
         echo "DEBUG: Full output (first 300 chars): ${full_output:0:300}" >&2
     fi
-    
-    # Clean up temp files
-    rm -f "$temp_stdout" "$temp_stderr"
-    
+
+    # rm -f "$temp_stdout" "$temp_stderr"
+
     # If there was an error, return empty response
     if [[ $exit_code -ne 0 ]]; then
         if [[ "${GANDALF_TEST_MODE:-}" == "true" ]]; then
@@ -112,13 +147,7 @@ execute_rpc() {
     done <"$temp_file"
 
     rm -f "$temp_file"
-    
-    # Debug output in test mode
-    if [[ "${GANDALF_TEST_MODE:-}" == "true" ]]; then
-        echo "DEBUG: Final response length: ${#response}" >&2
-        echo "DEBUG: Final response: $response" >&2
-    fi
-    
+
     echo "$response"
 }
 

@@ -4,11 +4,7 @@
 
 set -eo pipefail
 
-GIT_ROOT=$(git rev-parse --show-toplevel)
-GANDALF_ROOT="$GIT_ROOT/gandalf"
-
-# Source shared test helpers and environment variables
-source "$GANDALF_ROOT/tests/shell/fixtures/helpers/test-helpers.sh"
+load 'fixtures/helpers/test-helpers'
 
 create_context_intelligence_project() {
     echo "# The Test of Context Intelligence" >README.md

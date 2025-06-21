@@ -4,11 +4,7 @@
 
 set -eo pipefail
 
-GIT_ROOT=$(git rev-parse --show-toplevel)
-GANDALF_ROOT="$GIT_ROOT/gandalf"
-
-# Source shared test helpers and environment variables
-source "$GANDALF_ROOT/tests/shell/fixtures/helpers/test-helpers.sh"
+load 'fixtures/helpers/test-helpers'
 
 create_large_project_structure() {
     # Create multiple directories with various file types
@@ -117,10 +113,10 @@ teardown() {
     for i in {1..5}; do
         execute_rpc "tools/call" '{"name": "ingest_conversations", "arguments": {"fast_mode": true, "limit": 5, "days_lookback": 7}}' >/dev/null
     done
-    
+
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
-    
+
     # Should complete within reasonable time (10 seconds for 5 ingestion calls)
     [[ $duration -le 10 ]]
 }

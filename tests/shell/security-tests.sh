@@ -4,11 +4,7 @@
 
 set -eo pipefail
 
-GIT_ROOT=$(git rev-parse --show-toplevel)
-GANDALF_ROOT="$GIT_ROOT/gandalf"
-SERVER_DIR="$GANDALF_ROOT/server"
-
-source "$GANDALF_ROOT/tests/shell/fixtures/helpers/test-helpers.sh"
+load 'fixtures/helpers/test-helpers'
 
 create_security_project() {
     echo "# The Black Gate" >README.md
@@ -695,7 +691,7 @@ teardown() {
 
         # Should return valid JSON response
         [[ -n "$response_content" ]]
-        
+
         # Check if it's a valid response (either conversations or error message)
         if ! echo "$response_content" | grep -q "conversations\|workspaces\|No conversations"; then
             # If not a standard response, should be an error message
@@ -801,10 +797,10 @@ teardown() {
         local content
         content=$(echo "$output" | jq -r '.result.content[0].text')
         [[ -n "$content" ]]
-        
+
         # Should return valid response (conversations, error, or no results)
         if ! echo "$content" | grep -q "conversations\|workspaces\|No conversations"; then
-            # If not a standard response, should be an error message  
+            # If not a standard response, should be an error message
             echo "$content" | grep -q "Error\|error" || true
         fi
     done

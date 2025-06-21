@@ -5,13 +5,13 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 GANDALF_ROOT="$(dirname "$SCRIPT_DIR")"
 
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export MCP_DEBUG="${MCP_DEBUG:-true}"
 
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
 TESTS_DIR="$GANDALF_ROOT/tests"
 SCRIPTS_DIR="$GANDALF_ROOT/scripts"
 
@@ -71,7 +71,7 @@ run_tests_suite() {
 check_conversation_system() {
     echo "Checking MCP conversation system..."
 
-    if command -v "$SCRIPTS_DIR/conversations.sh" >/dev/null 2>&1; then
+    if [[ -x "$SCRIPTS_DIR/conversations.sh" ]]; then
         if "$SCRIPTS_DIR/conversations.sh" workspaces >/dev/null 2>&1; then
             echo "MCP conversation tools are working"
 
@@ -85,7 +85,7 @@ check_conversation_system() {
             echo "Warning: MCP conversation tools are not responding properly"
         fi
     else
-        echo "Warning: conversations.sh script not found"
+        echo "Warning: conversations.sh script not found or not executable"
     fi
 
     echo "Conversation check complete"
@@ -179,7 +179,7 @@ lembas() {
     local force_flag=""
 
     if [[ $# -eq 0 || "${1:-}" == -* ]]; then
-        repo_path="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+        repo_path="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
     else
         repo_path="$1"
         shift

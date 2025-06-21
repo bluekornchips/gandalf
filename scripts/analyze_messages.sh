@@ -2,43 +2,80 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly GANDALF_ROOT="$(dirname "$SCRIPT_PATH")"
+readonly MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
+readonly LOG_DIR="$HOME/.$MCP_SERVER_NAME/conversation_logs"
 
-SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
-GANDALF_ROOT="$(dirname "$(dirname "$SCRIPT_PATH")")"
+export MCP_SERVER_NAME
 
-export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
-
-LOG_DIR="$HOME/.$MCP_SERVER_NAME/conversation_logs"
-
-# Show usage information
-show_usage() {
-    cat <<EOF
-Usage: $0 [options] [logfile]
-
-Analyze Gandalf message logs for patterns and performance
-
-Options:
-    -h, --help      Show this help message
-    -s, --stats     Show detailed statistics
-    -e, --errors    Show error messages only
-    -t, --tail      Tail the latest log file
-    -l, --latest    Show info about the latest log file
-
-If no logfile is specified, uses the most recent log file.
-EOF
+check_log_directory() {
+    [[ -d "$LOG_DIR" ]] || {
+        echo "No message logs directory found at: $LOG_DIR" >&2
+        exit 1
+    }
 }
 
 require_jq() {
-    if ! command -v jq >/dev/null 2>&1; then
-        cat <<EOF
+    command -v jq &>/dev/null || {
+        cat >&2 <<EOF
 Error: jq is required for this operation
-Install: brew install jq (macOS) or apt-get install jq (Linux)
+
+Installation options:
+    macOS:    brew install jq
+    Ubuntu:   sudo apt-get install jq
+
 EOF
         exit 1
+    }
+}
+
+get_file_size() {
+    local file="$1"
+    if command -v du >/dev/null 2>&1; then
+        du -h "$file" 2>/dev/null | cut -f1 || echo "unknown"
+    elif [[ -f "$file" ]]; then
+        echo "$(wc -c <"$file" 2>/dev/null || echo "0") bytes"
+    else
+        echo "unknown"
     fi
 }
 
+get_file_date() {
+    local file="$1"
+    if command -v stat >/dev/null 2>&1; then
+        stat -c '%y' "$file" 2>/dev/null ||
+            stat -f '%Sm' "$file" 2>/dev/null ||
+            echo "unknown"
+    elif command -v ls >/dev/null 2>&1; then
+        ls -l "$file" 2>/dev/null | awk '{print $6, $7, $8}' || echo "unknown"
+    else
+        echo "unknown"
+    fi
+}
+
+# Safe JSON extraction with fallbacks
+safe_jq() {
+    local query="$1" input="$2" default="${3:-unknown}"
+
+    if command -v jq >/dev/null 2>&1; then
+        echo "$input" | jq -r "$query" 2>/dev/null || echo "$default"
+    else
+        echo "$default"
+    fi
+}
+
+has_error() {
+    local line="$1"
+    if command -v jq >/dev/null 2>&1; then
+        echo "$line" | jq -e '.data.error' >/dev/null 2>&1
+    else
+        # uncomplicated grep fallback
+        echo "$line" | grep -q '"error"' 2>/dev/null
+    fi
+}
+
+# File handling utilities
 get_logfile() {
     local input="$1"
     if [[ -f "$input" ]]; then
@@ -56,6 +93,171 @@ validate_logfile() {
         echo "Error: Log file not found: $1" >&2
         exit 1
     }
+}
+
+get_latest_log() {
+    check_log_directory
+    find "$LOG_DIR" -name "*.jsonl" -type f | xargs ls -t | head -1
+}
+
+# Display utilities
+show_header() {
+    local title="$1"
+    cat <<EOF
+$title
+"================================"
+EOF
+}
+
+show_log_header() {
+    local logfile="$1"
+    show_header "Message Log: ${logfile##*/}"
+}
+
+show_error_header() {
+    show_header "Error Messages"
+}
+
+process_log_line() {
+    local line="$1"
+    local type timestamp
+
+    type=$(safe_jq '.type' "$line" "unknown")
+    timestamp=$(safe_jq '.timestamp' "$line" "unknown")
+
+    case "$type" in
+    "session_start")
+        local project_root pid
+        project_root=$(safe_jq '.project_root' "$line" "unknown")
+        pid=$(safe_jq '.pid' "$line" "unknown")
+        cat <<EOF
+SESSION START - $timestamp
+    Project: $project_root
+    PID: $pid
+EOF
+        ;;
+    "session_end")
+        local total_messages
+        total_messages=$(safe_jq '.total_messages' "$line" "unknown")
+        cat <<EOF
+SESSION END - $timestamp
+    Total Messages: $total_messages
+EOF
+        ;;
+    "request")
+        local method
+        method=$(safe_jq '.data.method' "$line" "unknown")
+        echo "REQUEST - $timestamp - $method"
+
+        case "$method" in
+        "tools/call")
+            local tool_name
+            tool_name=$(safe_jq '.data.params.name' "$line" "unknown")
+            echo "   Tool: $tool_name"
+            ;;
+        esac
+        ;;
+    "response")
+        echo "RESPONSE - $timestamp"
+
+        if has_error "$line"; then
+            local error_msg
+            error_msg=$(safe_jq '.data.error.message' "$line" "unknown error")
+            echo "   Error: $error_msg"
+        else
+            echo "   Success"
+        fi
+        ;;
+    "notification")
+        local method level message
+        method=$(safe_jq '.data.method' "$line" "unknown")
+        level=$(safe_jq '.data.params.level' "$line" "unknown")
+        message=$(safe_jq '.data.params.message' "$line" "unknown")
+        echo "NOTIFICATION - $timestamp - $method ($level)"
+        echo "   $message"
+        ;;
+    *)
+        echo "UNKNOWN - $timestamp - $type"
+        ;;
+    esac
+    echo
+}
+
+format_tail_line() {
+    local line="$1"
+
+    command -v jq &>/dev/null || {
+        echo "$line"
+        return
+    }
+
+    local type timestamp
+    type=$(safe_jq '.type' "$line" "")
+    timestamp=$(safe_jq '.timestamp' "$line" "")
+
+    case "$type" in
+    "request")
+        local method
+        method=$(safe_jq '.data.method' "$line" "")
+        case "$method" in
+        "tools/call")
+            local tool_name
+            tool_name=$(safe_jq '.data.params.name' "$line" "unknown")
+            echo "REQUEST $timestamp: $tool_name"
+            ;;
+        *)
+            echo "REQUEST $timestamp: $method"
+            ;;
+        esac
+        ;;
+    "response")
+        if has_error "$line"; then
+            local error_msg
+            error_msg=$(safe_jq '.data.error.message' "$line" "unknown error")
+            echo "ERROR $timestamp: $error_msg"
+        else
+            echo "RESPONSE $timestamp: Success"
+        fi
+        ;;
+    "notification")
+        local level
+        level=$(safe_jq '.data.params.level' "$line" "")
+        case "$level" in
+        "error")
+            local message
+            message=$(safe_jq '.data.params.message' "$line" "unknown")
+            echo "ALERT $timestamp: $message"
+            ;;
+        *)
+            echo "NOTIFICATION $timestamp: $level"
+            ;;
+        esac
+        ;;
+    "")
+        echo "$line"
+        ;;
+    *)
+        echo "${type^^} $timestamp"
+        ;;
+    esac
+}
+
+# Show usage information
+show_usage() {
+    cat <<EOF
+Usage: $0 [options] [logfile]
+
+Analyze Gandalf message logs for patterns and performance
+
+Options:
+    -h, --help      Show this help message
+    -s, --stats     Show detailed statistics
+    -e, --errors    Show error messages only
+    -t, --tail      Tail the latest log file
+    -l, --latest    Show info about the latest log file
+
+If no logfile is specified, uses the most recent log file.
+EOF
 }
 
 usage() {
@@ -88,150 +290,143 @@ EOF
 }
 
 list_logs() {
-    [[ -d "$LOG_DIR" ]] || {
-        echo "No message logs directory found at: $LOG_DIR" >&2
-        exit 1
-    }
+    check_log_directory
 
-    cat <<'EOF'
-Available message log files:
-============================
+    show_header "Available message log files:"
 
-EOF
-
-    if stat -f "%m %N" /dev/null >/dev/null 2>&1; then
-        find "$LOG_DIR" -name "*.jsonl" -type f -exec stat -f "%m %N" {} \; | sort -nr | cut -d' ' -f2-
-    else
-        find "$LOG_DIR" -name "*.jsonl" -type f -printf "%T@ %p\n" | sort -nr | cut -d' ' -f2-
-    fi | while read -r logfile; do
-        local basename=$(basename "$logfile")
-        local session_id=$(echo "$basename" | grep -o '[a-f0-9]\{16\}' | head -1)
-        local size=$(du -h "$logfile" | cut -f1)
-        local modified=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$logfile" 2>/dev/null ||
-            stat -c "%y" "$logfile" 2>/dev/null | cut -d. -f1)
-
-        printf "%-60s %s (%s)\n" "$basename" "$session_id" "$size"
-    done
-}
-
-get_latest_log() {
-    [[ -d "$LOG_DIR" ]] || {
-        echo "No message logs directory found" >&2
-        exit 1
-    }
-
-    find "$LOG_DIR" -name "*.jsonl" -type f -exec stat -f "%m %N" {} \; 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2- ||
-        find "$LOG_DIR" -name "*.jsonl" -type f -printf "%T@ %p\n" 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-
-}
-
-# Show log file header
-show_log_header() {
-    local logfile="$1"
-    cat <<EOF
-Message Log: $(basename "$logfile")
-================================
-
-EOF
+    find "$LOG_DIR" -name "*.jsonl" -type f | while read -r logfile; do
+        local filename="${logfile##*/}"
+        local session_id size
+        session_id=$(echo "$filename" | grep -o '[a-f0-9]\{16\}' | head -1)
+        size=$(du -h "$logfile" | cut -f1)
+        printf "%-60s %s (%s)\n" "$filename" "$session_id" "$size"
+    done | sort
 }
 
 show_session() {
     require_jq
-    local logfile=$(get_logfile "$1")
+    local logfile
+    logfile=$(get_logfile "$1")
     validate_logfile "$logfile"
 
     show_log_header "$logfile"
 
-    # Use jq to process and format in one pass
-    jq -r '
-        if .type == "session_start" then
-            "SESSION START - \(.timestamp)\n   Project: \(.project_root)\n   PID: \(.pid)"
-        elif .type == "session_end" then
-            "SESSION END - \(.timestamp)\n   Total Messages: \(.total_messages)"
-        elif .type == "request" then
-            if .data.method == "tools/call" then
-                "REQUEST - \(.timestamp) - \(.data.method)\n   Tool: \(.data.params.name)"
-            else
-                "REQUEST - \(.timestamp) - \(.data.method)"
-            end
-        elif .type == "response" then
-            if .data.error then
-                "RESPONSE - \(.timestamp)\n   Error: \(.data.error.message)"
-            else
-                "RESPONSE - \(.timestamp)\n   Success"
-            end
-        elif .type == "notification" then
-            "NOTIFICATION - \(.timestamp) - \(.data.method) (\(.data.params.level))\n   \(.data.params.message)"
-        else
-            "UNKNOWN - \(.timestamp) - \(.type)"
-        end + "\n"
-    ' "$logfile"
+    while IFS= read -r line; do
+        process_log_line "$line"
+    done <"$logfile"
 }
 
 show_stats() {
     require_jq
-    local logfile=$(get_logfile "$1")
+    local logfile
+    logfile=$(get_logfile "$1")
     validate_logfile "$logfile"
 
-    cat <<EOF
-Statistics for Session: $(basename "$logfile" .jsonl)
-=====================================
+    show_header "Statistics for Session: ${logfile##*/%.jsonl}"
 
+    local total_count=0 request_count=0 response_count=0
+    local notification_count=0 error_count=0
+    local start_time="unknown" end_time="unknown"
+
+    while IFS= read -r line; do
+        ((total_count++))
+
+        local type
+        type=$(safe_jq '.type' "$line" "")
+
+        case "$type" in
+        "request") ((request_count++)) ;;
+        "response")
+            ((response_count++))
+            has_error "$line" && ((error_count++))
+            ;;
+        "notification") ((notification_count++)) ;;
+        "session_start") start_time=$(safe_jq '.timestamp' "$line" "unknown") ;;
+        "session_end") end_time=$(safe_jq '.timestamp' "$line" "unknown") ;;
+        esac
+    done <"$logfile"
+
+    cat <<EOF
+Total Messages: $total_count
+Requests: $request_count
+Responses: $response_count
+Notifications: $notification_count
+Errors: $error_count
+
+Timeline:
+Start: $start_time
+End: $end_time
+
+Tool Usage:
 EOF
 
-    # Single jq pass to generate all statistics using slurp mode
-    jq -sr '
-        (. | length) as $total |
-        (. | map(select(.type == "request")) | length) as $requests |
-        (. | map(select(.type == "response")) | length) as $responses |
-        (. | map(select(.type == "notification")) | length) as $notifications |
-        (. | map(select(.type == "response" and .data.error)) | length) as $errors |
-        (. | map(select(.type == "session_start")) | .[0].timestamp // "unknown") as $start |
-        (. | map(select(.type == "session_end")) | .[0].timestamp // "unknown") as $end |
-        
-        "Total Messages: \($total)",
-        "Requests: \($requests)",
-        "Responses: \($responses)", 
-        "Notifications: \($notifications)",
-        "Errors: \($errors)",
-        "",
-        "Timeline:",
-        "Start: \($start)",
-        "End: \($end)",
-        "",
-        "Tool Usage:"
-    ' "$logfile"
-
-    # Tool usage frequency
-    jq -r 'select(.type == "request" and .data.method == "tools/call") | .data.params.name' "$logfile" |
-        sort | uniq -c | sort -nr | sed 's/^/   /'
+    if command -v grep >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+        grep -h '"tools/call"' "$logfile" 2>/dev/null |
+            jq -r '.data.params.name // "unknown"' 2>/dev/null |
+            sort | uniq -c | sort -nr |
+            sed 's/^/   /'
+    else
+        echo "jq or grep not available for tool analysis"
+    fi
 }
 
-summary() {
+show_summary() {
     require_jq
-    local logfile=$(get_logfile "$1")
+    local logfile
+    logfile=$(get_logfile "$1")
     validate_logfile "$logfile"
 
-    jq -sr '
-        (. | map(select(.type == "session_start")) | .[0]) as $session |
-        (. | map(select(.type == "request" and .data.method == "tools/call")) | map(.data.params.name)) as $tools |
-        (. | map(select(.type == "response" and .data.error)) | length) as $errors |
-        (. | map(select(.type == "session_end")) | .[0].timestamp // "ongoing") as $end |
-        
-        "Session Summary: \($session.session_id)",
-        "Project: \($session.project_root)",
-        "Duration: \($session.timestamp) to \($end)",
-        "Tools Used: \($tools | unique | join(", "))",
-        "Total Messages: \(. | length)",
-        "Errors: \($errors)"
-    ' "$logfile"
-}
+    local session_id="unknown" project_root="unknown"
+    local start_time="unknown" end_time="ongoing"
+    local total_messages=0 error_count=0
+    local -a tools_used=()
 
-# Show error section header
-show_error_header() {
+    while IFS= read -r line; do
+        ((total_messages++))
+
+        local type
+        type=$(safe_jq '.type' "$line" "")
+
+        case "$type" in
+        "session_start")
+            session_id=$(safe_jq '.session_id' "$line" "unknown")
+            project_root=$(safe_jq '.project_root' "$line" "unknown")
+            start_time=$(safe_jq '.timestamp' "$line" "unknown")
+            ;;
+        "session_end")
+            end_time=$(safe_jq '.timestamp' "$line" "unknown")
+            ;;
+        "request")
+            local method
+            method=$(safe_jq '.data.method' "$line" "")
+            if [[ "$method" == "tools/call" ]]; then
+                local tool_name
+                tool_name=$(safe_jq '.data.params.name' "$line" "")
+                [[ -n "$tool_name" && "$tool_name" != "unknown" ]] && tools_used+=("$tool_name")
+            fi
+            ;;
+        "response")
+            has_error "$line" && ((error_count++))
+            ;;
+        esac
+    done <"$logfile"
+
+    local unique_tools="none"
+    if [[ ${#tools_used[@]} -gt 0 ]]; then
+        local -A unique_tools_map
+        for tool in "${tools_used[@]}"; do
+            unique_tools_map["$tool"]=1
+        done
+        unique_tools=$(printf '%s, ' "${!unique_tools_map[@]}" | sed 's/, $//')
+    fi
+
     cat <<EOF
-Error Messages
-=================
-
+Session Summary: $session_id
+Project: $project_root
+Duration: $start_time to $end_time
+Tools Used: $unique_tools
+Total Messages: $total_messages
+Errors: $error_count
 EOF
 }
 
@@ -242,13 +437,26 @@ show_errors() {
     show_error_header
 
     find "$LOG_DIR" -name "${logfile_pattern}*.jsonl" -type f | while read -r logfile; do
-        local basename=$(basename "$logfile")
-        local error_count=$(jq -r 'select(.type == "response" and .data.error)' "$logfile" 2>/dev/null | wc -l)
+        local filename="${logfile##*/}"
+        local error_count=0
+        local -a errors_found=()
 
-        if [[ "$error_count" -gt 0 ]]; then
-            echo "$basename ($error_count errors)"
-            jq -r 'select(.type == "response" and .data.error) | 
-                "   Error \(.timestamp): \(.data.error.message)"' "$logfile"
+        while IFS= read -r line; do
+            local type
+            type=$(safe_jq '.type' "$line" "")
+
+            if [[ "$type" == "response" ]] && has_error "$line"; then
+                ((error_count++))
+                local timestamp error_msg
+                timestamp=$(safe_jq '.timestamp' "$line" "unknown")
+                error_msg=$(safe_jq '.data.error.message' "$line" "unknown error")
+                errors_found+=("   Error $timestamp: $error_msg")
+            fi
+        done <"$logfile"
+
+        if [[ $error_count -gt 0 ]]; then
+            echo "$filename ($error_count errors)"
+            printf '%s\n' "${errors_found[@]}"
             echo
         fi
     done
@@ -258,12 +466,8 @@ show_tools() {
     require_jq
     local logfile_pattern="${1:-*}"
 
-    cat <<EOF
-Tool Usage Analysis
-====================="
-EOF
+    show_header "Tool Usage Analysis"
 
-    # Aggregate tool usage across sessions
     find "$LOG_DIR" -name "${logfile_pattern}*.jsonl" -type f -exec cat {} \; |
         jq -r 'select(.type == "request" and .data.method == "tools/call") | .data.params.name' |
         sort | uniq -c | sort -nr |
@@ -282,35 +486,19 @@ tail_log() {
 
     validate_logfile "$logfile"
 
-    cat <<EOF
-Tailing: $(basename "$logfile")
-Press Ctrl+C to stop
-
-EOF
+    show_header "Tailing: ${logfile##*/}"
+    echo -e "Press Ctrl+C to stop\n"
 
     tail -f "$logfile" | while read -r line; do
-        if command -v jq >/dev/null 2>&1; then
-            echo "$line" | jq -r '
-                if .type == "request" and .data.method == "tools/call" then
-                    "REQUEST \(.timestamp): \(.data.params.name)"
-                elif .type == "response" and .data.error then
-                    "ERROR \(.timestamp): \(.data.error.message)"
-                elif .type == "notification" and .data.params.level == "error" then
-                    "ALERT \(.timestamp): \(.data.params.message)"
-                else
-                    "\(.type | ascii_upcase) \(.timestamp)"
-                end
-            ' 2>/dev/null || echo "$line"
-        else
-            echo "$line"
-        fi
+        format_tail_line "$line"
     done
 }
 
 export_session() {
     require_jq
-    local logfile=$(get_logfile "$1")
-    local output_file="$2"
+    local logfile output_file
+    logfile=$(get_logfile "$1")
+    output_file="$2"
     validate_logfile "$logfile"
 
     echo "Exporting session to: $output_file"
@@ -333,24 +521,19 @@ export_session() {
     echo "Export complete: $output_file"
 }
 
-# Show latest log info
 show_latest_log_info() {
     local latest_log="$1"
     cat <<EOF
-Latest log: $(basename "$latest_log")
-File size: $(du -h "$latest_log" | cut -f1)
-Modified: $(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$latest_log" 2>/dev/null || stat -c "%y" "$latest_log" 2>/dev/null | cut -d. -f1)
+Latest log: ${latest_log##*/}
+File size: $(get_file_size "$latest_log")
+Modified: $(get_file_date "$latest_log")
 EOF
 }
 
-# Start tailing log
 start_tail() {
     local latest_log="$1"
-    cat <<EOF
-Tailing latest log: $(basename "$latest_log")
-Press Ctrl+C to stop
-
-EOF
+    show_header "Tailing latest log: ${latest_log##*/}"
+    echo -e "Press Ctrl+C to stop\n"
     tail -f "$latest_log"
 }
 
@@ -387,7 +570,7 @@ main() {
             echo "Usage: $0 summary <session_id>" >&2
             exit 1
         }
-        summary "$2"
+        show_summary "$2"
         ;;
     errors) show_errors "${2:-}" ;;
     tools) show_tools "${2:-}" ;;

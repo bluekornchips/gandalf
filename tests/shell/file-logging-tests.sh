@@ -1,28 +1,18 @@
 #!/usr/bin/env bats
 
-GIT_ROOT=$(git rev-parse --show-toplevel)
-GANDALF_ROOT="$GIT_ROOT/gandalf"
-SERVER_DIR="$GANDALF_ROOT/server"
+load '../fixtures/helpers/test-helpers'
 
 setup() {
     export ORIGINAL_MCP_DEBUG="$MCP_DEBUG"
     export MCP_DEBUG=1
 
-    # Create a temporary session for testing
     TEST_SESSION_ID="test_$(date +%s)"
     TEMP_LOGS_DIR=$(mktemp -d)
     export GANDALF_HOME="$TEMP_LOGS_DIR/.gandalf"
 }
 
 teardown() {
-    if [[ -n "$ORIGINAL_MCP_DEBUG" ]]; then
-        export MCP_DEBUG="$ORIGINAL_MCP_DEBUG"
-    else
-        unset MCP_DEBUG
-    fi
-
-    # Clean up temporary logs
-    [[ -n "$TEMP_LOGS_DIR" ]] && rm -rf "$TEMP_LOGS_DIR"
+    rm -rf "$TEMP_LOGS_DIR"
 }
 
 # Helper function to execute Python code with file logging
