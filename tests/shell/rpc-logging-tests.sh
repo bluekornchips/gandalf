@@ -1,19 +1,9 @@
 #!/usr/bin/env bats
 
-GIT_ROOT=$(git rev-parse --show-toplevel)
-GANDALF_ROOT="$GIT_ROOT/gandalf"
-SERVER_DIR="$GANDALF_ROOT/server"
+load '../fixtures/helpers/test-helpers'
 
 setup() {
     export ORIGINAL_MCP_DEBUG="$MCP_DEBUG"
-}
-
-teardown() {
-    if [[ -n "$ORIGINAL_MCP_DEBUG" ]]; then
-        export MCP_DEBUG="$ORIGINAL_MCP_DEBUG"
-    else
-        unset MCP_DEBUG
-    fi
 }
 
 execute_utils_function() {

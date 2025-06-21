@@ -160,7 +160,7 @@ get_python_executable() {
 verify_prerequisites() {
     local failed=false
 
-    if ! command -v python3 >/dev/null 2>&1; then
+    if ! command -v python3 &>/dev/null; then
         echo "Error: Python 3 is required but not found"
         failed=true
     fi
@@ -171,7 +171,7 @@ verify_prerequisites() {
         failed=true
     fi
 
-    if ! command -v git >/dev/null 2>&1; then
+    if ! command -v git &>/dev/null; then
         echo "Error: Git is required but not found"
         failed=true
     fi
@@ -240,7 +240,7 @@ update_cursor_config() {
         cp "$config_file" "$config_file.backup.$(date +%s)"
         temp_file=$(mktemp)
 
-        if command -v jq >/dev/null 2>&1; then
+        if command -v jq &>/dev/null; then
             jq --arg name "$server_name" \
                 --arg cmd "$mcp_script" \
                 '.mcpServers[$name] = {
@@ -499,11 +499,11 @@ if [[ -n "$REPO_ROOT" ]]; then
         echo "Specified repository root does not exist: $REPO_ROOT"
         exit 1
     fi
-    REPO_ROOT="$(cd "$REPO_ROOT" && pwd)"
+    REPO_ROOT="$(cd "$REPO_ROOT" && pwd -P)"
 elif git rev-parse --git-dir >/dev/null 2>&1; then
     REPO_ROOT="$(git rev-parse --show-toplevel)"
 else
-    REPO_ROOT="$(pwd)"
+    REPO_ROOT="$(pwd -P)"
 fi
 
 echo "Repository: $REPO_ROOT"

@@ -21,19 +21,93 @@ def get_default_cursor_path() -> Path:
     system = platform.system().lower()
 
     if system == "darwin":  # macOS
-        return Path.home() / "Library" / "Application Support" / "Cursor" / "User"
+        base_path = Path.home() / "Library" / "Application Support" / "Cursor" / "User"
+
+        # SSH remote sessions for macOS
+        remote_paths = [
+            Path.home() / ".cursor-server" / "data" / "User",  # SSH remote sessions
+        ]
+
+        for remote_path in remote_paths:
+            if remote_path.exists():
+                # Check if this path has more recent data
+                remote_workspace = (
+                    remote_path.parent / "workspaceStorage"
+                    if remote_path.name == "User"
+                    else remote_path / "workspaceStorage"
+                )
+                base_workspace = base_path / "workspaceStorage"
+
+                if remote_workspace.exists() and not base_workspace.exists():
+                    return (
+                        remote_path
+                        if remote_path.name == "User"
+                        else remote_path / "User"
+                    )
+
+        return base_path
+
     elif system == "linux":
         # Linux follows XDG specification
         config_home = Path.home() / ".config"
         if "XDG_CONFIG_HOME" in os.environ:
             config_home = Path(os.environ["XDG_CONFIG_HOME"])
-        return config_home / "Cursor" / "User"
-    elif system == "windows":
-        # Windows AppData path
-        return Path.home() / "AppData" / "Roaming" / "Cursor" / "User"
+
+        base_path = config_home / "Cursor" / "User"
+
+        # SSH remote development detection for Linux
+        if os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_CLIENT"):
+            remote_paths = [
+                Path.home() / ".cursor-server" / "data" / "User",
+            ]
+            for remote_path in remote_paths:
+                if remote_path.exists():
+                    return remote_path
+
+        return base_path
+
     else:
-        # Fallback to Linux-style for unknown systems
+        # Fallback for unknown systems
         return Path.home() / ".config" / "Cursor" / "User"
+
+
+def find_all_cursor_paths() -> List[Path]:
+    """Find all possible Cursor data paths for database discovery across supported platforms."""
+    paths = []
+    system = platform.system().lower()
+
+    # primary path
+    primary_path = get_default_cursor_path()
+    if primary_path.exists():
+        paths.append(primary_path)
+
+    # additional search paths based on supported systems
+    if system == "darwin":
+        additional_paths = [
+            Path.home() / "Library" / "Application Support" / "Cursor" / "User",
+            Path.home() / ".cursor-server" / "data" / "User",  # SSH remote
+        ]
+    elif system == "linux":
+        config_home = Path.home() / ".config"
+        if "XDG_CONFIG_HOME" in os.environ:
+            config_home = Path(os.environ["XDG_CONFIG_HOME"])
+
+        additional_paths = [
+            config_home / "Cursor" / "User",
+            Path.home() / ".config" / "Cursor" / "User",  # standard path
+            Path.home() / ".cursor-server" / "data" / "User",  # SSH remote
+        ]
+    else:
+        additional_paths = [
+            Path.home() / ".config" / "Cursor" / "User",
+        ]
+
+    # Add paths that exist and aren't already included
+    for path in additional_paths:
+        if path.exists() and path not in paths:
+            paths.append(path)
+
+    return paths
 
 
 class CursorQuery:
@@ -44,37 +118,40 @@ class CursorQuery:
     and format results in various output formats.
     """
 
-    def __init__(self, silent=False):
+    def __init__(self, silent: bool = False):
         self.silent = silent
-        self.cursor_data_path = None
+        self.cursor_data_path: Optional[Path] = None
         self._set_cursor_data_path(get_default_cursor_path())
 
-    def _set_cursor_data_path(self, path: Path):
+    def _set_cursor_data_path(self, path: Path) -> None:
         """Set the Cursor data path with validation."""
         if path.exists():
             self.cursor_data_path = path
         elif not self.silent:
             print(f"Warning: Cursor data path not found: {path}")
 
-    def set_cursor_data_path(self, path: Path):
+    def set_cursor_data_path(self, path: Path) -> None:
         """Set custom Cursor data path."""
         self._set_cursor_data_path(path)
 
     def find_workspace_databases(self) -> List[Path]:
-        """Find all workspace database files."""
-        if not self.cursor_data_path:
-            return []
-
-        workspace_storage = self.cursor_data_path / "workspaceStorage"
-        if not workspace_storage.exists():
-            return []
-
+        """Find all workspace database files across all possible Cursor data locations."""
         databases = []
-        for workspace_dir in workspace_storage.iterdir():
-            if workspace_dir.is_dir():
-                db_path = workspace_dir / "state.vscdb"
-                if db_path.exists():
-                    databases.append(db_path)
+        cursor_paths = find_all_cursor_paths() or [get_default_cursor_path()]
+
+        for cursor_path in cursor_paths:
+            if not cursor_path.exists():
+                continue
+
+            workspace_storage = cursor_path / "workspaceStorage"
+            if not workspace_storage.exists():
+                continue
+
+            for workspace_dir in workspace_storage.iterdir():
+                if workspace_dir.is_dir():
+                    db_path = workspace_dir / "state.vscdb"
+                    if db_path.exists() and db_path not in databases:
+                        databases.append(db_path)
 
         return databases
 
@@ -85,10 +162,8 @@ class CursorQuery:
                 cursor = conn.cursor()
                 cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
                 result = cursor.fetchone()
+                return json.loads(result[0]) if result else None
 
-                if result:
-                    return json.loads(result[0])
-                return None
         except (sqlite3.Error, json.JSONDecodeError, OSError) as e:
             if not self.silent:
                 print(f"Error querying database {db_path}: {e}")
@@ -138,13 +213,35 @@ class CursorQuery:
             "databases_with_conversations": len(workspaces),
         }
 
+    def _format_timestamp(self, timestamp: int) -> str:
+        """Format timestamp consistently."""
+        return datetime.fromtimestamp(timestamp / 1000).strftime("%Y-%m-%d %H:%M:%S")
+
+    def _create_message_map(
+        self, prompts: List[Dict], generations: List[Dict]
+    ) -> Dict[str, List]:
+        """Create conversation ID to messages mapping."""
+        prompt_map = {}
+        gen_map = {}
+
+        for prompt in prompts:
+            conv_id = prompt.get("conversationId", "")
+            prompt_map.setdefault(conv_id, []).append(prompt)
+
+        for gen in generations:
+            conv_id = gen.get("conversationId", "")
+            gen_map.setdefault(conv_id, []).append(gen)
+
+        return {"prompts": prompt_map, "generations": gen_map}
+
     def format_as_cursor_markdown(self, data: Dict[str, Any]) -> str:
         """Format conversation data as Cursor-style markdown."""
-        lines = []
-        lines.append("# Cursor Chat History")
-        lines.append(f"Queried: {data.get('query_timestamp', 'Unknown')}")
-        lines.append(f"Total Workspaces: {len(data.get('workspaces', []))}")
-        lines.append("")
+        lines = [
+            "# Cursor Chat History",
+            f"Queried: {data.get('query_timestamp', 'Unknown')}",
+            f"Total Workspaces: {len(data.get('workspaces', []))}",
+            "",
+        ]
 
         for workspace in data.get("workspaces", []):
             workspace_hash = workspace.get("workspace_hash", "Unknown")
@@ -152,95 +249,67 @@ class CursorQuery:
             prompts = workspace.get("prompts", [])
             generations = workspace.get("generations", [])
 
-            lines.append(f"## Workspace: {workspace_hash}")
-            lines.append(f"Conversations: {len(conversations)}")
-            lines.append("")
+            lines.extend(
+                [
+                    f"## Workspace: {workspace_hash}",
+                    f"Conversations: {len(conversations)}",
+                    "",
+                ]
+            )
 
-            # Create conversation ID to prompts/generations mapping
-            prompt_map = {}
-            gen_map = {}
+            message_maps = self._create_message_map(prompts, generations)
 
-            for prompt in prompts:
-                conv_id = prompt.get("conversationId", "")
-                if conv_id not in prompt_map:
-                    prompt_map[conv_id] = []
-                prompt_map[conv_id].append(prompt)
-
-            for gen in generations:
-                conv_id = gen.get("conversationId", "")
-                if conv_id not in gen_map:
-                    gen_map[conv_id] = []
-                gen_map[conv_id].append(gen)
-
-            # Process each conversation
             for conv in conversations:
                 conv_id = conv.get("composerId", "")
                 conv_name = conv.get("name", "Untitled")
                 created_at = conv.get("createdAt", 0)
                 updated_at = conv.get("lastUpdatedAt", 0)
 
-                lines.append(f"### {conv_name}")
-                lines.append(f"**ID:** {conv_id}")
+                lines.extend([f"### {conv_name}", f"**ID:** {conv_id}"])
+
                 if created_at:
-                    lines.append(
-                        f"**Created:** {datetime.fromtimestamp(created_at/1000).strftime('%Y-%m-%d %H:%M:%S')}"
-                    )
+                    lines.append(f"**Created:** {self._format_timestamp(created_at)}")
                 if updated_at:
-                    lines.append(
-                        f"**Updated:** {datetime.fromtimestamp(updated_at/1000).strftime('%Y-%m-%d %H:%M:%S')}"
-                    )
+                    lines.append(f"**Updated:** {self._format_timestamp(updated_at)}")
+
                 lines.append("")
 
-                # Add prompts and generations for this conversation
-                conv_prompts = prompt_map.get(conv_id, [])
-                conv_generations = gen_map.get(conv_id, [])
+                conv_prompts = message_maps["prompts"].get(conv_id, [])
+                conv_generations = message_maps["generations"].get(conv_id, [])
 
                 if conv_prompts or conv_generations:
-                    lines.append("**Conversation:**")
-                    lines.append("")
+                    lines.extend(["**Conversation:**", ""])
 
-                    # Combine and sort by timestamp
                     all_messages = []
-                    for prompt in conv_prompts:
-                        all_messages.append(("user", prompt))
-                    for gen in conv_generations:
-                        all_messages.append(("assistant", gen))
+                    all_messages.extend([("user", p) for p in conv_prompts])
+                    all_messages.extend([("assistant", g) for g in conv_generations])
 
-                    # Sort by timestamp (approximate)
                     all_messages.sort(
                         key=lambda x: x[1].get("unixMs", x[1].get("timestamp", 0))
                     )
 
                     for msg_type, msg in all_messages:
-                        if msg_type == "user":
-                            text = msg.get("text", "")
-                            if text:
-                                lines.append(f"**User:** {text}")
-                                lines.append("")
-                        else:
-                            text = msg.get("text", "")
-                            if text:
-                                lines.append(f"**Assistant:** {text}")
-                                lines.append("")
+                        text = msg.get("text", "")
+                        if text:
+                            lines.extend([f"**{msg_type.title()}:** {text}", ""])
 
-                lines.append("---")
-                lines.append("")
+                lines.extend(["---", ""])
 
         return "\n".join(lines)
 
     def format_as_markdown(self, data: Dict[str, Any]) -> str:
         """Format conversation data as standard markdown."""
-        lines = []
-        lines.append("# Cursor Conversations")
-        lines.append(f"Queried: {data.get('query_timestamp', 'Unknown')}")
-        lines.append("")
+        lines = [
+            "# Cursor Conversations",
+            f"Queried: {data.get('query_timestamp', 'Unknown')}",
+            "",
+        ]
 
         for workspace in data.get("workspaces", []):
             workspace_hash = workspace.get("workspace_hash", "Unknown")
             conversations = workspace.get("conversations", [])
 
-            lines.append(f"## Workspace {workspace_hash}")
-            lines.append("")
+            lines.extend([f"## Workspace {workspace_hash}", ""])
 
             for conv in conversations:
                 conv_name = conv.get("name", "Untitled")
@@ -248,20 +317,12 @@ class CursorQuery:
                 created_at = conv.get("createdAt", 0)
                 updated_at = conv.get("lastUpdatedAt", 0)
 
-                lines.append(f"### {conv_name}")
-                lines.append(f"- **ID**: {conv_id}")
+                lines.extend([f"### {conv_name}", f"- **ID**: {conv_id}"])
 
                 if created_at:
-                    created_str = datetime.fromtimestamp(created_at / 1000).strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-                    lines.append(f"- **Created**: {created_str}")
-
+                    lines.append(f"- **Created**: {self._format_timestamp(created_at)}")
                 if updated_at:
-                    updated_str = datetime.fromtimestamp(updated_at / 1000).strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-                    lines.append(f"- **Updated**: {updated_str}")
+                    lines.append(f"- **Updated**: {self._format_timestamp(updated_at)}")
 
                 lines.append("")
 
@@ -269,33 +330,31 @@ class CursorQuery:
 
     def export_to_file(
         self, data: Dict[str, Any], output_path: Path, format_type: str = "json"
-    ):
+    ) -> None:
         """Export conversation data to file."""
-        try:
-            if format_type == "json":
-                with open(output_path, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=2, ensure_ascii=False)
-            elif format_type == "markdown":
-                content = self.format_as_markdown(data)
-                with open(output_path, "w", encoding="utf-8") as f:
-                    f.write(content)
-            elif format_type == "cursor":
-                content = self.format_as_cursor_markdown(data)
-                with open(output_path, "w", encoding="utf-8") as f:
-                    f.write(content)
-            else:
-                raise ValueError(f"Unsupported format: {format_type}")
+        format_handlers = {
+            "json": lambda: json.dump(
+                data,
+                open(output_path, "w", encoding="utf-8"),
+                indent=2,
+                ensure_ascii=False,
+            ),
+            "markdown": lambda: output_path.write_text(
+                self.format_as_markdown(data), encoding="utf-8"
+            ),
+            "cursor": lambda: output_path.write_text(
+                self.format_as_cursor_markdown(data), encoding="utf-8"
+            ),
+        }
 
+        if format_type not in format_handlers:
+            raise ValueError(f"Unsupported format: {format_type}")
+
+        try:
+            format_handlers[format_type]()
             if not self.silent:
                 print(f"Data exported to: {output_path}")
-
-        except (
-            OSError,
-            IOError,
-            json.JSONEncodeError,
-            ValueError,
-            UnicodeEncodeError,
-        ) as e:
+        except (OSError, IOError, json.JSONEncodeError, UnicodeEncodeError) as e:
             if not self.silent:
                 print(f"Error exporting to {output_path}: {e}")
 

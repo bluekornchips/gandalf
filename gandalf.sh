@@ -2,21 +2,16 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 GANDALF_ROOT="$SCRIPT_DIR"
 
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export MCP_DEBUG="${MCP_DEBUG:-true}"
 
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
 SERVER_DIR="$GANDALF_ROOT/server"
 SCRIPTS_DIR="$GANDALF_ROOT/scripts"
 TESTS_DIR="$GANDALF_ROOT/tests"
-
-# Helper function to get the correct Python executable (no venv support)
-get_python_executable() {
-    echo "python3"
-}
 
 show_usage() {
     cat <<EOF
@@ -63,12 +58,10 @@ case "$COMMAND" in
 "analyze_messages") shift 1 && "$SCRIPTS_DIR/analyze_messages.sh" "$@" ;;
 "run")
     shift 1
-    python_exec=$(get_python_executable)
-    "$python_exec" "$SERVER_DIR/main.py" "$@"
+    python3 "$SERVER_DIR/main.py" "$@"
     ;;
 "test")
     shift 1
-    # Use bash explicitly to handle associative arrays in test-suite-manager.sh
     if [[ $# -eq 0 ]]; then
         bash "$TESTS_DIR/test-suite-manager.sh"
     else

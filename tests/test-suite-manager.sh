@@ -4,10 +4,7 @@ set +x
 
 # Test Suite Manager for Gandalf MCP Server - Shell Tests Only
 
-GIT_ROOT=$(git rev-parse --show-toplevel)
-GANDALF_ROOT="$GIT_ROOT/gandalf"
-TESTS_DIR="$GANDALF_ROOT/tests"
-SERVER_DIR="$GANDALF_ROOT/server"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/shell/fixtures/helpers/test-helpers.sh"
 
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export GANDALF_TEST_MODE="true"
@@ -367,4 +364,4 @@ EOF
 # Execute main if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
-fi 
+fi

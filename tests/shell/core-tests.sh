@@ -4,11 +4,7 @@
 
 set -eo pipefail
 
-GIT_ROOT=$(git rev-parse --show-toplevel)
-GANDALF_ROOT="$GIT_ROOT/gandalf"
-SERVER_DIR="$GANDALF_ROOT/server"
-
-source "$GANDALF_ROOT/tests/shell/fixtures/helpers/test-helpers.sh"
+load 'fixtures/helpers/test-helpers'
 
 setup() {
     shared_setup
@@ -62,7 +58,7 @@ teardown() {
     local malformed_json='{"invalid": json}'
     local python_exec
     python_exec=$(get_python_executable)
-    
+
     run bash -c "echo '$malformed_json' | '$python_exec' '$SERVER_DIR/main.py' --project-root '$TEST_PROJECT_DIR' 2>/dev/null"
     [ "$status" -eq 0 ]
 

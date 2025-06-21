@@ -1,13 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bats
 # Testing of project root detection strategies
 
 set -euo pipefail
 
-GIT_ROOT=$(git rev-parse --show-toplevel)
-GANDALF_ROOT="$GIT_ROOT/gandalf"
-SERVER_DIR="$GANDALF_ROOT/server"
-
-source "$GANDALF_ROOT/tests/shell/fixtures/helpers/test-helpers.sh"
+load 'fixtures/helpers/test-helpers'
 
 setup() {
     shared_setup
@@ -38,7 +34,7 @@ teardown() {
     echo "$result_line" | jq -e '.result.content[0].text | fromjson | .project_root' >/dev/null
     local detected_root
     detected_root=$(echo "$result_line" | jq -r '.result.content[0].text | fromjson | .project_root')
-    
+
     # Compare resolved paths since server resolves symlinks
     local expected_resolved
     expected_resolved=$(cd "$workspace_project" && pwd -P)
@@ -71,7 +67,7 @@ teardown() {
     echo "$result_line" | jq -e '.result.content[0].text | fromjson | .project_root' >/dev/null
     local detected_root
     detected_root=$(echo "$result_line" | jq -r '.result.content[0].text | fromjson | .project_root')
-    
+
     # Compare resolved paths since server resolves symlinks
     local expected1_resolved expected2_resolved
     expected1_resolved=$(cd "$workspace1" && pwd -P)
@@ -100,7 +96,7 @@ teardown() {
     echo "$result_line" | jq -e '.result.content[0].text | fromjson | .project_root' >/dev/null
     local detected_root
     detected_root=$(echo "$result_line" | jq -r '.result.content[0].text | fromjson | .project_root')
-    
+
     # Compare resolved paths since server resolves symlinks
     local expected_resolved
     expected_resolved=$(cd "$TEST_HOME/git-project" && pwd -P)
@@ -127,7 +123,7 @@ teardown() {
     echo "$result_line" | jq -e '.result.content[0].text | fromjson | .project_root' >/dev/null
     local detected_root
     detected_root=$(echo "$result_line" | jq -r '.result.content[0].text | fromjson | .project_root')
-    
+
     # Compare resolved paths since server resolves symlinks
     local expected_resolved
     expected_resolved=$(cd "$git_project" && pwd -P)
@@ -151,7 +147,7 @@ teardown() {
     echo "$result_line" | jq -e '.result.content[0].text | fromjson | .project_root' >/dev/null
     local detected_root
     detected_root=$(echo "$result_line" | jq -r '.result.content[0].text | fromjson | .project_root')
-    
+
     # Compare resolved paths since server resolves symlinks
     local expected_resolved
     expected_resolved=$(cd "$pwd_project" && pwd -P)
@@ -174,7 +170,7 @@ teardown() {
     echo "$result_line" | jq -e '.result.content[0].text | fromjson | .project_root' >/dev/null
     local detected_root
     detected_root=$(echo "$result_line" | jq -r '.result.content[0].text | fromjson | .project_root')
-    
+
     # Compare resolved paths since server resolves symlinks
     local expected_resolved
     expected_resolved=$(cd "$cwd_project" && pwd -P)
@@ -248,7 +244,7 @@ teardown() {
     result_line=$(echo "$output" | grep '"result"' | head -1)
     local detected_root
     detected_root=$(echo "$result_line" | jq -r '.result.content[0].text | fromjson | .project_root')
-    
+
     # Compare resolved paths since server resolves symlinks
     local expected_resolved
     expected_resolved=$(cd "$workspace_path" && pwd -P)

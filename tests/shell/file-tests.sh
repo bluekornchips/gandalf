@@ -4,13 +4,10 @@
 
 set -eo pipefail
 
-GIT_ROOT=$(git rev-parse --show-toplevel)
-GANDALF_ROOT="$GIT_ROOT/gandalf"
-
-# Source shared test helpers and environment variables
-source "$GANDALF_ROOT/tests/shell/fixtures/helpers/test-helpers.sh"
+load 'fixtures/helpers/test-helpers'
 
 create_standard_project() {
+    # Populate the project with some files
     echo "# There and Back Again, a Hobbits Project" >README.md
     echo "print('I'm going on an adventure')" >main.py
     echo "console.log('I'm going on an adventure');" >app.js
@@ -136,7 +133,6 @@ teardown() {
     # Should handle empty directory gracefully
     echo "$content" | grep -q "0 files\|No files\|empty" || [[ -n "$content" ]]
 }
-
 
 @test "list project files with multiple file types" {
     run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {"file_types": [".py", ".js", ".md"]}}'
