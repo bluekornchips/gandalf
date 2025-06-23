@@ -55,40 +55,40 @@ This directory contains comprehensive tests for the Gandalf MCP server, ensuring
 
 All test files follow the same pattern:
 
-# TODO: This is out of date.
-
 ```bash
 #!/usr/bin/env bats
 # Test Description
 # Detailed purpose and scope
 
-set -eo pipefail # Exit on error, pipefail is a bash option that causes a pipeline to fail if any command fails
+set -eo pipefail
 
 # Standard setup
 GIT_ROOT=$(git rev-parse --show-toplevel)
 GANDALF_ROOT="$GIT_ROOT/gandalf"
-SERVER_DIR="$GANDALF_ROOT/server"
 
-source "$GANDALF_ROOT/tests/fixtures/helpers/test-helpers.sh"
+source "$GANDALF_ROOT/tests/shell/fixtures/helpers/test-helpers.sh"
 
 export GANDALF_TEST_MODE="true"
 export MCP_DEBUG="false"
 
 setup() {
-    # Isolated test environment
-    TEST_HOME=$(mktemp -d)
-    export ORIGINAL_HOME="$HOME"
-    export HOME="$TEST_HOME"
-    # ... project setup
+    shared_setup "test-project"
 }
 
 teardown() {
-    export HOME="$ORIGINAL_HOME"
-    [[ -n "$TEST_HOME" && -d "$TEST_HOME" ]] && rm -rf "$TEST_HOME"
+    shared_teardown
 }
 
 @test "descriptive test name" {
-    # Test implementation
+    # Test implementation using helper functions
+    local response
+    response=$(execute_rpc "list_project_files" '{"max_files": 10}')
+    
+    # Validation using helper functions
+    validate_jsonrpc_response "$response"
+    
+    # Assertions
+    [[ "$response" == *"content"* ]]
 }
 ```
 
@@ -146,13 +146,15 @@ command -v bats python3 jq
 
 ```bash
 ./gandalf/tests/test-suite-manager.sh core
-./gandalf/tests/test-suite-manager.sh conversation
 ./gandalf/tests/test-suite-manager.sh file
 ./gandalf/tests/test-suite-manager.sh project
 ./gandalf/tests/test-suite-manager.sh context-intelligence
 ./gandalf/tests/test-suite-manager.sh security
 ./gandalf/tests/test-suite-manager.sh performance
 ./gandalf/tests/test-suite-manager.sh integration
+./gandalf/tests/test-suite-manager.sh workspace-detection
+./gandalf/tests/test-suite-manager.sh rpc-logging
+./gandalf/tests/test-suite-manager.sh file-logging
 ```
 
 ### Test Categories
@@ -180,8 +182,8 @@ command -v bats python3 jq
 # Summary output
 =========================================
 Test Summary:
-Total suites: 8
-Passed: 7
+Total suites: 10
+Passed: 9
 Failed: 1
 
 Failed suites:
