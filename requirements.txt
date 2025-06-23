@@ -1,0 +1,9 @@
+PyYAML>=6.0  # optional
+
+# Testing dependencies
+pytest>=8.0.0
+pytest-cov>=4.0.0
+
+# Development dependencies
+flake8>=7.0.0  # optional
+black>=23.0.0  # optional

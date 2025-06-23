@@ -5,13 +5,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 GANDALF_ROOT="$SCRIPT_DIR"
 
+export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
+
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export MCP_DEBUG="${MCP_DEBUG:-true}"
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
-SERVER_DIR="$GANDALF_ROOT/server"
+SERVER_DIR="$GANDALF_ROOT/src"
 SCRIPTS_DIR="$GANDALF_ROOT/scripts"
-TESTS_DIR="$GANDALF_ROOT/tests"
+TESTS_DIR="$GANDALF_ROOT/tests/shell"
 
 show_usage() {
     cat <<EOF
@@ -21,6 +23,7 @@ USAGE:
     gandalf.sh <command> [options]
 
 COMMANDS:
+    deps [options]              Check system dependencies
     conv <subcommand>           Conversation management
     install [repo] [options]    Install MCP server to repository/directory
     analyze_messages [options]  Analyze comprehensive message logs
@@ -30,6 +33,8 @@ COMMANDS:
     help                        Show this help message
 
 EXAMPLES:
+    gandalf.sh deps                             # Check all dependencies
+    gandalf.sh deps --install                   # Check and offer to install missing deps
     gandalf.sh install                          # Install to current repo
     gandalf.sh install -r                       # Reset existing server and install fresh
     gandalf.sh test                             # Run all tests
@@ -37,6 +42,7 @@ EXAMPLES:
     gandalf.sh lembas /path/to/repo             # Full test cycle
 
 NOTES:
+    - 'deps' verifies Python, Git, BATS, and other system requirements
     - 'install' verifies requirements, configures MCP server, and tests connectivity
     - 'install -r' combines reset and install for a fresh setup
     - 'install' updates Cursor's config but doesn't restart the server
@@ -53,6 +59,7 @@ if ! command -v python3 &>/dev/null; then
 fi
 
 case "$COMMAND" in
+"deps") shift 1 && "$SCRIPTS_DIR/check-dependencies.sh" "$@" ;;
 "conv") shift 1 && "$SCRIPTS_DIR/conversations.sh" "$@" ;;
 "install") shift 1 && "$SCRIPTS_DIR/install.sh" "$@" ;;
 "analyze_messages") shift 1 && "$SCRIPTS_DIR/analyze_messages.sh" "$@" ;;

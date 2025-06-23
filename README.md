@@ -119,10 +119,13 @@ pip install PyYAML>=6.0
 ## Quick Start
 
 ```bash
-# Check dependencies and install
+# Check dependencies first
+./gandalf.sh deps
+
+# Install and configure
 ./gandalf.sh install
 
-# Run tests
+# Run tests to verify
 ./gandalf.sh test
 
 # For global access, add alias:
@@ -154,16 +157,40 @@ alias gdlf='/path/to/gandalf/gandalf'
 
 | Command                    | Purpose                      | Usage                                 |
 | -------------------------- | ---------------------------- | ------------------------------------- |
-| `gandalf setup`            | Verify Python 3.10+ and Git  | Run once globally                     |
+| `gandalf deps [options]`   | Check system dependencies    | Verify Python, Git, BATS, and requirements |
 | `gandalf install [path]`   | Configure repository for MCP | Run per repository                    |
 | `gandalf test [path]`      | Run comprehensive test suite | Verify installation                   |
-| `gandalf reset [server]`   | Remove MCP configurations    | Clean reset                           |
 | `gandalf run [path]`       | Start server manually        | Debugging only                        |
 | `gandalf lembas [repo]`    | Complete validation workflow | Full test -> reset -> install -> test |
 | `gandalf conv store ID`    | Store conversation data      | Manual conversation storage           |
 | `gandalf conv list`        | List stored conversations    | Shows manually stored conversations   |
 | `gandalf conv show ID`     | Show conversation details    | View any stored conversation          |
 | `gandalf analyze_messages` | Analyze MCP message logs     | View protocol activity and statistics |
+
+### Dependency Management
+
+The `deps` command provides comprehensive dependency checking:
+
+```bash
+# Check all dependencies
+gandalf deps
+
+# Check specific components
+gandalf deps --python-only      # Python requirements only
+gandalf deps --bats-only        # BATS testing framework only  
+gandalf deps --core-only        # Core dependencies (Python, Git)
+
+# Interactive installation assistance
+gandalf deps --install          # Offers to help install missing deps
+
+# Quiet mode for scripts
+gandalf deps --quiet             # Exit codes only, minimal output
+```
+
+**Automatic Integration:**
+- `gandalf install` automatically checks core dependencies before installation
+- `gandalf test` verifies BATS and Python requirements before running tests
+- `gandalf lembas` includes full dependency validation in its workflow
 
 ## Usage Recommendations
 
@@ -226,7 +253,7 @@ The server is designed to be managed automatically by Cursor. For debugging, you
 
 ```bash
 # Debug the server directly
-python3 gandalf/server/main.py --project-root /path/to/project
+python3 src/main.py --project-root /path/to/project
 
 # Or use the unified gandalf command
 gandalf run --project-root /path/to/project
@@ -404,7 +431,7 @@ The neutral score of **0.5** was chosen strategically:
 
 #### Configuration
 
-Priority thresholds are defined in `server/config/constants.py`:
+Priority thresholds are defined in `src/config/constants/system.py`:
 
 ```python
 # File relevance scoring constants
@@ -533,7 +560,7 @@ Contains all AI context intelligence settings with detailed explanations and con
 The server uses sensible built-in defaults and automatically reads environment variables for overrides:
 
 ```python
-# Example from server/config/constants.py
+# Example from src/config/constants/system.py
 MAX_PROJECT_FILES = int(os.environ.get('MAX_PROJECT_FILES', '1000'))
 MCP_CACHE_TTL = int(os.environ.get('MCP_CACHE_TTL', '300'))
 MCP_DEBUG = os.environ.get('MCP_DEBUG', 'false').lower() == 'true'

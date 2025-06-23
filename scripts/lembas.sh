@@ -8,11 +8,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 GANDALF_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Ensure PYTHONPATH is set for server imports, maybe there's a better way
+export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
+
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export MCP_DEBUG="${MCP_DEBUG:-true}"
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
-TESTS_DIR="$GANDALF_ROOT/tests"
+TESTS_DIR="$GANDALF_ROOT/tests/shell"
 SCRIPTS_DIR="$GANDALF_ROOT/scripts"
 
 # Global variables for step tracking
@@ -215,8 +218,12 @@ lembas() {
 
     # Reset step tracking
     CURRENT_STEP=0
+    TOTAL_STEPS=8
 
     # Execute all steps
+    run_step "Checking system dependencies" \
+        "$SCRIPTS_DIR/check-dependencies.sh" --quiet || return 1
+
     run_step "Running initial tests" run_tests_suite || return 1
 
     run_step "Installing MCP server with reset" \

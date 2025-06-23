@@ -55,6 +55,8 @@ This directory contains comprehensive tests for the Gandalf MCP server, ensuring
 
 All test files follow the same pattern:
 
+# TODO: This is out of date.
+
 ```bash
 #!/usr/bin/env bats
 # Test Description

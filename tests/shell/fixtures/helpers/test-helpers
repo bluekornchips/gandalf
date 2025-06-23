@@ -26,8 +26,9 @@ setup_gandalf_paths() {
         if [[ -d "$search_dir/src" && -f "$search_dir/src/main.py" ]]; then
             export GANDALF_ROOT="$search_dir"
             export SERVER_DIR="$GANDALF_ROOT/src"
-            export TESTS_DIR="$GANDALF_ROOT/tests/shell"
+            export TESTS_DIR="$GANDALF_ROOT/tests"
             export SCRIPTS_DIR="$GANDALF_ROOT/scripts"
+            export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
             return 0
         fi
         search_dir="$(dirname "$search_dir")"
@@ -37,38 +38,13 @@ setup_gandalf_paths() {
     echo "Warning: Could not auto-detect GANDALF_ROOT, using fallback" >&2
     export GANDALF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd -P)"
     export SERVER_DIR="$GANDALF_ROOT/src"
-    export TESTS_DIR="$GANDALF_ROOT/tests/shell"
+    export TESTS_DIR="$GANDALF_ROOT/tests"
     export SCRIPTS_DIR="$GANDALF_ROOT/scripts"
+    export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
 }
 
 # Auto-setup paths when this file is sourced
 setup_gandalf_paths
-
-# Check test dependencies before running tests
-check_test_dependencies() {
-    local dependency_script="$GANDALF_ROOT/scripts/check-dependencies.sh"
-    
-    if [[ ! -f "$dependency_script" ]]; then
-        echo "Warning: Dependency checker not found at $dependency_script" >&2
-        return 0
-    fi
-    
-    # Check BATS specifically for shell tests
-    if ! "$dependency_script" --bats-only --quiet; then
-        echo "ERROR: BATS (Bash Automated Testing System) is required for shell tests" >&2
-        echo "Install BATS and run tests again" >&2
-        return 1
-    fi
-    
-    # Check Python requirements for MCP server functionality
-    if ! "$dependency_script" --python-only --quiet; then
-        echo "ERROR: Python requirements not satisfied" >&2
-        echo "Run: $dependency_script --python-only for details" >&2
-        return 1
-    fi
-    
-    return 0
-}
 
 # Get Python executable (simplified version for tests)
 get_python_executable() {

@@ -146,7 +146,7 @@ teardown() {
 
     # Get info for project 2 (change to project2 directory)
     cd "$project2"
-    run execute_rpc "tools/call" '{"name": "get_project_info", "arguments": {}}'
+    run execute_rpc "tools/call" '{"name": "get_project_info", "arguments": {}}' "$project2"
     [ "$status" -eq 0 ]
     validate_jsonrpc_response "$output"
     local project2_info
@@ -156,7 +156,7 @@ teardown() {
     [[ "$project2_name" == "project2" ]]
 
     # Verify files are different (from project2 directory)
-    run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {}}'
+    run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {}}' "$project2"
     [ "$status" -eq 0 ]
     validate_jsonrpc_response "$output"
     local project2_files
