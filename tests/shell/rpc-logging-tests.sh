@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-load '../fixtures/helpers/test-helpers'
+load '../fixtures/helpers/test-helpers.sh'
 
 setup() {
     export ORIGINAL_MCP_DEBUG="$MCP_DEBUG"

@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# Project Operations Tests
-# Project information, git operations, and project context functionality
+# Project Operation Tests for Gandalf MCP Server
+# Tests project information, git integration, and statistics
 
 set -eo pipefail
 
-load 'fixtures/helpers/test-helpers'
+load 'fixtures/helpers/test-helpers.sh'
 
 create_project_test_structure() {
     echo "# There and Back Again, a Hobbits Project" >README.md

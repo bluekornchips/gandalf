@@ -4,7 +4,7 @@
 
 set -eo pipefail
 
-load 'fixtures/helpers/test-helpers'
+load 'fixtures/helpers/test-helpers.sh'
 
 create_security_project() {
     echo "# The Black Gate" >README.md

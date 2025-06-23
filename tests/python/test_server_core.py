@@ -92,7 +92,9 @@ class TestProjectRootDetection:
             os.environ, {"WORKSPACE_FOLDER_PATHS": test_path}
         ):
             with mock.patch.object(Path, "exists", return_value=True):
-                with mock.patch.object(GandalfMCP, "_find_project_root", return_value=test_path):
+                with mock.patch.object(
+                    GandalfMCP, "_find_project_root", return_value=test_path
+                ):
                     server = GandalfMCP()
                     result = server._find_project_root()
 
@@ -106,7 +108,11 @@ class TestProjectRootDetection:
             os.environ, {"WORKSPACE_FOLDER_PATHS": test_paths}
         ):
             with mock.patch.object(Path, "exists", return_value=True):
-                with mock.patch.object(GandalfMCP, "_find_project_root", return_value="/workspace/legolas"):
+                with mock.patch.object(
+                    GandalfMCP,
+                    "_find_project_root",
+                    return_value="/workspace/legolas",
+                ):
                     server = GandalfMCP()
                     result = server._find_project_root()
 
@@ -422,12 +428,12 @@ class TestRequestHandlingEdgeCases:
 
         # Replace the handler in the handlers dictionary to raise an exception
         original_handler = server.handlers["initialize"]
-        
+
         def failing_handler(request):
             raise ValueError("Handler error")
-        
+
         server.handlers["initialize"] = failing_handler
-        
+
         try:
             request = {"method": "initialize", "id": "1"}
             response = server.handle_request(request)
@@ -459,7 +465,11 @@ class TestRequestHandlingEdgeCases:
 
         # Test with a request that causes an exception during JSON handling
         # malformed request that can't be processed
-        request = {"method": "initialize", "id": 1, "malformed": object()}  # object() can't be JSON serialized
+        request = {
+            "method": "initialize",
+            "id": 1,
+            "malformed": object(),
+        }  # object() can't be JSON serialized
         response = server.handle_request(request)
 
         # Should still return a valid response structure even if there's an internal error

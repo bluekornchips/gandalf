@@ -16,6 +16,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
+# Database file names to search for in workspace directories
+CURSOR_DATABASE_FILES = [
+    "state.vscdb",
+    "workspace.db",
+    "storage.db",
+    "cursor.db",
+]
+
+
 def get_default_cursor_path() -> Path:
     """Get the default Cursor data path for the current platform."""
     system = platform.system().lower()
@@ -158,9 +167,12 @@ class CursorQuery:
 
             for workspace_dir in workspace_storage.iterdir():
                 if workspace_dir.is_dir():
-                    db_path = workspace_dir / "state.vscdb"
-                    if db_path.exists() and db_path not in databases:
-                        databases.append(db_path)
+                    # Look for multiple possible database file names
+                    for db_name in CURSOR_DATABASE_FILES:
+                        db_path = workspace_dir / db_name
+                        if db_path.exists() and db_path not in databases:
+                            databases.append(db_path)
+                            break
 
         return databases
 
@@ -169,13 +181,28 @@ class CursorQuery:
         try:
             with sqlite3.connect(db_path) as conn:
                 cursor = conn.cursor()
+
+                # Check if ItemTable exists
+                cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'"
+                )
+                if not cursor.fetchone():
+                    # Try different table names that might exist
+                    cursor.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    )
+                    tables = [row[0] for row in cursor.fetchall()]
+                    if not self.silent:
+                        print(f"Available tables in {db_path}: {tables}")
+                    return None
+
                 cursor.execute(
                     "SELECT value FROM ItemTable WHERE key = ?", (key,)
                 )
                 result = cursor.fetchone()
                 return json.loads(result[0]) if result else None
 
-        except (sqlite3.Error, json.JSONDecodeError, OSError) as e:
+        except (sqlite3.Error, ValueError, OSError) as e:
             if not self.silent:
                 print(f"Error querying database {db_path}: {e}")
             return None
@@ -237,7 +264,7 @@ class CursorQuery:
 
     def _create_message_map(
         self, prompts: List[Dict], generations: List[Dict]
-    ) -> Dict[str, List]:
+    ) -> Dict[str, Dict[str, List]]:
         """Create conversation ID to messages mapping."""
         prompt_map = {}
         gen_map = {}
@@ -389,12 +416,7 @@ class CursorQuery:
             format_handlers[format_type]()
             if not self.silent:
                 print(f"Data exported to: {output_path}")
-        except (
-            OSError,
-            IOError,
-            json.JSONEncodeError,
-            UnicodeEncodeError,
-        ) as e:
+        except (OSError, IOError, ValueError, UnicodeEncodeError) as e:
             if not self.silent:
                 print(f"Error exporting to {output_path}: {e}")
 

@@ -70,7 +70,7 @@ from src.core.file_scoring import get_files_list
 from src.utils.common import log_debug, log_error, log_info
 from src.utils.cursor_chat_query import CursorQuery
 from src.utils.performance import get_duration, log_operation_time, start_timer
-from src.utils.security import SecurityValidator
+from src.utils.access_control import AccessValidator
 from src.utils.cache import get_cache_directory
 
 # Global cache for context keywords and conversation data
@@ -133,7 +133,7 @@ def is_cache_valid(project_root: Path, context_keywords: List[str]) -> bool:
 
         return True
 
-    except (OSError, json.JSONDecodeError, ValueError, KeyError) as e:
+    except (OSError, json.decoder.JSONDecodeError, ValueError, KeyError) as e:
         log_debug(f"Cache validation error: {e}")
         return False
 
@@ -155,7 +155,7 @@ def load_cached_conversations(project_root: Path) -> Optional[Dict[str, Any]]:
         )
         return cached_data
 
-    except (OSError, json.JSONDecodeError, ValueError) as e:
+    except (OSError, json.decoder.JSONDecodeError) as e:
         log_error(e, "loading cached conversations")
         return None
 
@@ -202,7 +202,7 @@ def save_conversations_to_cache(
         )
         return True
 
-    except (OSError, json.JSONEncodeError) as e:
+    except (OSError, json.decoder.JSONDecodeError) as e:
         log_error(e, "saving conversations to cache")
         return False
 
@@ -745,7 +745,7 @@ def handle_ingest_conversations(
             or limit < 1
             or limit > CONVERSATION_MAX_LIMIT
         ):
-            return SecurityValidator.create_error_response(
+            return AccessValidator.create_error_response(
                 f"limit must be an integer between 1 and {CONVERSATION_MAX_LIMIT}"
             )
 
@@ -753,7 +753,7 @@ def handle_ingest_conversations(
             not isinstance(min_relevance_score, (int, float))
             or min_relevance_score < 0
         ):
-            return SecurityValidator.create_error_response(
+            return AccessValidator.create_error_response(
                 "min_relevance_score must be a non-negative number"
             )
 
@@ -762,7 +762,7 @@ def handle_ingest_conversations(
             or days_lookback < 1
             or days_lookback > CONVERSATION_MAX_LOOKBACK_DAYS
         ):
-            return SecurityValidator.create_error_response(
+            return AccessValidator.create_error_response(
                 f"days_lookback must be an integer between 1 and {CONVERSATION_MAX_LOOKBACK_DAYS}"
             )
 
@@ -818,7 +818,7 @@ def handle_ingest_conversations(
                     log_info(
                         f"Returned {len(filtered_cached[:limit])} conversations from cache"
                     )
-                    return SecurityValidator.create_success_response(
+                    return AccessValidator.create_success_response(
                         json.dumps(result, indent=2)
                     )
 
@@ -1014,13 +1014,13 @@ def handle_ingest_conversations(
             f"(analyzed {efficiency:.1f}% of conversations)"
         )
 
-        return SecurityValidator.create_success_response(
+        return AccessValidator.create_success_response(
             json.dumps(result, indent=2)
         )
 
     except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
         log_error(e, "ingest_conversations")
-        return SecurityValidator.create_error_response(
+        return AccessValidator.create_error_response(
             f"Error ingesting conversations: {str(e)}"
         )
 
@@ -1152,7 +1152,7 @@ def handle_fast_conversation_extraction(
         f"Ultra-fast extracted {len(conversations)} conversations in {extraction_time + processing_time:.2f}s "
         f"(processed {processed_count}, skipped {skipped_count})"
     )
-    return SecurityValidator.create_success_response(
+    return AccessValidator.create_success_response(
         json.dumps(result, indent=2)
     )
 
@@ -1167,12 +1167,12 @@ def handle_query_conversation_context(
         include_content = arguments.get("include_content", False)
 
         if not query or not isinstance(query, str):
-            return SecurityValidator.create_error_response(
+            return AccessValidator.create_error_response(
                 "query parameter is required and must be a string"
             )
 
         if not isinstance(limit, int) or limit < 1 or limit > 50:
-            return SecurityValidator.create_error_response(
+            return AccessValidator.create_error_response(
                 "limit must be an integer between 1 and 50"
             )
 
@@ -1276,13 +1276,13 @@ def handle_query_conversation_context(
         log_info(
             f"Found {len(matching_conversations)} conversations matching '{query}' from {processed_count} total"
         )
-        return SecurityValidator.create_success_response(
+        return AccessValidator.create_success_response(
             json.dumps(result, indent=2)
         )
 
     except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
         log_error(e, "query_conversation_context")
-        return SecurityValidator.create_error_response(
+        return AccessValidator.create_error_response(
             f"Error querying conversation context: {str(e)}"
         )
 

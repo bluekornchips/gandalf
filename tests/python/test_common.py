@@ -19,7 +19,9 @@ class TestSessionLogging:
     """Test session logging initialization and management."""
 
     @mock.patch("src.utils.common.write_log")
-    def test_initialize_session_logging_creates_directory(self, mock_write_log):
+    def test_initialize_session_logging_creates_directory(
+        self, mock_write_log
+    ):
         """Test initialize_session_logging creates logs directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with mock.patch("src.utils.common.GANDALF_HOME", Path(temp_dir)):
@@ -35,7 +37,9 @@ class TestSessionLogging:
         """Test initialize_session_logging creates properly formatted filename."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with mock.patch("src.utils.common.GANDALF_HOME", Path(temp_dir)):
-                mock_datetime.now.return_value.strftime.return_value = "20240115_143022"
+                mock_datetime.now.return_value.strftime.return_value = (
+                    "20240115_143022"
+                )
 
                 initialize_session_logging("session_456")
 
@@ -143,7 +147,10 @@ class TestSendRpcMessage:
         assert rpc_data["jsonrpc"] == "2.0"
         assert rpc_data["method"] == "notifications/message"
         assert rpc_data["params"]["level"] == "info"
-        assert rpc_data["params"]["message"] == "one does not simply walk into mordor"
+        assert (
+            rpc_data["params"]["message"]
+            == "one does not simply walk into mordor"
+        )
 
     @mock.patch("builtins.print")
     def test_send_rpc_message_with_logger(self, mock_print):
@@ -200,7 +207,9 @@ class TestLogConvenienceFunctions:
 
     @mock.patch("src.utils.common.send_rpc_message")
     @mock.patch("src.utils.common.write_log")
-    def test_log_info_calls_both_functions(self, mock_write_log, mock_send_rpc):
+    def test_log_info_calls_both_functions(
+        self, mock_write_log, mock_send_rpc
+    ):
         """Test log_info calls both write_log and send_rpc_message."""
         message = "how do you pick up the threads of an old life?"
         log_info(message)
@@ -210,7 +219,9 @@ class TestLogConvenienceFunctions:
 
     @mock.patch("src.utils.common.send_rpc_message")
     @mock.patch("src.utils.common.write_log")
-    def test_log_debug_calls_both_functions(self, mock_write_log, mock_send_rpc):
+    def test_log_debug_calls_both_functions(
+        self, mock_write_log, mock_send_rpc
+    ):
         """Test log_debug calls both write_log and send_rpc_message."""
         message = "I made a promise, Mr Frodo. A promise."
         log_debug(message)
@@ -268,7 +279,9 @@ class TestLoggingIntegration:
 
     @mock.patch("src.utils.common.send_rpc_message")
     @mock.patch("src.utils.common.write_log")
-    def test_logging_functions_work_together(self, mock_write_log, mock_send_rpc):
+    def test_logging_functions_work_together(
+        self, mock_write_log, mock_send_rpc
+    ):
         """Test that log_info calls both write_log and send_rpc_message."""
         message = "Let them come! There is one dwarf yet in Moria!"
         log_info(message)
@@ -309,7 +322,10 @@ class TestLoggingEdgeCases:
             common_module._session_id = None
 
             # Should not raise exception
-            write_log("info", "I would have followed you, my brother...my captain...my king.")
+            write_log(
+                "info",
+                "I would have followed you, my brother...my captain...my king.",
+            )
         finally:
             common_module._log_file_path = original_path
             common_module._session_id = original_session
@@ -317,7 +333,9 @@ class TestLoggingEdgeCases:
     @mock.patch("builtins.print")
     def test_send_rpc_message_with_special_characters(self, mock_print):
         """Test send_rpc_message handles special characters."""
-        special_message = "Fake elvish test üñíçödé and 'quotes' and \"double quotes\""
+        special_message = (
+            "Fake elvish test üñíçödé and 'quotes' and \"double quotes\""
+        )
         send_rpc_message("info", special_message)
 
         # Should successfully create valid JSON
@@ -329,6 +347,7 @@ class TestLoggingEdgeCases:
     @mock.patch("src.utils.common.write_log")
     def test_log_error_with_complex_exception(self, mock_write_log):
         """Test log_error handles complex exception objects."""
+
         class CustomException(Exception):
             def __init__(self, message, code):
                 super().__init__(message)
@@ -340,7 +359,5 @@ class TestLoggingEdgeCases:
         complex_error = CustomException("So it begins.", 500)
         log_error(complex_error, "Complex context")
 
-        expected_message = (
-            "Complex context: CustomError(500): So it begins."
-        )
+        expected_message = "Complex context: CustomError(500): So it begins."
         mock_write_log.assert_called_once_with("error", expected_message)

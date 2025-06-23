@@ -63,7 +63,9 @@ class TestOperationLogging:
 
     @patch("src.utils.performance.log_debug")
     @patch("src.utils.performance.log_info")
-    def test_log_operation_time_debug_level(self, mock_log_info, mock_log_debug):
+    def test_log_operation_time_debug_level(
+        self, mock_log_info, mock_log_debug
+    ):
         """Test log_operation_time with debug level."""
         with patch("src.utils.performance.time.time") as mock_time:
             mock_time.side_effect = [100.0, 102.5]  # 2.5 second operation
@@ -78,7 +80,9 @@ class TestOperationLogging:
 
     @patch("src.utils.performance.log_debug")
     @patch("src.utils.performance.log_info")
-    def test_log_operation_time_info_level(self, mock_log_info, mock_log_debug):
+    def test_log_operation_time_info_level(
+        self, mock_log_info, mock_log_debug
+    ):
         """Test log_operation_time with info level."""
         with patch("src.utils.performance.time.time") as mock_time:
             mock_time.side_effect = [100.0, 100.123]  # 0.123 second operation
@@ -93,7 +97,9 @@ class TestOperationLogging:
 
     @patch("src.utils.performance.log_debug")
     @patch("src.utils.performance.log_info")
-    def test_log_operation_time_default_debug(self, mock_log_info, mock_log_debug):
+    def test_log_operation_time_default_debug(
+        self, mock_log_info, mock_log_debug
+    ):
         """Test log_operation_time defaults to debug level."""
         with patch("src.utils.performance.time.time") as mock_time:
             mock_time.side_effect = [100.0, 101.0]
@@ -177,7 +183,9 @@ class TestTimeOperationContextManager:
         """Test time_operation yields the start time for manual calculations."""
         expected_start = 150.5
 
-        with patch("src.utils.performance.time.time", return_value=expected_start):
+        with patch(
+            "src.utils.performance.time.time", return_value=expected_start
+        ):
             with time_operation("yield_test") as yielded_time:
                 assert yielded_time == expected_start
                 # Can use yielded time for manual duration calculations
@@ -187,7 +195,10 @@ class TestTimeOperationContextManager:
     def test_time_operation_nested_contexts(self, mock_log_operation):
         """Test time_operation can be nested."""
         with patch("src.utils.performance.time.time") as mock_time:
-            mock_time.side_effect = [100.0, 200.0]  # Different times for nesting
+            mock_time.side_effect = [
+                100.0,
+                200.0,
+            ]  # Different times for nesting
 
             with time_operation("outer_context"):
                 with time_operation("inner_context"):
@@ -246,7 +257,7 @@ class TestPerformanceIntegration:
             "list_project_files",
             "fast_conversation_extraction",
             "cursor_conversation_query",
-            "file_listing"
+            "file_listing",
         ]
 
         with patch("src.utils.performance.time.time") as mock_time:
@@ -291,7 +302,7 @@ class TestPerformanceEdgeCases:
             "operation_with_underscores",
             "operation.with.dots",
             "operation with spaces",
-            "operation/with/slashes"
+            "operation/with/slashes",
         ]
 
         with patch("src.utils.performance.time.time") as mock_time:

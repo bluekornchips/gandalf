@@ -13,7 +13,7 @@ from src.core.file_scoring import (
 )
 from src.utils.common import log_debug
 from src.utils.performance import log_operation_time, start_timer
-from src.utils.security import SecurityValidator, validate_file_types
+from src.utils.access_control import AccessValidator, validate_file_types
 
 MAX_FILE_TYPES = 20
 MAX_FILE_EXTENSION_LENGTH = 10
@@ -84,35 +84,39 @@ def handle_list_project_files(
         max_files = arguments.get("max_files", MAX_PROJECT_FILES)
         use_relevance_scoring = arguments.get("use_relevance_scoring", False)
 
-        if file_types:
-            valid, error_msg = validate_file_types(file_types)
-            if not valid:
-                return SecurityValidator.create_error_response(error_msg)
+        # Validate file_types parameter
+        valid, error = validate_file_types(file_types)
+        if not valid:
+            return AccessValidator.create_error_response(error)
 
-        if (
-            not isinstance(max_files, int)
-            or max_files < 1
-            or max_files > MAX_FILES_LIMIT
+        # Validate use_relevance_scoring parameter
+        if use_relevance_scoring is not None and not isinstance(
+            use_relevance_scoring, bool
         ):
-            return SecurityValidator.create_error_response(
-                f"max_files must be an integer between 1 and {MAX_FILES_LIMIT}"
-            )
-
-        # use_relevance_scoring
-        if not isinstance(use_relevance_scoring, bool):
-            return SecurityValidator.create_error_response(
+            return AccessValidator.create_error_response(
                 "use_relevance_scoring must be a boolean"
             )
 
+        # Validate max_files parameter
+        if not isinstance(max_files, int) or max_files < 1:
+            return AccessValidator.create_error_response(
+                "max_files must be a positive integer"
+            )
+
+        if max_files > MAX_FILES_LIMIT:
+            return AccessValidator.create_error_response(
+                f"max_files cannot exceed {MAX_FILES_LIMIT}"
+            )
+
         # project_root
-        valid, error_msg = SecurityValidator.validate_path(
+        valid, error_msg = AccessValidator.validate_path(
             project_root, "project_root"
         )
         if not valid:
-            return SecurityValidator.create_error_response(error_msg)
+            return AccessValidator.create_error_response(error_msg)
 
         if not project_root.exists() or not project_root.is_dir():
-            return SecurityValidator.create_error_response(
+            return AccessValidator.create_error_response(
                 "Invalid project root directory"
             )
 
@@ -230,11 +234,11 @@ def handle_list_project_files(
             )
 
         log_operation_time("list_project_files", start_time)
-        return SecurityValidator.create_success_response(content)
+        return AccessValidator.create_success_response(content)
 
     except (OSError, ValueError, TypeError, KeyError) as e:
-        log_debug(e, "list_project_files")
-        return SecurityValidator.create_error_response(
+        log_debug(f"Error in list_project_files: {e}")
+        return AccessValidator.create_error_response(
             f"Error listing files: {str(e)}"
         )
 

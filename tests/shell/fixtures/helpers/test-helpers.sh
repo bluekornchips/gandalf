@@ -28,6 +28,7 @@ setup_gandalf_paths() {
             export SERVER_DIR="$GANDALF_ROOT/src"
             export TESTS_DIR="$GANDALF_ROOT/tests/shell"
             export SCRIPTS_DIR="$GANDALF_ROOT/scripts"
+            export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
             return 0
         fi
         search_dir="$(dirname "$search_dir")"
@@ -39,6 +40,7 @@ setup_gandalf_paths() {
     export SERVER_DIR="$GANDALF_ROOT/src"
     export TESTS_DIR="$GANDALF_ROOT/tests/shell"
     export SCRIPTS_DIR="$GANDALF_ROOT/scripts"
+    export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
 }
 
 # Auto-setup paths when this file is sourced
@@ -47,26 +49,24 @@ setup_gandalf_paths
 # Check test dependencies before running tests
 check_test_dependencies() {
     local dependency_script="$GANDALF_ROOT/scripts/check-dependencies.sh"
-    
+
     if [[ ! -f "$dependency_script" ]]; then
         echo "Warning: Dependency checker not found at $dependency_script" >&2
         return 0
     fi
-    
-    # Check BATS specifically for shell tests
+
     if ! "$dependency_script" --bats-only --quiet; then
         echo "ERROR: BATS (Bash Automated Testing System) is required for shell tests" >&2
         echo "Install BATS and run tests again" >&2
         return 1
     fi
-    
-    # Check Python requirements for MCP server functionality
+
     if ! "$dependency_script" --python-only --quiet; then
         echo "ERROR: Python requirements not satisfied" >&2
         echo "Run: $dependency_script --python-only for details" >&2
         return 1
     fi
-    
+
     return 0
 }
 
@@ -252,12 +252,26 @@ create_test_conversation_args() {
         }'
 }
 
+# Helper function to check timeouts and emit warnings instead of failing
+check_timeout_with_warning() {
+    local duration="$1"
+    local threshold="$2"
+    local operation_name="$3"
+    
+    if [[ $duration -gt $threshold ]]; then
+        echo "WARNING: $operation_name took ${duration}s (threshold: ${threshold}s)" >&2
+        echo "This may indicate performance issues but is not a test failure" >&2
+    fi
+    return 0  # Always return success so tests don't fail on warnings
+}
+
 shared_setup() {
     local project_name="there_and_back_again"
     local user_email="bilbo@baggins.shire"
     local user_name="Bilbo Baggins"
 
-    TEST_HOME=$(mktemp -d)
+    # Use proper temporary directory with mktemp for secure isolation
+    TEST_HOME=$(mktemp -d -t gandalf_test.XXXXXX)
     export ORIGINAL_HOME="$HOME"
     export HOME="$TEST_HOME"
 

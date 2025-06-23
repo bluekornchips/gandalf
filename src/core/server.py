@@ -36,7 +36,7 @@ from src.utils.performance import (
     log_operation_time,
     start_timer,
 )
-from src.utils.security import SecurityValidator
+from src.utils.access_control import AccessValidator
 
 ALL_TOOL_HANDLERS = {
     **FILE_TOOL_HANDLERS,
@@ -66,7 +66,7 @@ class GandalfMCP:
 
     def __init__(
         self,
-        project_root: str = None,
+        project_root: Optional[str] = None,
         config: Optional[InitializationConfig] = None,
     ):
         """Initialize GandalfMCP"""
@@ -171,10 +171,13 @@ class GandalfMCP:
                 subprocess.TimeoutExpired,
                 OSError,
             ) as e:
-                log_error(f"Git root detection failed for {check_path}: {e}")
+                log_error(e, f"Git root detection failed for {check_path}")
                 continue
 
-        log_error("Git root detection failed for all paths")
+        log_error(
+            Exception("Git root detection failed for all paths"),
+            "project_root_detection",
+        )
 
         # Strategy 3: Use PWD environment variable
         pwd = os.getenv("PWD")
@@ -190,7 +193,10 @@ class GandalfMCP:
 
         # Final fallback
         log_error(
-            "All detection strategies failed, using current working directory"
+            Exception(
+                "All detection strategies failed, using current working directory"
+            ),
+            "project_root_detection",
         )
         return cwd
 
@@ -327,7 +333,7 @@ class GandalfMCP:
             if tool_name in ALL_TOOL_HANDLERS:
                 result = ALL_TOOL_HANDLERS[tool_name](arguments, **kwargs)
             else:
-                result = SecurityValidator.create_error_response(
+                result = AccessValidator.create_error_response(
                     f"Unknown tool: {tool_name}"
                 )
 
@@ -337,7 +343,7 @@ class GandalfMCP:
         except (KeyError, TypeError, ValueError, OSError) as e:
             log_error(e, f"tool call: {tool_name}")
             log_operation_time(operation_name, start_time)
-            return SecurityValidator.create_error_response(
+            return AccessValidator.create_error_response(
                 f"Error executing {tool_name}: {str(e)}"
             )
 

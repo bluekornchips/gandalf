@@ -1,17 +1,18 @@
 """
-Security validation utilities for the Gandalf MCP server.
+Access control and validation utilities for the Gandalf MCP server.
+Handles security validation for files, directories, and user input.
 """
 
 import re
 from pathlib import Path
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
-from src.config.constants.security import (
-    SECURITY_BLOCKED_PATHS,
-    SECURITY_MAX_ARRAY_LENGTH,
-    SECURITY_MAX_PATH_DEPTH,
-    SECURITY_MAX_QUERY_LENGTH,
+from src.config.constants.file_security import (
     SECURITY_MAX_STRING_LENGTH,
+    SECURITY_MAX_ARRAY_LENGTH,
+    SECURITY_MAX_QUERY_LENGTH,
+    SECURITY_MAX_PATH_DEPTH,
+    SECURITY_BLOCKED_PATHS,
     SECURITY_SAFE_EXTENSIONS,
 )
 from src.utils.common import log_debug, log_info
@@ -48,8 +49,8 @@ CONVERSATION_DANGEROUS_PATTERNS = [
 ]
 
 
-class SecurityValidator:
-    """Centralized security validation for MCP tools."""
+class AccessValidator:
+    """Centralized access control and validation for MCP tools."""
 
     MAX_STRING_LENGTH = SECURITY_MAX_STRING_LENGTH
     MAX_ARRAY_LENGTH = SECURITY_MAX_ARRAY_LENGTH
@@ -64,7 +65,7 @@ class SecurityValidator:
         value: Any,
         field_name: str,
         min_length: int = 1,
-        max_length: int = None,
+        max_length: Optional[int] = None,
         required: bool = True,
     ) -> Tuple[bool, str]:
         """Validate string input with length and content constraints.
@@ -108,8 +109,8 @@ class SecurityValidator:
         cls,
         value: Any,
         field_name: str,
-        max_items: int = None,
-        item_type: type = None,
+        max_items: Optional[int] = None,
+        item_type: Optional[type] = None,
         required: bool = True,
     ) -> Tuple[bool, str]:
         """Validate array input with type and size constraints.
@@ -286,7 +287,7 @@ class SecurityValidator:
         value: Any,
         field_name: str,
         min_length: int = 1,
-        max_length: int = None,
+        max_length: Optional[int] = None,
         required: bool = True,
     ) -> Tuple[bool, str]:
         """Validate conversation content with enhanced security checks.
@@ -384,7 +385,7 @@ def validate_conversation_id(conv_id: Any) -> Tuple[bool, str]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    return SecurityValidator.validate_string(
+    return AccessValidator.validate_string(
         conv_id, "conversation_id", min_length=1, max_length=100, required=True
     )
 
@@ -398,7 +399,7 @@ def validate_search_query(query: Any) -> Tuple[bool, str]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    return SecurityValidator.validate_string(
+    return AccessValidator.validate_string(
         query, "search query", min_length=1, max_length=100, required=True
     )
 
@@ -412,7 +413,7 @@ def validate_file_types(file_types: Any) -> Tuple[bool, str]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    valid, error = SecurityValidator.validate_array(
+    valid, error = AccessValidator.validate_array(
         file_types, "file_types", max_items=20, item_type=str, required=False
     )
 
@@ -424,7 +425,7 @@ def validate_file_types(file_types: Any) -> Tuple[bool, str]:
         return True, ""
 
     for ext in file_types:
-        ext_valid, ext_error = SecurityValidator.validate_file_extension(ext)
+        ext_valid, ext_error = AccessValidator.validate_file_extension(ext)
         if not ext_valid:
             return False, ext_error
 

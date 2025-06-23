@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# File Operations Tests
-# File listing, searching, and project file operations
+# File Operation Tests for Gandalf MCP Server
+# Tests file listing, filtering, relevance scoring, and edge cases
 
 set -eo pipefail
 
-load 'fixtures/helpers/test-helpers'
+load 'fixtures/helpers/test-helpers.sh'
 
 create_standard_project() {
     # Populate the project with some files

@@ -11,7 +11,7 @@ from typing import Any, Dict
 from src.core.file_scoring import get_files_list
 from src.utils.common import log_debug, log_error, log_info
 from src.utils.performance import get_duration, start_timer
-from src.utils.security import SecurityValidator
+from src.utils.access_control import AccessValidator
 
 
 def validate_project_root(project_root: Path) -> bool:
@@ -231,7 +231,7 @@ def _get_file_statistics(project_root: Path) -> Dict[str, Any]:
 def _create_basic_project_info(project_root: Path) -> Dict[str, Any]:
     """Create basic project information structure."""
     raw_project_name = project_root.name
-    sanitized_project_name = SecurityValidator.sanitize_project_name(
+    sanitized_project_name = AccessValidator.sanitize_project_name(
         raw_project_name
     )
 
@@ -279,16 +279,16 @@ def handle_get_project_info(
         include_stats = arguments.get("include_stats", True)
 
         if not isinstance(include_stats, bool):
-            return SecurityValidator.create_error_response(
+            return AccessValidator.create_error_response(
                 "include_stats must be a boolean"
             )
 
         # Validate project root
-        valid, error_msg = SecurityValidator.validate_path(
+        valid, error_msg = AccessValidator.validate_path(
             project_root, "project_root"
         )
         if not valid:
-            return SecurityValidator.create_error_response(error_msg)
+            return AccessValidator.create_error_response(error_msg)
 
         if include_stats:
             project_info = get_project_info(project_root)
@@ -301,13 +301,13 @@ def handle_get_project_info(
             }
 
         log_info(f"Retrieved project info for {project_root}")
-        return SecurityValidator.create_success_response(
+        return AccessValidator.create_success_response(
             json.dumps(project_info, indent=2)
         )
 
     except (OSError, ValueError, TypeError) as e:
         log_error(e, f"get_project_info for {project_root}")
-        return SecurityValidator.create_error_response(
+        return AccessValidator.create_error_response(
             f"Error retrieving project info: {str(e)}"
         )
 
