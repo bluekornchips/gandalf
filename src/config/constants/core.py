@@ -27,3 +27,7 @@ SERVER_CAPABILITIES = {"tools": {"listChanged": True}, "logging": {}}
 
 # Relevant only when working in Cursor
 WORKSPACE_FOLDER_PATHS = os.getenv("WORKSPACE_FOLDER_PATHS")
+
+
+# Windows integration for WSL
+WINDOWS_USERNAME = os.getenv("WINDOWS_USERNAME")
