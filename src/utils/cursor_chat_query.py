@@ -25,6 +25,49 @@ CURSOR_DATABASE_FILES = [
 ]
 
 
+def is_running_in_wsl() -> bool:
+    """Check if we're running in Windows Subsystem for Linux."""
+    try:
+        with open("/proc/version", "r") as f:
+            return "microsoft" in f.read().lower()
+    except (OSError, IOError):
+        return False
+
+
+def get_windows_username() -> Optional[str]:
+    """Get Windows username for WSL environments."""
+    windows_username = os.getenv("WINDOWS_USERNAME")
+    if windows_username:
+        return windows_username
+    
+    # Try to find from /mnt/c/Users directory
+    users_dir = Path("/mnt/c/Users")
+    if not users_dir.exists():
+        return None
+    
+    # Look for first non-default user directory
+    default_users = {"default", "defaultuser0", "public", "all users"}
+    
+    try:
+        for user_dir in users_dir.iterdir():
+            if user_dir.name.lower() not in default_users:
+                return user_dir.name
+    except (OSError, IOError):
+        pass
+    
+    return None
+
+
+def get_wsl_cursor_path() -> Optional[Path]:
+    """Get Cursor path for WSL environment if available."""
+    windows_username = get_windows_username()
+    if not windows_username:
+        return None
+    
+    windows_path = Path(f"/mnt/c/Users/{windows_username}/AppData/Roaming/Cursor/User")
+    return windows_path if windows_path.exists() else None
+
+
 def get_default_cursor_path() -> Path:
     """Get the default Cursor data path for the current platform."""
     system = platform.system().lower()
@@ -62,6 +105,12 @@ def get_default_cursor_path() -> Path:
         return base_path
 
     elif system == "linux":
+        # Check for WSL environment first
+        if is_running_in_wsl():
+            wsl_path = get_wsl_cursor_path()
+            if wsl_path:
+                return wsl_path
+
         # Linux follows XDG specification
         config_home = Path.home() / ".config"
         if "XDG_CONFIG_HOME" in os.environ:
@@ -85,17 +134,38 @@ def get_default_cursor_path() -> Path:
         return Path.home() / ".config" / "Cursor" / "User"
 
 
+def get_wsl_additional_paths() -> List[Path]:
+    """Get additional Cursor paths for WSL environments."""
+    additional_paths = []
+    users_dir = Path("/mnt/c/Users")
+    
+    if not users_dir.exists():
+        return additional_paths
+    
+    default_users = {"default", "defaultuser0", "public", "all users"}
+    
+    try:
+        for user_dir in users_dir.iterdir():
+            if user_dir.name.lower() not in default_users:
+                windows_path = user_dir / "AppData/Roaming/Cursor/User"
+                if windows_path.exists():
+                    additional_paths.append(windows_path)
+    except (OSError, IOError):
+        pass
+    
+    return additional_paths
+
+
 def find_all_cursor_paths() -> List[Path]:
     """Find all possible Cursor data paths for database discovery across supported platforms."""
     paths = []
     system = platform.system().lower()
 
-    # primary path
     primary_path = get_default_cursor_path()
     if primary_path.exists():
         paths.append(primary_path)
 
-    # additional search paths based on supported systems
+    # Additional search paths based on supported systems
     if system == "darwin":
         additional_paths = [
             Path.home()
@@ -112,9 +182,13 @@ def find_all_cursor_paths() -> List[Path]:
 
         additional_paths = [
             config_home / "Cursor" / "User",
-            Path.home() / ".config" / "Cursor" / "User",  # standard path
+            Path.home() / ".config" / "Cursor" / "User",  # Standard path
             Path.home() / ".cursor-server" / "data" / "User",  # SSH remote
         ]
+
+        # Add WSL-specific paths
+        if is_running_in_wsl():
+            additional_paths.extend(get_wsl_additional_paths())
     else:
         additional_paths = [
             Path.home() / ".config" / "Cursor" / "User",
@@ -139,12 +213,15 @@ class CursorQuery:
     def __init__(self, silent: bool = False):
         self.silent = silent
         self.cursor_data_path: Optional[Path] = None
+        self.is_wsl = is_running_in_wsl()
         self._set_cursor_data_path(get_default_cursor_path())
 
     def _set_cursor_data_path(self, path: Path) -> None:
         """Set the Cursor data path with validation."""
         if path.exists():
             self.cursor_data_path = path
+            if not self.silent:
+                print(f"Using Cursor data path: {path}")
         elif not self.silent:
             print(f"Warning: Cursor data path not found: {path}")
 
@@ -172,7 +249,14 @@ class CursorQuery:
                         db_path = workspace_dir / db_name
                         if db_path.exists() and db_path not in databases:
                             databases.append(db_path)
+                            if not self.silent:
+                                print(f"Found database: {db_path}")
                             break
+
+        if not self.silent:
+            print(f"Found {len(databases)} workspace database(s)")
+            if self.is_wsl:
+                print("Running in WSL - using Windows-side Cursor databases")
 
         return databases
 
