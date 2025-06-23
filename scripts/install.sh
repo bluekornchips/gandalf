@@ -4,11 +4,12 @@ set -eo pipefail
 SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
 GANDALF_ROOT="$(dirname "$(dirname "$SCRIPT_PATH")")"
 
+export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 
-# Define global variables
-SERVER_DIR="$GANDALF_ROOT/server"
+SERVER_DIR="$GANDALF_ROOT/src"
 SERVER_SCRIPT="$SERVER_DIR/main.py"
+SCRIPTS_DIR="$GANDALF_ROOT/scripts"
 
 usage() {
     cat <<EOF
@@ -158,54 +159,36 @@ get_python_executable() {
 }
 
 verify_prerequisites() {
-    local failed=false
+    echo "Verifying system requirements using shared dependency checker..."
 
-    if ! command -v python3 &>/dev/null; then
-        echo "Error: Python 3 is required but not found"
-        failed=true
-    fi
-
-    if ! python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)" 2>/dev/null; then
-        echo "Error: Python 3.10+ is required"
-        python3 --version
-        failed=true
-    fi
-
-    if ! command -v git &>/dev/null; then
-        echo "Error: Git is required but not found"
-        failed=true
-    fi
-
-    if [[ ! -d "$SERVER_DIR" ]]; then
-        echo "Error: Server directory not found: $SERVER_DIR"
-        failed=true
-    fi
-
-    if [[ ! -f "$SERVER_SCRIPT" ]]; then
-        echo "Error: MCP server script not found: $SERVER_SCRIPT"
-        failed=true
-    fi
-
-    if [[ "$failed" == "true" ]]; then
+    # Use the shared dependency checker
+    if ! "$SCRIPTS_DIR/check-dependencies.sh" --core-only --quiet; then
         cat <<EOF
 
 MCP Server Prerequisites Check Failed!
 
-Requirements needed:
+The shared dependency checker found missing requirements.
+Run for detailed information:
+    $SCRIPTS_DIR/check-dependencies.sh
+
+Quick fixes:
 - Python 3.10+: $(python3 --version 2>/dev/null || echo "Not found")
 - Git: $(git --version 2>/dev/null | head -1 || echo "Not found")
-- Server: $SERVER_SCRIPT
-
-Configuration files:
-- AI Model Weights: gandalf/weights.yaml
-- System Constants: server/config/constants.py
-
-Please install the missing requirements and try again.
 
 Optional: Add gandalf.sh to your PATH for global access:
     echo 'export PATH="$GANDALF_ROOT:\$PATH"' >> ~/.bashrc
     source ~/.bashrc
 EOF
+        exit 1
+    fi
+
+    if [[ ! -d "$SERVER_DIR" ]]; then
+        echo "Error: Server directory not found: $SERVER_DIR"
+        exit 1
+    fi
+
+    if [[ ! -f "$SERVER_SCRIPT" ]]; then
+        echo "Error: MCP server script not found: $SERVER_SCRIPT"
         exit 1
     fi
 
@@ -215,15 +198,19 @@ EOF
     # Test MCP server using the correct Python executable
     local python_exec
     python_exec=$(get_python_executable)
-    
+
     echo "Testing MCP server with Python: $python_exec"
-    
+
     if ! "$python_exec" "$SERVER_SCRIPT" --help >/dev/null 2>&1; then
         cat <<EOF
 Error: MCP server test failed
 This may be due to missing Python dependencies.
+
+Run dependency check for detailed information:
+    $SCRIPTS_DIR/check-dependencies.sh
+
 Try installing dependencies with:
-    source $GANDALF_ROOT/venv/bin/activate && pip install -r $GANDALF_ROOT/requirements.txt
+    pip install -r $GANDALF_ROOT/requirements.txt
 EOF
         exit 1
     fi
@@ -282,7 +269,7 @@ create_rules_file() {
     local repo_root="$1"
     local rules_dir="$repo_root/.cursor/rules"
     local rules_file="$rules_dir/$MCP_SERVER_NAME-rules.mdc"
-    local source_rules_file="$GANDALF_ROOT/$MCP_SERVER_NAME-rules.md"
+    local source_rules_file="$GANDALF_ROOT/rules.md"
 
     mkdir -p "$rules_dir"
 
@@ -490,7 +477,7 @@ echo "Verifying system requirements..."
 verify_prerequisites
 echo "Prerequisites verified successfully!"
 
-SERVER_DIR="$GANDALF_ROOT/server"
+SERVER_DIR="$GANDALF_ROOT/src"
 
 echo "Configuring MCP for repository..."
 

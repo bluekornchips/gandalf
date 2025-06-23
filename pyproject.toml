@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gandalf"
+version = "0.1.0"
+description = "Gandalf MCP server"
+authors = [{name = "Tristan"}]
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.black]
+line-length = 79
+target-version = ['py38']
+
+[tool.isort]
+profile = "black"
+line_length = 79
+
+[tool.flake8]
+max-line-length = 79
+extend-ignore = ["E203", "W503"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-v", "--tb=short"] 
