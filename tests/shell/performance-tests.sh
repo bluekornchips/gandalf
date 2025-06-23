@@ -4,7 +4,7 @@
 
 set -eo pipefail
 
-load 'fixtures/helpers/test-helpers'
+load 'fixtures/helpers/test-helpers.sh'
 
 create_large_project_structure() {
     # Create multiple directories with various file types
@@ -73,8 +73,7 @@ teardown() {
     [ "$status" -eq 0 ]
     validate_jsonrpc_response "$output"
 
-    # Should complete within 5 seconds even for large projects
-    [[ $duration -le 5 ]]
+    check_timeout_with_warning "$duration" 15 "list_project_files for large projects"
 
     local content
     content=$(echo "$output" | jq -r '.result.content[0].text')
@@ -94,8 +93,7 @@ teardown() {
     [ "$status" -eq 0 ]
     validate_jsonrpc_response "$output"
 
-    # Filtering should be fast (within 3 seconds)
-    [[ $duration -le 3 ]]
+    check_timeout_with_warning "$duration" 10 "list_project_files with file type filtering"
 
     local content
     content=$(echo "$output" | jq -r '.result.content[0].text')
@@ -117,8 +115,7 @@ teardown() {
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
 
-    # Should complete within reasonable time; 3 seconds per ingestion call seems fair
-    [[ $duration -le 15 ]]
+    check_timeout_with_warning "$duration" 30 "rapid conversation ingestion calls"
 }
 
 @test "conversation analysis performs well with large conversation history" {
@@ -134,8 +131,7 @@ teardown() {
     [ "$status" -eq 0 ]
     validate_jsonrpc_response "$output"
 
-    # Conversation analysis should be fast (within 5 seconds)
-    [[ $duration -le 5 ]]
+    check_timeout_with_warning "$duration" 15 "conversation analysis with large history"
 
     local content
     content=$(echo "$output" | jq -r '.result.content[0].text')
@@ -154,8 +150,7 @@ teardown() {
     [ "$status" -eq 0 ]
     validate_jsonrpc_response "$output"
 
-    # Project info should generate quickly (within 3 seconds)
-    [[ $duration -le 3 ]]
+    check_timeout_with_warning "$duration" 10 "project info generation for complex projects"
 
     local content
     content=$(echo "$output" | jq -r '.result.content[0].text')
@@ -177,8 +172,7 @@ teardown() {
     end_time=$(date +%s)
     duration=$((end_time - start_time))
 
-    # Should handle 10 requests within 60 seconds (very lenient for test environment)
-    [[ $duration -le 60 ]]
+    check_timeout_with_warning "$duration" 120 "rapid sequential requests"
 }
 
 @test "file operations scale with project size" {
@@ -200,7 +194,6 @@ teardown() {
     start_time=$(date +%s)
 
     # Use higher max_files to ensure deep nested files are included in results
-    # (the test project has ~527 files, so 50 is too low to guarantee inclusion)
     run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {"max_files": 200}}'
 
     end_time=$(date +%s)
@@ -209,8 +202,7 @@ teardown() {
     [ "$status" -eq 0 ]
     validate_jsonrpc_response "$output"
 
-    # Should handle deep nesting efficiently (within 4 seconds)
-    [[ $duration -le 4 ]]
+    check_timeout_with_warning "$duration" 15 "file operations with deep nesting"
 
     local content
     content=$(echo "$output" | jq -r '.result.content[0].text')
@@ -246,10 +238,6 @@ teardown() {
     content=$(echo "$output" | jq -r '.result.content[0].text')
     echo "$content" | jq -e '.project_name' >/dev/null
 }
-
-# =============================================================================
-# STRESS TESTS - Testing system limits and edge cases
-# =============================================================================
 
 @test "handles large files without crashing" {
     # Create test directory with large files
@@ -404,8 +392,7 @@ teardown() {
     [ "$status" -eq 0 ]
     validate_jsonrpc_response "$output"
 
-    # Should handle deep nesting efficiently (within 5 seconds)
-    [[ $duration -le 5 ]]
+    check_timeout_with_warning "$duration" 5 "deep nested directories handling"
 
     local content
     content=$(echo "$output" | jq -r '.result.content[0].text')

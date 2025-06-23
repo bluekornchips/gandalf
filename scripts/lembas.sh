@@ -61,7 +61,7 @@ run_tests_suite() {
             fi
         fi
     else
-        if ! bash "$TESTS_DIR/test-suite-manager.sh"; then
+        if ! bash "$TESTS_DIR/test-suite-manager.sh" lembas; then
             show_test_failure
             return 1
         fi

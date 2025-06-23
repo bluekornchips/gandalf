@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# Context Intelligence Tests
-# Relevance scoring, file prioritization, and context intelligence features
+# Context Intelligence Tests for Gandalf MCP Server
+# File prioritization, relevance scoring, and context analysis
 
 set -eo pipefail
 
-load 'fixtures/helpers/test-helpers'
+load 'fixtures/helpers/test-helpers.sh'
 
 create_context_intelligence_project() {
     echo "# The Test of Context Intelligence" >README.md

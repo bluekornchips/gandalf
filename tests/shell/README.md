@@ -189,3 +189,11 @@ Failed: 1
 Failed suites:
   - performance
 ```
+
+To use these helpers in shell scripts (not BATS tests):
+
+```bash
+source "$GANDALF_ROOT/tests/shell/fixtures/helpers/test-helpers.sh"
+```
+
+Located in `fixtures/helpers/test-helpers.sh`:

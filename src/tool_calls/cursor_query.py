@@ -8,12 +8,7 @@ from typing import Any, Dict
 
 from src.utils.common import log_error, log_info
 from src.utils.cursor_chat_query import CursorQuery
-from src.utils.security import SecurityValidator
-
-# # Import cursor_chat_query from scripts directory
-# scripts_dir = Path(__file__).resolve().parent.parent.parent.parent / "scripts"
-# if str(scripts_dir) not in sys.path:
-#     sys.path.insert(0, str(scripts_dir))
+from src.utils.access_control import AccessValidator
 
 
 def handle_query_cursor_conversations(
@@ -27,7 +22,7 @@ def handle_query_cursor_conversations(
 
         # Validate format
         if format_type not in ["json", "markdown", "cursor"]:
-            return SecurityValidator.create_error_response(
+            return AccessValidator.create_error_response(
                 "format must be one of: json, markdown, cursor"
             )
 
@@ -72,7 +67,7 @@ def handle_query_cursor_conversations(
             log_info(
                 f"Summary: {total_conversations} conversations across {len(data['workspaces'])} workspaces"
             )
-            return SecurityValidator.create_success_response(
+            return AccessValidator.create_success_response(
                 json.dumps(summary_data, indent=2)
             )
 
@@ -87,11 +82,11 @@ def handle_query_cursor_conversations(
         log_info(
             f"Queried {sum(len(ws['conversations']) for ws in data['workspaces'])} conversations in {format_type} format"
         )
-        return SecurityValidator.create_success_response(content)
+        return AccessValidator.create_success_response(content)
 
     except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
         log_error(e, "query_cursor_conversations")
-        return SecurityValidator.create_error_response(
+        return AccessValidator.create_error_response(
             f"Error querying cursor conversations: {str(e)}"
         )
 
@@ -125,13 +120,13 @@ def handle_list_cursor_workspaces(
         }
 
         log_info(f"Found {len(workspaces)} workspace databases")
-        return SecurityValidator.create_success_response(
+        return AccessValidator.create_success_response(
             json.dumps(result, indent=2)
         )
 
     except (OSError, ValueError, PermissionError, FileNotFoundError) as e:
         log_error(e, "list_cursor_workspaces")
-        return SecurityValidator.create_error_response(
+        return AccessValidator.create_error_response(
             f"Error listing workspace databases: {str(e)}"
         )
 

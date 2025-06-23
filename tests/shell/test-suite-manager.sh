@@ -44,9 +44,10 @@ declare -A TEST_CATEGORIES=(
     # ["security"]="security"                                     # DISABLED: Migrating to Python tests
     ["performance"]="performance"
     ["integration"]="integration"
-    ["smoke"]="workspace-detection"                                 # Reduced scope during migration
-    ["shell"]="project workspace-detection performance integration" # Updated for active suites only
-    ["all"]="project workspace-detection performance integration"   # Updated for active suites only
+    ["smoke"]="workspace-detection"                      # Reduced scope during migration
+    ["lembas"]="project workspace-detection integration" # Fast tests for lembas (excludes performance)
+    ["shell"]="project workspace-detection performance integration"
+    ["all"]="project workspace-detection performance integration"
 )
 
 usage() {

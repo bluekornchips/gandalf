@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# Integration Tests
-# End-to-end functionality and tool integration scenarios
+# Integration Tests for Gandalf MCP Server
+# End-to-end workflows and multi-tool scenarios
 
 set -eo pipefail
 
-load 'fixtures/helpers/test-helpers'
+load 'fixtures/helpers/test-helpers.sh'
 
 create_integration_test_structure() {
     mkdir -p src tests docs
