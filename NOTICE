@@ -1,0 +1,46 @@
+Gandalf
+Copyright 2025 Tristan Kornacki
+
+This product is developed and maintained by
+Tristan Kornacki (https://github.com/bluekornchips/gandalf).
+
+This software integrates with and depends on:
+
+1. Cursor IDE (https://cursor.sh/)
+   Copyright (c) 2023-2024 Cursor Inc.
+   Used with permission under Cursor's terms of service
+   Integration includes: MCP protocol, workspace management, and conversation analysis
+
+2. Git (https://git-scm.com/)
+   Copyright (c) 2005-2024 Git Project
+   Licensed under GNU General Public License version 2.0
+   Used for: Version control integration and activity tracking
+
+This software uses the following open source components:
+
+1. PyYAML (https://pyyaml.org/)
+   Copyright (c) 2017-2021 Ingy döt Net
+   Copyright (c) 2006-2016 Kirill Simonov
+   Licensed under MIT License
+   Used for: Configuration file parsing
+
+2. pytest (https://pytest.org/)
+   Copyright (c) 2004 Holger Krekel and others
+   Licensed under MIT License
+   Used for: Testing framework
+
+3. black (https://black.readthedocs.io/)
+   Copyright (c) 2018 Python Software Foundation
+   Licensed under MIT License
+   Used for: Code formatting
+
+4. flake8 (https://flake8.pycqa.org/)
+   Copyright (c) 2011-2013 Tarek Ziade <tarek@ziade.org>
+   Copyright (c) 2012-2016 Ian Cordasco <graffatcolmingov@gmail.com>
+   Licensed under MIT License
+   Used for: Code linting
+
+5. setuptools (https://setuptools.pypa.io/)
+   Copyright (c) 2004-2024 Python Packaging Authority
+   Licensed under MIT License
+   Used for: Project packaging and distribution
