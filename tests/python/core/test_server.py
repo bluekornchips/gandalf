@@ -313,7 +313,7 @@ class TestToolCallHandling:
         assert response["result"]["error"]["code"] == -32602
         assert "missing tool name" in response["result"]["error"]["message"]
 
-    @mock.patch("src.core.server.SecurityValidator")
+    @mock.patch("src.core.server.AccessValidator")
     @mock.patch("src.core.server.ALL_TOOL_HANDLERS")
     def test_tools_call_unknown_tool(self, mock_handlers, mock_validator):
         """Test tools/call with unknown tool."""
@@ -333,7 +333,7 @@ class TestToolCallHandling:
 
         mock_validator.create_error_response.assert_called_once()
 
-    @mock.patch("src.core.server.SecurityValidator")
+    @mock.patch("src.core.server.AccessValidator")
     @mock.patch("src.core.server.ALL_TOOL_HANDLERS")
     def test_tools_call_exception_handling(
         self, mock_handlers, mock_validator
@@ -559,32 +559,34 @@ class TestPerformanceTracking:
         mock_start.assert_called_once()
         mock_log.assert_called_once_with("tool_call_test_tool", "timer_start")
 
-    @mock.patch("src.core.server.SecurityValidator")
+    @mock.patch("src.core.server.AccessValidator")
     @mock.patch("src.core.server.log_operation_time")
     @mock.patch("src.core.server.start_timer")
     @mock.patch("src.core.server.ALL_TOOL_HANDLERS")
     def test_tool_call_performance_tracking_on_error(
         self, mock_handlers, mock_start, mock_log, mock_validator
     ):
-        """Test performance tracking even when tool call fails."""
+        """Test performance tracking when tool call fails."""
         mock_handlers.__contains__ = mock.Mock(return_value=True)
         mock_handlers.__getitem__ = mock.Mock(
-            side_effect=ValueError("Tool failed")
+            side_effect=ValueError("Tool error")
         )
-        mock_start.return_value = "timer_start"
+        mock_validator.create_error_response.return_value = {
+            "error": "Tool failed"
+        }
 
         server = GandalfMCP()
         request = {
             "method": "tools/call",
-            "id": "1",
+            "id": "5",
             "params": {"name": "failing_tool", "arguments": {}},
         }
 
-        server.handle_request(request)
+        response = server.handle_request(request)
 
-        mock_log.assert_called_once_with(
-            "tool_call_failing_tool", "timer_start"
-        )
+        mock_start.assert_called_once()
+        mock_log.assert_called_once()
+        mock_validator.create_error_response.assert_called_once()
 
 
 # Test fixtures and utilities

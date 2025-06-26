@@ -8,6 +8,7 @@ from src.utils.access_control import (
     validate_conversation_id,
     validate_file_types,
     validate_search_query,
+    get_platform_blocked_paths,
 )
 
 patch = mock.patch
@@ -58,10 +59,12 @@ class TestAccessValidator:
 
     def test_validate_path_valid(self):
         """Test valid path validation."""
-        valid, error = AccessValidator.validate_path("/tmp/test", "test_path")
-        # Should be invalid because /tmp is blocked
+        valid, error = AccessValidator.validate_path(
+            "/private/etc/passwd", "test_path"
+        )
+        # Should be invalid because /etc is blocked (resolves to /private/etc on macOS)
         assert valid is False
-        assert "restricted directory" in error
+        assert "blocked system path" in error
 
     def test_validate_file_extension_valid(self):
         """Test valid file extension."""
@@ -74,6 +77,126 @@ class TestAccessValidator:
         valid, error = AccessValidator.validate_file_extension(".exe")
         assert valid is False
         assert "not allowed" in error
+
+    def test_validate_integer_valid(self):
+        """Test valid integer validation."""
+        valid, error = AccessValidator.validate_integer(
+            50, "test_field", min_value=1, max_value=100
+        )
+        assert valid is True
+        assert error == ""
+
+    def test_validate_integer_out_of_range(self):
+        """Test integer out of range validation."""
+        valid, error = AccessValidator.validate_integer(
+            150, "test_field", min_value=1, max_value=100
+        )
+        assert valid is False
+        assert "cannot exceed 100" in error
+
+    def test_validate_integer_below_minimum(self):
+        """Test integer below minimum validation."""
+        valid, error = AccessValidator.validate_integer(
+            -5, "test_field", min_value=1, max_value=100
+        )
+        assert valid is False
+        assert "must be at least 1" in error
+
+    def test_validate_integer_not_integer(self):
+        """Test non-integer input validation."""
+        valid, error = AccessValidator.validate_integer(
+            "not_int", "test_field"
+        )
+        assert valid is False
+        assert "must be an integer" in error
+
+    def test_validate_enum_valid(self):
+        """Test valid enum validation."""
+        valid, error = AccessValidator.validate_enum(
+            "json", "format", ["json", "md", "txt"]
+        )
+        assert valid is True
+        assert error == ""
+
+    def test_validate_enum_invalid_value(self):
+        """Test invalid enum value validation."""
+        valid, error = AccessValidator.validate_enum(
+            "invalid", "format", ["json", "md", "txt"]
+        )
+        assert valid is False
+        assert "must be one of: json, md, txt" in error
+
+    def test_validate_enum_not_string(self):
+        """Test non-string enum input validation."""
+        valid, error = AccessValidator.validate_enum(
+            123, "format", ["json", "md", "txt"]
+        )
+        assert valid is False
+        assert "must be a string" in error
+
+
+class TestPlatformSpecificPaths:
+    """Test platform-specific blocked paths functionality."""
+
+    def test_platform_specific_blocked_paths(self):
+        """
+        Test that platform-specific paths are properly organized.
+        Pretty useless test but I want it so I don't have to think about it.
+        """
+        from src.config.constants.file_security import (
+            COMMON_BLOCKED_PATHS,
+            LINUX_SPECIFIC_BLOCKED_PATHS,
+            MACOS_SPECIFIC_BLOCKED_PATHS,
+            WSL_SPECIFIC_BLOCKED_PATHS,
+        )
+
+        # Check that common paths are shared, not really a good test
+        assert "/etc" in COMMON_BLOCKED_PATHS
+        assert "/sys" in COMMON_BLOCKED_PATHS
+        assert "/proc" in COMMON_BLOCKED_PATHS
+
+        # platform-specific paths
+        assert "/private/etc" in MACOS_SPECIFIC_BLOCKED_PATHS
+        assert "/mnt/c/Windows" in WSL_SPECIFIC_BLOCKED_PATHS
+        assert "/snap" in LINUX_SPECIFIC_BLOCKED_PATHS
+
+        # no duplicates between common and specific
+        assert len(COMMON_BLOCKED_PATHS & MACOS_SPECIFIC_BLOCKED_PATHS) == 0
+        assert len(COMMON_BLOCKED_PATHS & WSL_SPECIFIC_BLOCKED_PATHS) == 0
+        assert len(COMMON_BLOCKED_PATHS & LINUX_SPECIFIC_BLOCKED_PATHS) == 0
+
+    def test_get_platform_blocked_paths_function(self):
+        """Test the get_platform_blocked_paths utility function."""
+        from src.config.constants.file_security import (
+            COMMON_BLOCKED_PATHS,
+            LINUX_SPECIFIC_BLOCKED_PATHS,
+            MACOS_SPECIFIC_BLOCKED_PATHS,
+            WSL_SPECIFIC_BLOCKED_PATHS,
+        )
+
+        # linux
+        linux_paths = get_platform_blocked_paths("linux")
+        expected_linux = COMMON_BLOCKED_PATHS | LINUX_SPECIFIC_BLOCKED_PATHS
+        assert linux_paths == expected_linux
+
+        # macOS specific
+        macos_paths = get_platform_blocked_paths("macos")
+        expected_macos = COMMON_BLOCKED_PATHS | MACOS_SPECIFIC_BLOCKED_PATHS
+        assert macos_paths == expected_macos
+
+        # WSL specific
+        wsl_paths = get_platform_blocked_paths("wsl")
+        expected_wsl = COMMON_BLOCKED_PATHS | WSL_SPECIFIC_BLOCKED_PATHS
+        assert wsl_paths == expected_wsl
+
+        # All paths
+        all_paths = get_platform_blocked_paths()
+        all_paths_none = get_platform_blocked_paths(None)
+        assert all_paths == all_paths_none
+
+        # Invalid platform, returns all paths
+        invalid_paths = get_platform_blocked_paths("invalid")
+        assert invalid_paths == all_paths
 
 
 class TestValidationFunctions:

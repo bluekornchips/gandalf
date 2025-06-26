@@ -5,7 +5,7 @@ Handles security validation for files, directories, and user input.
 
 import re
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union, List
 
 from src.config.constants.file_security import (
     SECURITY_MAX_STRING_LENGTH,
@@ -13,7 +13,15 @@ from src.config.constants.file_security import (
     SECURITY_MAX_QUERY_LENGTH,
     SECURITY_MAX_PATH_DEPTH,
     SECURITY_BLOCKED_PATHS,
-    SECURITY_SAFE_EXTENSIONS,
+    SECURITY_BLOCKED_EXTENSIONS,
+    COMMON_BLOCKED_PATHS,
+    LINUX_SPECIFIC_BLOCKED_PATHS,
+    MACOS_SPECIFIC_BLOCKED_PATHS,
+    WSL_SPECIFIC_BLOCKED_PATHS,
+    MAX_FILE_TYPES,
+    PLATFORM_LINUX,
+    PLATFORM_MACOS,
+    PLATFORM_WSL,
 )
 from src.utils.common import log_debug, log_info
 
@@ -57,7 +65,7 @@ class AccessValidator:
     MAX_QUERY_LENGTH = SECURITY_MAX_QUERY_LENGTH
     MAX_PATH_DEPTH = SECURITY_MAX_PATH_DEPTH
     BLOCKED_PATHS = SECURITY_BLOCKED_PATHS
-    SAFE_EXTENSIONS = SECURITY_SAFE_EXTENSIONS
+    BLOCKED_EXTENSIONS = SECURITY_BLOCKED_EXTENSIONS
 
     @classmethod
     def validate_string(
@@ -149,10 +157,84 @@ class AccessValidator:
         return True, ""
 
     @classmethod
+    def validate_integer(
+        cls,
+        value: Any,
+        field_name: str,
+        min_value: Optional[int] = None,
+        max_value: Optional[int] = None,
+        required: bool = True,
+    ) -> Tuple[bool, str]:
+        """Validate integer input with range constraints.
+
+        Args:
+            value: Input value to validate
+            field_name: Name of the field for error messages
+            min_value: Minimum allowed value
+            max_value: Maximum allowed value
+            required: Whether the field is required
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if required and value is None:
+            return False, f"{field_name} is required"
+
+        if value is None and not required:
+            return True, ""
+
+        if not isinstance(value, int):
+            return False, f"{field_name} must be an integer"
+
+        if min_value is not None and value < min_value:
+            return False, f"{field_name} must be at least {min_value}"
+
+        if max_value is not None and value > max_value:
+            return False, f"{field_name} cannot exceed {max_value}"
+
+        return True, ""
+
+    @classmethod
+    def validate_enum(
+        cls,
+        value: Any,
+        field_name: str,
+        valid_values: List[str],
+        required: bool = True,
+    ) -> Tuple[bool, str]:
+        """Validate enum input against allowed values.
+
+        Args:
+            value: Input value to validate
+            field_name: Name of the field for error messages
+            valid_values: List of allowed values
+            required: Whether the field is required
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if required and not value:
+            return False, f"{field_name} is required"
+
+        if value is None and not required:
+            return True, ""
+
+        if not isinstance(value, str):
+            return False, f"{field_name} must be a string"
+
+        if value not in valid_values:
+            return (
+                False,
+                f"{field_name} must be one of: {', '.join(valid_values)}",
+            )
+
+        return True, ""
+
+    @classmethod
     def validate_path(
         cls, path: Union[str, Path], field_name: str = "path"
     ) -> Tuple[bool, str]:
-        """Validate file system path for security.
+        """Validate file path for security.
 
         Args:
             path: Path to validate
@@ -161,31 +243,30 @@ class AccessValidator:
         Returns:
             Tuple of (is_valid, error_message)
         """
+        path_str = str(path)
+
+        if cls._check_for_tricks(path_str):
+            return False, f"{field_name} contains potentially unsafe content"
+
         try:
-            if isinstance(path, str):
-                path = Path(path)
+            resolved_path = Path(path_str).resolve()
+            path_parts = resolved_path.parts
 
-            resolved_path = path.resolve()
-            path_str = str(resolved_path)
+            if len(path_parts) > cls.MAX_PATH_DEPTH:
+                return False, f"{field_name} exceeds maximum depth"
 
-            for blocked in cls.BLOCKED_PATHS:
-                if path_str.startswith(blocked):
-                    return (
-                        False,
-                        f"{field_name} accesses restricted directory: {blocked}",
-                    )
+            for blocked_path in cls.BLOCKED_PATHS:
+                if str(resolved_path).startswith(blocked_path):
+                    return False, f"{field_name} accesses blocked system path"
 
-            if len(resolved_path.parts) > cls.MAX_PATH_DEPTH:
-                return False, f"{field_name} exceeds maximum path depth"
+        except (OSError, ValueError):
+            return False, f"{field_name} is not a valid path"
 
-            return True, ""
-
-        except (OSError, ValueError, PermissionError) as e:
-            return False, f"{field_name} is invalid: {str(e)}"
+        return True, ""
 
     @classmethod
     def validate_file_extension(cls, extension: str) -> Tuple[bool, str]:
-        """Validate file extension for security.
+        """Validate file extension for security using blocklist approach.
 
         Args:
             extension: File extension to validate
@@ -198,7 +279,8 @@ class AccessValidator:
 
         extension = extension.lower()
 
-        if extension not in cls.SAFE_EXTENSIONS:
+        # Check if extension is in the blocked list
+        if extension in cls.BLOCKED_EXTENSIONS:
             return False, f"File extension {extension} is not allowed"
 
         if len(extension) > FILE_EXTENSION_MAX_LENGTH:
@@ -386,12 +468,12 @@ def validate_conversation_id(conv_id: Any) -> Tuple[bool, str]:
         Tuple of (is_valid, error_message)
     """
     return AccessValidator.validate_string(
-        conv_id, "conversation_id", min_length=1, max_length=100, required=True
+        conv_id, "conversation_id", min_length=1, max_length=100
     )
 
 
 def validate_search_query(query: Any) -> Tuple[bool, str]:
-    """Validate search query with security checks.
+    """Validate search query with specific rules.
 
     Args:
         query: Search query to validate
@@ -400,12 +482,15 @@ def validate_search_query(query: Any) -> Tuple[bool, str]:
         Tuple of (is_valid, error_message)
     """
     return AccessValidator.validate_string(
-        query, "search query", min_length=1, max_length=100, required=True
+        query,
+        "query",
+        min_length=1,
+        max_length=AccessValidator.MAX_QUERY_LENGTH,
     )
 
 
 def validate_file_types(file_types: Any) -> Tuple[bool, str]:
-    """Validate file types array with extension checks.
+    """Validate file types array with extension validation.
 
     Args:
         file_types: Array of file extensions to validate
@@ -413,20 +498,39 @@ def validate_file_types(file_types: Any) -> Tuple[bool, str]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    valid, error = AccessValidator.validate_array(
-        file_types, "file_types", max_items=20, item_type=str, required=False
+    is_valid, error = AccessValidator.validate_array(
+        file_types,
+        "file_types",
+        max_items=MAX_FILE_TYPES,
+        item_type=str,
+        required=False,
     )
-
-    if not valid:
+    if not is_valid:
         return False, error
 
-    # Handle None case (optional field)
-    if file_types is None:
-        return True, ""
-
-    for ext in file_types:
-        ext_valid, ext_error = AccessValidator.validate_file_extension(ext)
-        if not ext_valid:
-            return False, ext_error
+    if file_types:
+        for ext in file_types:
+            ext_valid, ext_error = AccessValidator.validate_file_extension(ext)
+            if not ext_valid:
+                return False, ext_error
 
     return True, ""
+
+
+def get_platform_blocked_paths(platform: str = None) -> set:
+    """Get platform-specific blocked paths.
+
+    Args:
+        platform: Platform identifier (linux, macos, wsl)
+
+    Returns:
+        Set of blocked paths for the platform
+    """
+    if platform == PLATFORM_LINUX:
+        return COMMON_BLOCKED_PATHS | LINUX_SPECIFIC_BLOCKED_PATHS
+    elif platform == PLATFORM_MACOS:
+        return COMMON_BLOCKED_PATHS | MACOS_SPECIFIC_BLOCKED_PATHS
+    elif platform == PLATFORM_WSL:
+        return COMMON_BLOCKED_PATHS | WSL_SPECIFIC_BLOCKED_PATHS
+    else:
+        return SECURITY_BLOCKED_PATHS

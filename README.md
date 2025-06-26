@@ -385,7 +385,7 @@ The 1-hour cache TTL and context intelligence overhead are optimized for sustain
 ## Notes
 
 - Each of the README's in this project were generated _without_ AI. If any of them are unclear please ask me (Tristan) to clarify.
-- Storing state of MCP tool calls has a wicked benefit of pseud-state management. You could ask the agent to modify a large number of files and have them in a pending commit state. If you then ask the agent to revert back to the original state before creating this changes it will know exactly where to return to _without_ needing git hashes as reference.
+- Storing state of MCP tool calls has a wicked benefit of pseudo-state management. You could ask the agent to modify a large number of files and have them in a pending commit state. If you then ask the agent to revert back to the original state before creating this changes it will know exactly where to return to _without_ needing git hashes as reference.
 
 ## TODO:
 
@@ -393,3 +393,11 @@ The 1-hour cache TTL and context intelligence overhead are optimized for sustain
 - Implement persistent disk cache for cross-session performance; add cache warming on project initialization; smart cache invalidation based on file system events
 - Validate `weights.yaml` on startup and provide helpful error messages for invalid configs
 - Add ability to send notifications to the IDE
+- Rename "rules.md" to "gandalf-rules.md".
+- Rename the naming pattern of "ingest_conversations" to "recall_cursor_conversations" and "query_conversation_context" to "recall_cursor_conversations". "recall" is a better name for the tool because it's more descriptive of what it does.
+- Remove the backwards compatability we have in place.
+- Add adapter pattern for integrations with claude code (and maybe windsurf?).
+- Complete the export conversation tool. Add another directory in the home folder under conversation called "imports" that will store imported conversations. These are not stored or ever intended to be stored in the actual agent's database or conversation history, these are just part of the "minas_tirith" component, the library of conversations that are not part of the agent's conversation history.
+- gandalf/src/config/cursor_database.md is out of date.
+- make pyyaml required.
+- Add a version checker to flag the user to run "gandalf install -r" if they are not on the latest version.

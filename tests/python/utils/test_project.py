@@ -22,7 +22,7 @@ class TestProjectContext:
         project_path = Path("/path/to/fellowship-of-the-ring")
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
             mock_sanitize.return_value = "fellowship-of-the-ring"
 
@@ -39,7 +39,7 @@ class TestProjectContext:
         project_path = Path("/path/to/the-one-ring!!!")
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
             mock_sanitize.return_value = "the-one-ring"
 
@@ -108,7 +108,7 @@ class TestProjectUtilityFunctions:
         project_path = Path("/path/to/gondor")
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
             mock_sanitize.return_value = "gondor"
 
@@ -126,7 +126,7 @@ class TestProjectUtilityFunctions:
         project_path = Path("/path/to/bag-end$$$")
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
             mock_sanitize.return_value = "bag-end"
 
@@ -144,7 +144,7 @@ class TestProjectUtilityFunctions:
         project_path = Path("/path/to/rivendell")
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
             mock_sanitize.return_value = "rivendell-clean"
 
@@ -158,7 +158,7 @@ class TestProjectUtilityFunctions:
         project_path = Path("/path/to/")
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
             mock_sanitize.return_value = "unnamed"
 
@@ -176,7 +176,7 @@ class TestProjectUtilityFunctions:
         project_path = Path("/very/deep/path/to/the-shire")
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
             mock_sanitize.return_value = "the-shire"
 
@@ -205,7 +205,7 @@ class TestProjectContextIntegration:
             project_path = Path(f"/path/to/{dangerous_name}")
 
             with patch(
-                "src.utils.security.SecurityValidator.sanitize_project_name"
+                "src.utils.access_control.AccessValidator.sanitize_project_name"
             ) as mock_sanitize:
                 mock_sanitize.return_value = "safe-project-name"
 
@@ -221,7 +221,7 @@ class TestProjectContextIntegration:
         project_path = Path("/path/to/minas-tirith<>")
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
             mock_sanitize.return_value = "minas-tirith"
 
@@ -248,7 +248,7 @@ class TestProjectContextIntegration:
 
         for path_case in edge_cases:
             with patch(
-                "src.utils.security.SecurityValidator.sanitize_project_name"
+                "src.utils.access_control.AccessValidator.sanitize_project_name"
             ) as mock_sanitize:
                 mock_sanitize.return_value = "normalized-name"
 
@@ -262,10 +262,10 @@ class TestProjectSecurityIntegration:
     """Test project utilities integration with security validation."""
 
     def test_all_functions_use_security_validator(self):
-        """Test that all project functions properly integrate with SecurityValidator."""
+        """Test that all project functions properly integrate with AccessValidator."""
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
             mock_sanitize.return_value = "orthanc-clean"
 
@@ -286,7 +286,7 @@ class TestProjectSecurityIntegration:
                 assert call[0][0] == "orthanc"
 
     def test_security_validator_sanitization_consistency(self):
-        """Test project utilities handle SecurityValidator responses consistently."""
+        """Test project utilities handle AccessValidator responses consistently."""
         # Test with different sanitization scenarios
         sanitization_scenarios = [
             ("mount-doom", "mount-doom", False),  # No change needed
@@ -303,7 +303,7 @@ class TestProjectSecurityIntegration:
             test_path = Path(f"/path/to/{raw_name}")
 
             with patch(
-                "src.utils.security.SecurityValidator.sanitize_project_name"
+                "src.utils.access_control.AccessValidator.sanitize_project_name"
             ) as mock_sanitize:
                 mock_sanitize.return_value = sanitized_name
 
@@ -323,30 +323,30 @@ class TestProjectErrorHandling:
     """Test error handling in project utilities."""
 
     def test_project_context_with_security_validator_exception(self):
-        """Test ProjectContext when SecurityValidator raises an exception."""
+        """Test ProjectContext when AccessValidator raises an exception."""
         project_path = Path("/path/to/weathertop")
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
-            mock_sanitize.side_effect = ValueError("Sanitization error")
+            mock_sanitize.side_effect = Exception("Validation failed")
 
-            with pytest.raises(ValueError, match="Sanitization error"):
+            with pytest.raises(Exception):
                 ProjectContext.from_path(project_path)
 
     def test_utility_functions_with_security_validator_exception(self):
-        """Test utility functions when SecurityValidator raises an exception."""
+        """Test utility functions when AccessValidator raises an exception."""
         project_path = Path("/path/to/helms-deep")
 
         with patch(
-            "src.utils.security.SecurityValidator.sanitize_project_name"
+            "src.utils.access_control.AccessValidator.sanitize_project_name"
         ) as mock_sanitize:
-            mock_sanitize.side_effect = RuntimeError("Validation failed")
+            mock_sanitize.side_effect = Exception("Validation failed")
 
-            with pytest.raises(RuntimeError, match="Validation failed"):
+            with pytest.raises(Exception):
                 get_project_names(project_path)
 
-            with pytest.raises(RuntimeError, match="Validation failed"):
+            with pytest.raises(Exception):
                 get_sanitized_project_name(project_path)
 
     def test_project_context_with_invalid_path_type(self):

@@ -76,7 +76,7 @@ get_python_executable() {
 }
 
 TEST_ID_COUNTER=0
-export GANDALF_TEST_MODE="false"
+export GANDALF_TEST_MODE="true"
 export MCP_DEBUG="false"
 
 # Generate unique test ID for each request
@@ -114,16 +114,6 @@ execute_rpc() {
             "params": $params
         }')
 
-    # Debug output in test mode
-    if [[ "${GANDALF_TEST_MODE:-}" == "true" ]]; then
-        cat <<EOF >&2
-        DEBUG: Request: $request
-        DEBUG: Project root: $project_root
-        DEBUG: PYTHONPATH: $PYTHONPATH
-        DEBUG: Server path: $SERVER_DIR/main.py
-EOF
-    fi
-
     # Separate stdout and stderr - only capture stdout for JSON responses
     local temp_stdout=$(mktemp)
     local temp_stderr=$(mktemp)
@@ -136,26 +126,10 @@ EOF
     local error_output
     error_output=$(cat "$temp_stderr")
 
-    # Debug output in test mode
-    if [[ "${GANDALF_TEST_MODE:-}" == "true" ]]; then
-        cat <<EOF >&2
-DEBUG: Exit code: $exit_code
-DEBUG: Full output length: ${#full_output}
-DEBUG: Error output length: ${#error_output}
-EOF
-        if [[ -n "$error_output" ]]; then
-            echo "DEBUG: Error output (first 300 chars): ${error_output:0:300}" >&2
-        fi
-        echo "DEBUG: Full output (first 300 chars): ${full_output:0:300}" >&2
-    fi
-
-    # rm -f "$temp_stdout" "$temp_stderr"
+    rm -f "$temp_stdout" "$temp_stderr"
 
     # If there was an error, return empty response
     if [[ $exit_code -ne 0 ]]; then
-        if [[ "${GANDALF_TEST_MODE:-}" == "true" ]]; then
-            echo "DEBUG: Server exited with code $exit_code" >&2
-        fi
         return 1
     fi
 
@@ -165,12 +139,18 @@ EOF
     echo "$full_output" >"$temp_file"
 
     local response=""
+    # Look for a line that contains both "result" or "error" AND the matching ID
     while IFS= read -r line; do
         if [[ -n "$line" ]]; then
-            # Check if this line has our ID as either string or number
-            if echo "$line" | jq -e --arg id "$test_id" '.id != null and (.id == $id or .id == ($id | tonumber))' >/dev/null 2>&1; then
-                response="$line"
-                break
+            # First check if this line contains an ID field
+            if echo "$line" | jq -e '.id != null' >/dev/null 2>&1; then
+                # Then check if the ID matches our test ID
+                local line_id
+                line_id=$(echo "$line" | jq -r '.id' 2>/dev/null)
+                if [[ "$line_id" == "$test_id" ]]; then
+                    response="$line"
+                    break
+                fi
             fi
         fi
     done <"$temp_file"
@@ -257,12 +237,12 @@ check_timeout_with_warning() {
     local duration="$1"
     local threshold="$2"
     local operation_name="$3"
-    
+
     if [[ $duration -gt $threshold ]]; then
         echo "WARNING: $operation_name took ${duration}s (threshold: ${threshold}s)" >&2
         echo "This may indicate performance issues but is not a test failure" >&2
     fi
-    return 0  # Always return success so tests don't fail on warnings
+    return 0 # Always return success so tests don't fail on warnings
 }
 
 shared_setup() {
