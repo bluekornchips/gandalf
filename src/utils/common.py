@@ -27,9 +27,7 @@ def initialize_session_logging(session_id: str) -> None:
     _log_file_path = logs_dir / log_filename
 
     # Write session start marker
-    write_log(
-        "info", f"{MCP_SERVER_NAME.upper()} session started: {session_id}"
-    )
+    write_log("info", f"{MCP_SERVER_NAME.upper()} session started: {session_id}")
 
 
 def write_log(

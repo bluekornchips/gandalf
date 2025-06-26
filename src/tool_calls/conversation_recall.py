@@ -1,5 +1,8 @@
 """
-Enhanced conversation ingestion and analysis for Gandalf MCP server.
+Enhanced conversation recall and analysis for Gandalf MCP server.
+
+This module provides intelligent conversation recall capabilities for Cursor IDE,
+including fast extraction, context analysis, and conversation search functionality.
 """
 
 import hashlib
@@ -11,11 +14,6 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-
-# Import cursor_chat_query from scripts directory
-scripts_dir = Path(__file__).resolve().parent.parent.parent.parent / "scripts"
-if str(scripts_dir) not in sys.path:
-    sys.path.insert(0, str(scripts_dir))
 
 from src.config.cache import (
     CONVERSATION_CACHE_FILE,
@@ -67,11 +65,11 @@ from src.config.constants.system import (
 from src.config.constants.technology import TECHNOLOGY_KEYWORD_MAPPING
 from src.config.weights import CONVERSATION_WEIGHTS
 from src.core.file_scoring import get_files_list
+from src.utils.access_control import AccessValidator
+from src.utils.cache import get_cache_directory
 from src.utils.common import log_debug, log_error, log_info
 from src.utils.cursor_chat_query import CursorQuery
 from src.utils.performance import get_duration, log_operation_time, start_timer
-from src.utils.access_control import AccessValidator
-from src.utils.cache import get_cache_directory
 
 # Global cache for context keywords and conversation data
 _context_keywords_cache = {}
@@ -80,9 +78,7 @@ _conversation_cache = {}
 _conversation_cache_time = {}
 
 
-def get_project_cache_hash(
-    project_root: Path, context_keywords: List[str]
-) -> str:
+def get_project_cache_hash(project_root: Path, context_keywords: List[str]) -> str:
     """Generate a cache hash based on project state and keywords."""
     try:
         # Include project path, git state, and keywords in hash
@@ -99,9 +95,7 @@ def get_project_cache_hash(
         # Simple short md5 hash to avoid bloating the cache. Maybe sha256? Probably overkill.
         return hashlib.md5(hash_input.encode()).hexdigest()[:16]
     except (OSError, ValueError, UnicodeDecodeError):
-        return hashlib.md5(
-            f"{project_root}{time.time()}".encode()
-        ).hexdigest()[:16]
+        return hashlib.md5(f"{project_root}{time.time()}".encode()).hexdigest()[:16]
 
 
 def is_cache_valid(project_root: Path, context_keywords: List[str]) -> bool:
@@ -169,9 +163,7 @@ def save_conversations_to_cache(
     """Save conversations to local cache with metadata."""
     try:
         if len(conversations) < CONVERSATION_CACHE_MIN_SIZE:
-            log_debug(
-                f"Not caching - too few conversations: {len(conversations)}"
-            )
+            log_debug(f"Not caching - too few conversations: {len(conversations)}")
             return False
 
         get_cache_directory()
@@ -181,9 +173,7 @@ def save_conversations_to_cache(
             "timestamp": time.time(),
             "conversation_count": len(conversations),
             "context_keywords": context_keywords,
-            "project_hash": get_project_cache_hash(
-                project_root, context_keywords
-            ),
+            "project_hash": get_project_cache_hash(project_root, context_keywords),
             **metadata,
         }
 
@@ -197,8 +187,7 @@ def save_conversations_to_cache(
 
         cache_size_mb = CONVERSATION_CACHE_FILE.stat().st_size / (1024 * 1024)
         log_info(
-            f"Cached {len(conversations)} conversations "
-            f"({cache_size_mb:.1f}MB)"
+            f"Cached {len(conversations)} conversations " f"({cache_size_mb:.1f}MB)"
         )
         return True
 
@@ -257,9 +246,7 @@ def get_enhanced_context_keywords(
     except (OSError, ValueError, AttributeError) as e:
         log_debug(f"Error processing project files: {e}")
 
-    sorted_keywords = sorted(
-        keyword_weights.items(), key=lambda x: x[1], reverse=True
-    )
+    sorted_keywords = sorted(keyword_weights.items(), key=lambda x: x[1], reverse=True)
 
     final_keywords = []
     for keyword, weight in sorted_keywords:
@@ -297,10 +284,7 @@ def generate_context_keywords(project_root: Path) -> List[str]:
     _context_keywords_cache_time[cache_key] = current_time
 
     for key in list(_context_keywords_cache_time.keys()):
-        if (
-            current_time - _context_keywords_cache_time[key]
-            > CONTEXT_CACHE_TTL_SECONDS
-        ):
+        if current_time - _context_keywords_cache_time[key] > CONTEXT_CACHE_TTL_SECONDS:
             _context_keywords_cache.pop(key, None)
             _context_keywords_cache_time.pop(key, None)
 
@@ -435,9 +419,7 @@ def analyze_conversation_relevance_optimized(
     score += recency_score * CONVERSATION_WEIGHTS["recency"]
     analysis["recency_score"] = recency_score
 
-    conv_text = extract_conversation_text_lazy(
-        conversation, prompts, generations
-    )
+    conv_text = extract_conversation_text_lazy(conversation, prompts, generations)
 
     if not conv_text:
         return score, analysis
@@ -457,10 +439,7 @@ def analyze_conversation_relevance_optimized(
         for word in (analysis["keyword_matches"] + [conv_name])
     ):
         analysis["conversation_type"] = "technical"
-    elif any(
-        word in ["error", "debug", "fix", "issue", "bug"]
-        for word in first_words
-    ):
+    elif any(word in ["error", "debug", "fix", "issue", "bug"] for word in first_words):
         analysis["conversation_type"] = "debugging"
     elif any(
         word in ["architecture", "design", "structure", "refactor"]
@@ -509,9 +488,7 @@ def extract_conversation_text(
     return " ".join(text_parts).lower()
 
 
-def score_keyword_matches(
-    text: str, keywords: List[str]
-) -> Tuple[float, List[str]]:
+def score_keyword_matches(text: str, keywords: List[str]) -> Tuple[float, List[str]]:
     """Score based on keyword matches."""
     matches = []
     score = 0.0
@@ -525,9 +502,7 @@ def score_keyword_matches(
     return min(score, 1.0), matches
 
 
-def score_file_references(
-    text: str, project_root: Path
-) -> Tuple[float, List[str]]:
+def score_file_references(text: str, project_root: Path) -> Tuple[float, List[str]]:
     """Score based on file references that exist in current project."""
     refs = []
     score = 0.0
@@ -647,9 +622,7 @@ def analyze_conversation_relevance(
 
     # Context keyword matching, primary scoring mechanism
     if context_keywords:
-        keyword_score, matches = score_keyword_matches(
-            conv_text, context_keywords
-        )
+        keyword_score, matches = score_keyword_matches(conv_text, context_keywords)
         score += keyword_score * CONVERSATION_WEIGHTS["keyword_match"]
         analysis["keyword_matches"] = matches[:KEYWORD_MATCHES_TOP_LIMIT]
 
@@ -723,36 +696,27 @@ def extract_snippet(text: str, query: str) -> str:
         )
 
 
-def handle_ingest_conversations(
+def handle_recall_cursor_conversations(
     arguments: Dict[str, Any], project_root: Path, **kwargs
 ) -> Dict[str, Any]:
-    """Ingest and analyze relevant conversations with intelligent caching."""
+    """Recall and analyze relevant conversations with intelligent caching."""
     try:
         limit = arguments.get("limit", CONVERSATION_DEFAULT_LIMIT)
         min_relevance_score = arguments.get(
             "min_relevance_score", CONVERSATION_DEFAULT_MIN_SCORE
         )
-        days_lookback = arguments.get(
-            "days_lookback", CONVERSATION_DEFAULT_RECENT_DAYS
-        )
+        days_lookback = arguments.get("days_lookback", CONVERSATION_DEFAULT_RECENT_DAYS)
         conversation_types = arguments.get("conversation_types", [])
         include_analysis = arguments.get("include_analysis", False)
         fast_mode = arguments.get("fast_mode", True)
 
         # Validate parameters
-        if (
-            not isinstance(limit, int)
-            or limit < 1
-            or limit > CONVERSATION_MAX_LIMIT
-        ):
+        if not isinstance(limit, int) or limit < 1 or limit > CONVERSATION_MAX_LIMIT:
             return AccessValidator.create_error_response(
                 f"limit must be an integer between 1 and {CONVERSATION_MAX_LIMIT}"
             )
 
-        if (
-            not isinstance(min_relevance_score, (int, float))
-            or min_relevance_score < 0
-        ):
+        if not isinstance(min_relevance_score, (int, float)) or min_relevance_score < 0:
             return AccessValidator.create_error_response(
                 "min_relevance_score must be a non-negative number"
             )
@@ -786,9 +750,7 @@ def handle_ingest_conversations(
                     last_updated = conv.get("last_updated", 0)
                     if last_updated:
                         conv_date = datetime.fromtimestamp(last_updated / 1000)
-                        cutoff_date = datetime.now() - timedelta(
-                            days=days_lookback
-                        )
+                        cutoff_date = datetime.now() - timedelta(days=days_lookback)
                         if conv_date >= cutoff_date:
                             filtered_cached.append(conv)
 
@@ -806,8 +768,7 @@ def handle_ingest_conversations(
                         },
                         "cache_info": {
                             "cache_age_hours": round(
-                                (time.time() - cached_data.get("cached_at", 0))
-                                / 3600,
+                                (time.time() - cached_data.get("cached_at", 0)) / 3600,
                                 1,
                             ),
                             "total_cached": len(cached_conversations),
@@ -938,9 +899,7 @@ def handle_ingest_conversations(
         )
 
         # Sort and limit results
-        relevant_conversations.sort(
-            key=lambda x: x["relevance_score"], reverse=True
-        )
+        relevant_conversations.sort(key=lambda x: x["relevance_score"], reverse=True)
         final_conversations = relevant_conversations[:limit]
 
         result = {
@@ -974,18 +933,10 @@ def handle_ingest_conversations(
                 "name": conv_data["conversation"].get("name", "Untitled"),
                 "workspace_hash": conv_data["workspace_hash"][:8],
                 "relevance_score": round(conv_data["relevance_score"], 2),
-                "conversation_type": conv_data["analysis"][
-                    "conversation_type"
-                ],
-                "last_updated": conv_data["conversation"].get(
-                    "lastUpdatedAt", 0
-                ),
-                "keyword_matches": len(
-                    conv_data["analysis"]["keyword_matches"]
-                ),
-                "file_references": len(
-                    conv_data["analysis"]["file_references"]
-                ),
+                "conversation_type": conv_data["analysis"]["conversation_type"],
+                "last_updated": conv_data["conversation"].get("lastUpdatedAt", 0),
+                "keyword_matches": len(conv_data["analysis"]["keyword_matches"]),
+                "file_references": len(conv_data["analysis"]["file_references"]),
             }
 
             # Only include detailed analysis if explicitly requested
@@ -1014,14 +965,12 @@ def handle_ingest_conversations(
             f"(analyzed {efficiency:.1f}% of conversations)"
         )
 
-        return AccessValidator.create_success_response(
-            json.dumps(result, indent=2)
-        )
+        return AccessValidator.create_success_response(json.dumps(result, indent=2))
 
     except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
-        log_error(e, "ingest_conversations")
+        log_error(e, "recall_cursor_conversations")
         return AccessValidator.create_error_response(
-            f"Error ingesting conversations: {str(e)}"
+            f"Error recalling conversations: {str(e)}"
         )
 
 
@@ -1074,9 +1023,7 @@ def handle_fast_conversation_extraction(
             activity_score = 0
             if created_at and last_updated:
                 duration_hours = (last_updated - created_at) / (1000 * 3600)
-                recency_hours = (time.time() * 1000 - last_updated) / (
-                    1000 * 3600
-                )
+                recency_hours = (time.time() * 1000 - last_updated) / (1000 * 3600)
 
                 # Score based on conversation duration and recency
                 if duration_hours > 0:
@@ -1108,10 +1055,7 @@ def handle_fast_conversation_extraction(
 
             conversations.append(conv_data)
 
-            if (
-                len(conversations)
-                >= limit * EARLY_TERMINATION_LIMIT_MULTIPLIER
-            ):
+            if len(conversations) >= limit * EARLY_TERMINATION_LIMIT_MULTIPLIER:
                 break
 
     # Sort by last updated, most recent first, and limit
@@ -1152,15 +1096,13 @@ def handle_fast_conversation_extraction(
         f"Ultra-fast extracted {len(conversations)} conversations in {extraction_time + processing_time:.2f}s "
         f"(processed {processed_count}, skipped {skipped_count})"
     )
-    return AccessValidator.create_success_response(
-        json.dumps(result, indent=2)
-    )
+    return AccessValidator.create_success_response(json.dumps(result, indent=2))
 
 
-def handle_query_conversation_context(
+def handle_search_cursor_conversations(
     arguments: Dict[str, Any], project_root: Path, **kwargs
 ) -> Dict[str, Any]:
-    """Query conversations for specific context or topics."""
+    """Search conversations for specific context or topics."""
     try:
         query = arguments.get("query", "")
         limit = arguments.get("limit", 10)
@@ -1257,9 +1199,7 @@ def handle_query_conversation_context(
                     matching_conversations.append(match_data)
 
         # Sort by last updated (most recent first) and limit
-        matching_conversations.sort(
-            key=lambda x: x["last_updated"], reverse=True
-        )
+        matching_conversations.sort(key=lambda x: x["last_updated"], reverse=True)
         matching_conversations = matching_conversations[:limit]
 
         result = {
@@ -1276,21 +1216,19 @@ def handle_query_conversation_context(
         log_info(
             f"Found {len(matching_conversations)} conversations matching '{query}' from {processed_count} total"
         )
-        return AccessValidator.create_success_response(
-            json.dumps(result, indent=2)
-        )
+        return AccessValidator.create_success_response(json.dumps(result, indent=2))
 
     except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
-        log_error(e, "query_conversation_context")
+        log_error(e, "search_cursor_conversations")
         return AccessValidator.create_error_response(
             f"Error querying conversation context: {str(e)}"
         )
 
 
 # Tool definitions
-TOOL_INGEST_CONVERSATIONS = {
-    "name": "ingest_conversations",
-    "description": "Analyze and ingest relevant conversations from Cursor IDE history with intelligent caching. Defaults to recent 7 days for focused relevance.",
+TOOL_RECALL_CURSOR_CONVERSATIONS = {
+    "name": "recall_cursor_conversations",
+    "description": "Recall and analyze relevant conversations from Cursor IDE history with intelligent caching. Defaults to recent 7 days for focused relevance.",
     "inputSchema": {
         "type": "object",
         "properties": {
@@ -1333,7 +1271,7 @@ TOOL_INGEST_CONVERSATIONS = {
         "required": [],
     },
     "annotations": {
-        "title": "Ingest Relevant Conversations with Smart Caching",
+        "title": "Recall Relevant Conversations with Smart Caching",
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
@@ -1341,8 +1279,8 @@ TOOL_INGEST_CONVERSATIONS = {
     },
 }
 
-TOOL_QUERY_CONVERSATION_CONTEXT = {
-    "name": "query_conversation_context",
+TOOL_SEARCH_CURSOR_CONVERSATIONS = {
+    "name": "search_cursor_conversations",
     "description": "Search conversations for specific topics, keywords, or context",
     "inputSchema": {
         "type": "object",
@@ -1367,7 +1305,7 @@ TOOL_QUERY_CONVERSATION_CONTEXT = {
         "required": ["query"],
     },
     "annotations": {
-        "title": "Query Conversation Context",
+        "title": "Search Conversation Context",
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
@@ -1376,12 +1314,12 @@ TOOL_QUERY_CONVERSATION_CONTEXT = {
 }
 
 
-CONVERSATION_INGESTION_TOOL_HANDLERS = {
-    "ingest_conversations": handle_ingest_conversations,
-    "query_conversation_context": handle_query_conversation_context,
+CONVERSATION_RECALL_TOOL_HANDLERS = {
+    "recall_cursor_conversations": handle_recall_cursor_conversations,
+    "search_cursor_conversations": handle_search_cursor_conversations,
 }
 
-CONVERSATION_INGESTION_TOOL_DEFINITIONS = [
-    TOOL_INGEST_CONVERSATIONS,
-    TOOL_QUERY_CONVERSATION_CONTEXT,
+CONVERSATION_RECALL_TOOL_DEFINITIONS = [
+    TOOL_RECALL_CURSOR_CONVERSATIONS,
+    TOOL_SEARCH_CURSOR_CONVERSATIONS,
 ]

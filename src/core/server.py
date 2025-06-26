@@ -15,13 +15,13 @@ from src.config.constants.core import (
     SERVER_INFO,
     WORKSPACE_FOLDER_PATHS,
 )
-from src.tool_calls.conversation_ingestion import (
-    CONVERSATION_INGESTION_TOOL_DEFINITIONS,
-    CONVERSATION_INGESTION_TOOL_HANDLERS,
-)
 from src.tool_calls.conversation_export import (
     CONVERSATION_EXPORT_TOOL_DEFINITIONS,
     CONVERSATION_EXPORT_TOOL_HANDLERS,
+)
+from src.tool_calls.conversation_recall import (
+    CONVERSATION_RECALL_TOOL_DEFINITIONS,
+    CONVERSATION_RECALL_TOOL_HANDLERS,
 )
 from src.tool_calls.cursor_query import (
     CURSOR_QUERY_TOOL_DEFINITIONS,
@@ -35,27 +35,27 @@ from src.tool_calls.project_operations import (
     PROJECT_TOOL_DEFINITIONS,
     PROJECT_TOOL_HANDLERS,
 )
+from src.utils.access_control import AccessValidator
 from src.utils.common import log_debug, log_error, log_info
 from src.utils.performance import (
     log_operation_time,
     start_timer,
 )
-from src.utils.access_control import AccessValidator
 
 ALL_TOOL_HANDLERS = {
     **FILE_TOOL_HANDLERS,
     **PROJECT_TOOL_HANDLERS,
-    **CONVERSATION_INGESTION_TOOL_HANDLERS,
     **CONVERSATION_EXPORT_TOOL_HANDLERS,
     **CURSOR_QUERY_TOOL_HANDLERS,
+    **CONVERSATION_RECALL_TOOL_HANDLERS,
 }
 
 ALL_TOOL_DEFINITIONS = (
     FILE_TOOL_DEFINITIONS
     + PROJECT_TOOL_DEFINITIONS
-    + CONVERSATION_INGESTION_TOOL_DEFINITIONS
     + CONVERSATION_EXPORT_TOOL_DEFINITIONS
     + CURSOR_QUERY_TOOL_DEFINITIONS
+    + CONVERSATION_RECALL_TOOL_DEFINITIONS
 )
 
 
@@ -99,8 +99,7 @@ class GandalfMCP:
         }
 
         log_info(
-            f"Gandalf MCP server initialized with project root: "
-            f"{self.project_root}"
+            f"Gandalf MCP server initialized with project root: " f"{self.project_root}"
         )
 
     def _find_project_root(self) -> str:
@@ -131,9 +130,7 @@ class GandalfMCP:
                     log_debug(f"Using workspace path: {workspace_path}")
                     return workspace_path
                 else:
-                    log_debug(
-                        f"Workspace path does not exist: {workspace_path}"
-                    )
+                    log_debug(f"Workspace path does not exist: {workspace_path}")
         else:
             log_debug("No WORKSPACE_FOLDER_PATHS environment variable found")
 
@@ -229,17 +226,14 @@ class GandalfMCP:
         except (OSError, ValueError, PermissionError) as e:
             log_error(e, "resolving project root")
             log_debug(
-                f"Exception fallback to current working directory: "
-                f"{cwd_path}"
+                f"Exception fallback to current working directory: " f"{cwd_path}"
             )
             return cwd_path
 
     def _setup_components(self) -> None:
         """Set up components with graceful error handling."""
         try:
-            log_info(
-                "Components initialized successfully using direct Cursor query"
-            )
+            log_info("Components initialized successfully using direct Cursor query")
 
         except (OSError, ImportError, AttributeError) as e:
             log_error(e, "component initialization")
@@ -249,10 +243,7 @@ class GandalfMCP:
         Update project root if it has changed, dynamic mode
         Don't change project root if it was explicitly provided
         """
-        if (
-            hasattr(self, "_explicit_project_root")
-            and self._explicit_project_root
-        ):
+        if hasattr(self, "_explicit_project_root") and self._explicit_project_root:
             return
 
         current_project_root = self._detect_current_project_root()
@@ -353,9 +344,7 @@ class GandalfMCP:
                 f"Error executing {tool_name}: {str(e)}"
             )
 
-    def handle_request(
-        self, request: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    def handle_request(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Handle incoming MCP requests."""
         try:
             method = request.get("method")

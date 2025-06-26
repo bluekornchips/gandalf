@@ -4,7 +4,7 @@ Project utilities for the Gandalf MCP server.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple, Dict, Any
+from typing import Any, Dict, Tuple
 
 from src.utils.access_control import AccessValidator
 

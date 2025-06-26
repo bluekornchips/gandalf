@@ -46,13 +46,14 @@ The Model Context Protocol (MCP) is an open protocol that standardizes how appli
 
 ## Core MCP Tools
 
-| Tool                         | Purpose                                      |
-| ---------------------------- | -------------------------------------------- |
-| `list_project_files`         | Smart file discovery with relevance scoring  |
-| `get_project_info`           | Project metadata, Git status, and statistics |
-| `ingest_conversations`       | Analyze Cursor IDE conversation history      |
-| `query_conversation_context` | Search conversations for specific topics     |
-| `query_cursor_conversations` | Direct database access to Cursor chats       |
+| Tool                          | Purpose                                            |
+| ----------------------------- | -------------------------------------------------- |
+| `list_project_files`          | Smart file discovery with relevance scoring        |
+| `get_project_info`            | Project metadata, Git status, and statistics       |
+| `get_server_version`          | Get current server version and protocol information |
+| `recall_cursor_conversations` | Recall and analyze Cursor IDE conversation history |
+| `search_cursor_conversations` | Search conversations for specific topics           |
+| `query_cursor_conversations`  | Direct database access to Cursor chats             |
 
 ## Commands
 
@@ -137,7 +138,7 @@ The Model Context Protocol (MCP) is an open protocol that standardizes how appli
 - **[API Reference](API.md)** - Complete MCP tools documentation
 - **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Contributing](CONTRIBUTING.md)** - Development guidelines
-- **[Rules](rules.md)** - MCP interaction guidelines
+- **[Rules](gandalf-rules.md)** - MCP interaction guidelines
 
 ## Testing
 
@@ -176,11 +177,6 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 - Implement persistent disk cache for cross-session performance; add cache warming on project initialization; smart cache invalidation based on file system events
 - Validate `weights.yaml` on startup and provide helpful error messages for invalid configs
 - Add ability to send notifications to the IDE
-- Rename "rules.md" to "gandalf-rules.md".
-- Rename the naming pattern of "ingest_conversations" to "recall_cursor_conversations" and "query_conversation_context" to "recall_cursor_conversations". "recall" is a better name for the tool because it's more descriptive of what it does.
 - Remove the backwards compatability we have in place.
 - Add adapter pattern for integrations with claude code (and maybe windsurf?).
 - Complete the export conversation tool. Add another directory in the home folder under conversation called "imports" that will store imported conversations. These are not stored or ever intended to be stored in the actual agent's database or conversation history, these are just part of the "minas_tirith" component, the library of conversations that are not part of the agent's conversation history.
-- gandalf/src/config/cursor_database.md is out of date.
-- make pyyaml required.
-- Add a version checker to flag the user to run "gandalf install -r" if they are not on the latest version.

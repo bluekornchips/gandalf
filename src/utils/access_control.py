@@ -1,27 +1,28 @@
 """
-Access control and validation utilities for the Gandalf MCP server.
-Handles security validation for files, directories, and user input.
+Access control and security validation for the Gandalf MCP server.
 """
 
+import os
 import re
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union, List
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from src.config.constants.file_security import (
-    SECURITY_MAX_STRING_LENGTH,
-    SECURITY_MAX_ARRAY_LENGTH,
-    SECURITY_MAX_QUERY_LENGTH,
-    SECURITY_MAX_PATH_DEPTH,
-    SECURITY_BLOCKED_PATHS,
-    SECURITY_BLOCKED_EXTENSIONS,
+from src.config.constants.security import (
+    BLOCKED_PATHS,
+    BLOCKED_EXTENSIONS,
+    FILENAME_CONTROL_CHARS_PATTERN,
+    FILENAME_INVALID_CHARS_PATTERN,
+    FILENAME_MAX_LENGTH,
+    MAX_ARRAY_LENGTH,
+    MAX_PATH_DEPTH,
+    MAX_QUERY_LENGTH,
+    MAX_STRING_LENGTH,
+    TIMESTAMP_MILLISECOND_THRESHOLD,
+    MAX_FILE_TYPES,
     COMMON_BLOCKED_PATHS,
     LINUX_SPECIFIC_BLOCKED_PATHS,
     MACOS_SPECIFIC_BLOCKED_PATHS,
     WSL_SPECIFIC_BLOCKED_PATHS,
-    MAX_FILE_TYPES,
-    PLATFORM_LINUX,
-    PLATFORM_MACOS,
-    PLATFORM_WSL,
 )
 from src.utils.common import log_debug, log_info
 
@@ -60,12 +61,6 @@ CONVERSATION_DANGEROUS_PATTERNS = [
 class AccessValidator:
     """Centralized access control and validation for MCP tools."""
 
-    MAX_STRING_LENGTH = SECURITY_MAX_STRING_LENGTH
-    MAX_ARRAY_LENGTH = SECURITY_MAX_ARRAY_LENGTH
-    MAX_QUERY_LENGTH = SECURITY_MAX_QUERY_LENGTH
-    MAX_PATH_DEPTH = SECURITY_MAX_PATH_DEPTH
-    BLOCKED_PATHS = SECURITY_BLOCKED_PATHS
-    BLOCKED_EXTENSIONS = SECURITY_BLOCKED_EXTENSIONS
 
     @classmethod
     def validate_string(
@@ -103,7 +98,7 @@ class AccessValidator:
                 f"{field_name} must be at least {min_length} characters",
             )
 
-        max_len = max_length or cls.MAX_STRING_LENGTH
+        max_len = max_length or MAX_STRING_LENGTH
         if len(value) > max_len:
             return False, f"{field_name} cannot exceed {max_len} characters"
 
@@ -142,7 +137,7 @@ class AccessValidator:
         if not isinstance(value, list):
             return False, f"{field_name} must be an array"
 
-        max_len = max_items or cls.MAX_ARRAY_LENGTH
+        max_len = max_items or MAX_ARRAY_LENGTH
         if len(value) > max_len:
             return False, f"{field_name} cannot exceed {max_len} items"
 
@@ -252,10 +247,10 @@ class AccessValidator:
             resolved_path = Path(path_str).resolve()
             path_parts = resolved_path.parts
 
-            if len(path_parts) > cls.MAX_PATH_DEPTH:
+            if len(path_parts) > MAX_PATH_DEPTH:
                 return False, f"{field_name} exceeds maximum depth"
 
-            for blocked_path in cls.BLOCKED_PATHS:
+            for blocked_path in BLOCKED_PATHS:
                 if str(resolved_path).startswith(blocked_path):
                     return False, f"{field_name} accesses blocked system path"
 
@@ -280,7 +275,7 @@ class AccessValidator:
         extension = extension.lower()
 
         # Check if extension is in the blocked list
-        if extension in cls.BLOCKED_EXTENSIONS:
+        if extension in BLOCKED_EXTENSIONS:
             return False, f"File extension {extension} is not allowed"
 
         if len(extension) > FILE_EXTENSION_MAX_LENGTH:
@@ -449,9 +444,7 @@ class AccessValidator:
         sanitized = sanitized.rstrip(".-")
 
         if sanitized != original_name:
-            log_info(
-                f"Project name sanitized: '{original_name}' -> '{sanitized}'"
-            )
+            log_info(f"Project name sanitized: '{original_name}' -> '{sanitized}'")
         else:
             log_debug(f"Project name validation passed: '{original_name}'")
 
@@ -485,7 +478,7 @@ def validate_search_query(query: Any) -> Tuple[bool, str]:
         query,
         "query",
         min_length=1,
-        max_length=AccessValidator.MAX_QUERY_LENGTH,
+        max_length=MAX_QUERY_LENGTH,
     )
 
 
@@ -526,11 +519,11 @@ def get_platform_blocked_paths(platform: str = None) -> set:
     Returns:
         Set of blocked paths for the platform
     """
-    if platform == PLATFORM_LINUX:
+    if platform == "linux":
         return COMMON_BLOCKED_PATHS | LINUX_SPECIFIC_BLOCKED_PATHS
-    elif platform == PLATFORM_MACOS:
+    elif platform == "macos":
         return COMMON_BLOCKED_PATHS | MACOS_SPECIFIC_BLOCKED_PATHS
-    elif platform == PLATFORM_WSL:
+    elif platform == "wsl":
         return COMMON_BLOCKED_PATHS | WSL_SPECIFIC_BLOCKED_PATHS
     else:
-        return SECURITY_BLOCKED_PATHS
+        return BLOCKED_PATHS

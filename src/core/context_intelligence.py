@@ -1,30 +1,54 @@
 """
-Context intelligence for enhanced project awareness and conversation analysis.
+Context intelligence module for Gandalf MCP server.
+
+Provides intelligent context analysis and keyword extraction.
 """
 
-import hashlib
-import json
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from src.config.cache import (
+    CONVERSATION_CACHE_DIR,
+    CONVERSATION_CACHE_FILE,
+    CONVERSATION_CACHE_METADATA_FILE,
+    CONVERSATION_CACHE_MIN_SIZE,
+    CONVERSATION_CACHE_TTL_HOURS,
+    CONVERSATION_CACHE_TTL_SECONDS,
+    FILE_CACHE_DIR,
+)
+from src.config.constants.conversations import (
+    CONTEXT_CACHE_TTL_SECONDS,
+    CONTEXT_KEYWORD_MAX_COUNT,
+    CONTEXT_KEYWORD_MIN_RELEVANCE,
+    CONTEXT_KEYWORDS_FILE_LIMIT,
+)
+from src.config.constants.core import (
+    GANDALF_HOME,
+    MCP_SERVER_NAME,
+    GANDALF_SERVER_VERSION,
+)
 from src.config.constants.system import (
     CONTEXT_FILE_SIZE_LARGE_MULTIPLIER,
     CONTEXT_FILE_SIZE_OPTIMAL_MAX,
     CONTEXT_FILE_SIZE_OPTIMAL_MIN,
+    CONTEXT_GIT_CACHE_TTL,
+    CONTEXT_GIT_LOOKBACK_DAYS,
+    CONTEXT_GIT_TIMEOUT,
     CONTEXT_HIGH_PRIORITY_THRESHOLD,
     CONTEXT_MEDIUM_PRIORITY_THRESHOLD,
     CONTEXT_MIN_SCORE,
     CONTEXT_TOP_FILES_COUNT,
+    CONVERSATION_DEFAULT_LIMIT,
+    CONVERSATION_DEFAULT_LOOKBACK_DAYS,
 )
-from src.config.cache import CONTEXT_CACHE_TTL_SECONDS
 from src.config.weights import (
     CONTEXT_WEIGHTS,
     get_directory_priority_weights,
     get_file_extension_weights,
 )
 from src.core.git_activity import GitActivityTracker
-from src.utils.common import log_debug, log_info
+from src.utils.common import log_debug, log_error, log_info
 
 # Define constants that aren't in the config files
 # Import cache constants (not in system config yet)
@@ -71,9 +95,7 @@ ACTIVE_FILE_WEIGHT_MULTIPLIER = 3.0
 CONTEXT_FILE_SIZE_ACCEPTABLE_MAX = (
     100 * 1024
 )  # 100KB - files larger than this get penalized
-CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER = (
-    0.7  # Multiplier for acceptable size files
-)
+CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER = 0.7  # Multiplier for acceptable size files
 
 
 class ContextIntelligence:
@@ -107,9 +129,7 @@ class ContextIntelligence:
             dir_score = self._score_directory_importance(file_path)
             git_score = self._score_git_activity(file_path)
 
-            score = (
-                recent_score + size_score + type_score + dir_score + git_score
-            )
+            score = recent_score + size_score + type_score + dir_score + git_score
 
             if context and "active_files" in context:
                 import_score = self._score_import_relationships(
@@ -136,13 +156,11 @@ class ContextIntelligence:
                 return self.weights["recent_modification"]
             elif hours_ago < CONTEXT_RECENT_DAY_THRESHOLD:
                 return (
-                    self.weights["recent_modification"]
-                    * CONTEXT_RECENT_DAY_MULTIPLIER
+                    self.weights["recent_modification"] * CONTEXT_RECENT_DAY_MULTIPLIER
                 )
             elif hours_ago < CONTEXT_RECENT_WEEK_THRESHOLD:
                 return (
-                    self.weights["recent_modification"]
-                    * CONTEXT_RECENT_WEEK_MULTIPLIER
+                    self.weights["recent_modification"] * CONTEXT_RECENT_WEEK_MULTIPLIER
                 )
             else:
                 return CONTEXT_MIN_SCORE
@@ -155,16 +173,10 @@ class ContextIntelligence:
         try:
             size = full_path.stat().st_size
 
-            if (
-                CONTEXT_FILE_SIZE_OPTIMAL_MIN
-                <= size
-                <= CONTEXT_FILE_SIZE_OPTIMAL_MAX
-            ):
+            if CONTEXT_FILE_SIZE_OPTIMAL_MIN <= size <= CONTEXT_FILE_SIZE_OPTIMAL_MAX:
                 return self.weights["file_size_optimal"]
             elif (
-                CONTEXT_FILE_SIZE_OPTIMAL_MAX
-                < size
-                <= CONTEXT_FILE_SIZE_ACCEPTABLE_MAX
+                CONTEXT_FILE_SIZE_OPTIMAL_MAX < size <= CONTEXT_FILE_SIZE_ACCEPTABLE_MAX
             ):
                 return (
                     self.weights["file_size_optimal"]

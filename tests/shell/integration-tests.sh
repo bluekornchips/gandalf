@@ -8,13 +8,34 @@ load 'fixtures/helpers/test-helpers.sh'
 
 create_integration_test_structure() {
     mkdir -p src tests docs
-    echo "# There and Back Again, a Hobbits Project" >README.md
-    echo "print('I'm going on an adventure')" >src/main.py
-    echo "def helper(): pass" >src/helper.py
-    echo "test_main()" >tests/test_main.py
-    echo "# For Frodo" >docs/api.md
-    echo '{"name": "integration-test", "version": "1.0.0"}' >package.json
-    echo "*.pyc" >.gitignore
+
+    cat <<'EOF' >README.md
+# There and Back Again, a Hobbits Project
+EOF
+
+    cat <<'EOF' >src/main.py
+print('I'm going on an adventure')
+EOF
+
+    cat <<'EOF' >src/helper.py
+def helper(): pass
+EOF
+
+    cat <<'EOF' >tests/test_main.py
+test_main()
+EOF
+
+    cat <<'EOF' >docs/api.md
+# For Frodo
+EOF
+
+    cat <<'EOF' >package.json
+{"name": "integration-test", "version": "1.0.0"}
+EOF
+
+    cat <<'EOF' >.gitignore
+*.pyc
+EOF
 
     git add . >/dev/null 2>&1
     git commit -m "Initial project setup" >/dev/null 2>&1

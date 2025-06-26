@@ -7,13 +7,23 @@ set -eo pipefail
 load 'fixtures/helpers/test-helpers.sh'
 
 create_security_project() {
-    echo "# The Black Gate" >README.md
-    echo "print('find the one ring')" >normal.py
-    echo "we were good once" >".hidden_file"
+    cat <<'EOF' >README.md
+# The Black Gate
+EOF
+
+    cat <<'EOF' >normal.py
+print('find the one ring')
+EOF
+
+    cat <<'EOF' >.hidden_file
+we were good once
+EOF
 
     # Create nested structure for path traversal tests
     mkdir -p "safe/nested/path"
-    echo "mithril armor" >"safe/nested/path/file.txt"
+    cat <<'EOF' >"safe/nested/path/file.txt"
+mithril armor
+EOF
 
     git add . >/dev/null 2>&1
     git commit -m "the black gate" >/dev/null 2>&1

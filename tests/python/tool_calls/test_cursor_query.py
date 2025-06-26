@@ -1,14 +1,11 @@
-"""
-Tests for cursor query functionality.
-"""
+"""Test cursor query functionality."""
 
-import pytest
-from unittest.mock import Mock, patch
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 from src.tool_calls.cursor_query import (
-    handle_query_cursor_conversations,
     handle_list_cursor_workspaces,
+    handle_query_cursor_conversations,
 )
 
 
@@ -59,7 +56,7 @@ class TestCursorQuery:
 
     def test_handle_list_cursor_workspaces_basic(self):
         """Test basic cursor workspace listing."""
-        arguments = {"random_string": "test"}
+        arguments = {}
 
         project_root = Path("/test/project")
 
@@ -70,9 +67,7 @@ class TestCursorQuery:
             mock_db_path = Mock()
             mock_db_path.parent.name = "shadowfax123"
             mock_db_path.exists.return_value = True
-            mock_instance.find_workspace_databases.return_value = [
-                mock_db_path
-            ]
+            mock_instance.find_workspace_databases.return_value = [mock_db_path]
 
             result = handle_list_cursor_workspaces(arguments, project_root)
 

@@ -2,10 +2,8 @@
 
 import os
 import subprocess
-import tempfile
-import unittest.mock as mock
 from pathlib import Path
-from typing import Any, Dict
+from unittest import mock
 
 import pytest
 
@@ -23,9 +21,7 @@ class TestInitializationConfig:
 
     def test_custom_values(self):
         """Test custom configuration values."""
-        config = InitializationConfig(
-            project_root="/custom/path", enable_logging=False
-        )
+        config = InitializationConfig(project_root="/custom/path", enable_logging=False)
         assert config.project_root == "/custom/path"
         assert config.enable_logging is False
 
@@ -88,9 +84,7 @@ class TestProjectRootDetection:
         """Test workspace path detection strategy."""
         test_path = "/workspace/test"
 
-        with mock.patch.dict(
-            os.environ, {"WORKSPACE_FOLDER_PATHS": test_path}
-        ):
+        with mock.patch.dict(os.environ, {"WORKSPACE_FOLDER_PATHS": test_path}):
             with mock.patch.object(Path, "exists", return_value=True):
                 with mock.patch.object(
                     GandalfMCP, "_find_project_root", return_value=test_path
@@ -104,9 +98,7 @@ class TestProjectRootDetection:
         """Test multiple workspace paths (semicolon separated)."""
         test_paths = "/workspace/legolas;/workspace/aragorn"
 
-        with mock.patch.dict(
-            os.environ, {"WORKSPACE_FOLDER_PATHS": test_paths}
-        ):
+        with mock.patch.dict(os.environ, {"WORKSPACE_FOLDER_PATHS": test_paths}):
             with mock.patch.object(Path, "exists", return_value=True):
                 with mock.patch.object(
                     GandalfMCP,
@@ -165,9 +157,7 @@ class TestProjectRootDetection:
     def test_resolve_project_root_nonexistent_path(self):
         """Test project root resolution with non-existent path."""
         with mock.patch.object(Path, "exists", return_value=False):
-            with mock.patch.object(
-                Path, "cwd", return_value=Path("/current/dir")
-            ):
+            with mock.patch.object(Path, "cwd", return_value=Path("/current/dir")):
                 server = GandalfMCP()
                 result = server._resolve_project_root("/nonexistent/path")
 
@@ -178,9 +168,7 @@ class TestProjectRootDetection:
         with mock.patch.object(
             Path, "resolve", side_effect=OSError("Permission denied")
         ):
-            with mock.patch.object(
-                Path, "cwd", return_value=Path("/fallback")
-            ):
+            with mock.patch.object(Path, "cwd", return_value=Path("/fallback")):
                 server = GandalfMCP()
                 result = server._resolve_project_root("/problematic/path")
 
@@ -218,9 +206,7 @@ class TestMCPProtocolHandling:
     def test_handle_notifications_initialized(self):
         """Test notifications/initialized handling."""
         server = GandalfMCP()
-        request = {
-            "method": "notifications/initialized"
-        }  # No id = notification
+        request = {"method": "notifications/initialized"}  # No id = notification
 
         response = server.handle_request(request)
 
@@ -318,43 +304,35 @@ class TestToolCallHandling:
     def test_tools_call_unknown_tool(self, mock_handlers, mock_validator):
         """Test tools/call with unknown tool."""
         mock_handlers.__contains__ = mock.Mock(return_value=False)
-        mock_validator.create_error_response.return_value = {
-            "error": "Unknown tool"
-        }
+        mock_validator.create_error_response.return_value = {"error": "Unknown tool"}
 
         server = GandalfMCP()
         request = {
             "method": "tools/call",
             "id": "3",
-            "params": {"name": "nonexistent_tool", "arguments": {}},
+            "params": {"name": "unknown_tool", "arguments": {}},
         }
 
-        response = server.handle_request(request)
+        server.handle_request(request)
 
         mock_validator.create_error_response.assert_called_once()
 
     @mock.patch("src.core.server.AccessValidator")
     @mock.patch("src.core.server.ALL_TOOL_HANDLERS")
-    def test_tools_call_exception_handling(
-        self, mock_handlers, mock_validator
-    ):
+    def test_tools_call_exception_handling(self, mock_handlers, mock_validator):
         """Test exception handling in tool calls."""
         mock_handlers.__contains__ = mock.Mock(return_value=True)
-        mock_handlers.__getitem__ = mock.Mock(
-            side_effect=ValueError("Tool error")
-        )
-        mock_validator.create_error_response.return_value = {
-            "error": "Tool failed"
-        }
+        mock_handlers.__getitem__ = mock.Mock(side_effect=ValueError("Tool error"))
+        mock_validator.create_error_response.return_value = {"error": "Tool failed"}
 
         server = GandalfMCP()
         request = {
             "method": "tools/call",
             "id": "4",
-            "params": {"name": "failing_tool", "arguments": {}},
+            "params": {"name": "test_tool", "arguments": {}},
         }
 
-        response = server.handle_request(request)
+        server.handle_request(request)
 
         mock_validator.create_error_response.assert_called_once()
 
@@ -526,8 +504,7 @@ class TestIntegrationScenarios:
 
         # Should return same tools
         assert (
-            tools_response["result"]["tools"]
-            == offerings_response["result"]["tools"]
+            tools_response["result"]["tools"] == offerings_response["result"]["tools"]
         )
 
 
@@ -537,9 +514,7 @@ class TestPerformanceTracking:
     @mock.patch("src.core.server.log_operation_time")
     @mock.patch("src.core.server.start_timer")
     @mock.patch("src.core.server.ALL_TOOL_HANDLERS")
-    def test_tool_call_performance_tracking(
-        self, mock_handlers, mock_start, mock_log
-    ):
+    def test_tool_call_performance_tracking(self, mock_handlers, mock_start, mock_log):
         """Test that tool calls are performance tracked."""
         mock_handlers.__contains__ = mock.Mock(return_value=True)
         mock_handlers.__getitem__ = mock.Mock(
@@ -568,25 +543,21 @@ class TestPerformanceTracking:
     ):
         """Test performance tracking when tool call fails."""
         mock_handlers.__contains__ = mock.Mock(return_value=True)
-        mock_handlers.__getitem__ = mock.Mock(
-            side_effect=ValueError("Tool error")
-        )
-        mock_validator.create_error_response.return_value = {
-            "error": "Tool failed"
-        }
+        mock_handlers.__getitem__ = mock.Mock(side_effect=ValueError("Tool error"))
+        mock_validator.create_error_response.return_value = {"error": "Tool failed"}
 
         server = GandalfMCP()
         request = {
             "method": "tools/call",
             "id": "5",
-            "params": {"name": "failing_tool", "arguments": {}},
+            "params": {"name": "test_tool", "arguments": {}},
         }
 
-        response = server.handle_request(request)
+        server.handle_request(request)
 
+        # Performance tracking should still occur
         mock_start.assert_called_once()
         mock_log.assert_called_once()
-        mock_validator.create_error_response.assert_called_once()
 
 
 # Test fixtures and utilities

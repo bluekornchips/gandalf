@@ -1,10 +1,9 @@
-import os
 import signal
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
+
 import pytest
 
 
@@ -36,7 +35,12 @@ def patch_signals():
         registered[sig] = handler
         return handler
 
-    with patch.object(
-        signal, "signal", side_effect=fake_signal
-    ) as mock_signal:
+    with patch.object(signal, "signal", side_effect=fake_signal):
         yield registered
+
+
+@pytest.fixture
+def mock_signal_handler():
+    """Mock signal handler for testing."""
+    with patch("signal.signal") as mock_signal:
+        yield mock_signal

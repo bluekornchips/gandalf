@@ -2,12 +2,12 @@
 """
 Simple Conversation Export Utility
 
-Basic conversation export functionality for backward compatibility.
+Basic conversation export functionality.
 Use the MCP tool 'export_individual_conversations' for the primary export functionality.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Union
 
 from src.utils.cursor_chat_query import CursorQuery
 
@@ -31,7 +31,7 @@ def export_conversations_simple(
         True if export succeeded, False otherwise
     """
     if format_type not in ["json", "markdown", "cursor"]:
-        raise ValueError(f"format_type must be one of: json, markdown, cursor")
+        raise ValueError("format_type must be one of: json, markdown, cursor")
 
     try:
         query_tool = CursorQuery(silent=silent)
@@ -40,12 +40,9 @@ def export_conversations_simple(
 
         if not silent:
             total_conversations = sum(
-                len(ws.get("conversations", []))
-                for ws in data.get("workspaces", [])
+                len(ws.get("conversations", [])) for ws in data.get("workspaces", [])
             )
-            print(
-                f"Exported {total_conversations} conversations to {output_path}"
-            )
+            print(f"Exported {total_conversations} conversations to {output_path}")
 
         return True
 
@@ -53,10 +50,6 @@ def export_conversations_simple(
         if not silent:
             print(f"Export failed: {e}")
         return False
-
-
-# Backward compatibility alias
-export_conversations = export_conversations_simple
 
 
 def list_workspaces(silent: bool = False) -> List[str]:
@@ -93,9 +86,7 @@ def list_workspaces(silent: bool = False) -> List[str]:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Simple conversation export utility"
-    )
+    parser = argparse.ArgumentParser(description="Simple conversation export utility")
     parser.add_argument("output_path", help="Output file path")
     parser.add_argument(
         "--format", choices=["json", "markdown", "cursor"], default="json"
@@ -105,9 +96,7 @@ if __name__ == "__main__":
         action="store_true",
         help="List available workspaces and exit",
     )
-    parser.add_argument(
-        "--silent", action="store_true", help="Suppress console output"
-    )
+    parser.add_argument("--silent", action="store_true", help="Suppress console output")
 
     args = parser.parse_args()
 

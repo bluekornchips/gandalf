@@ -16,9 +16,9 @@ Usage: gandalf.sh conv [COMMAND] [OPTIONS]
 Real-time conversation access via MCP tools.
 
 Commands:
-    ingest [OPTIONS]           Analyze recent conversations with context intelligence
+    recall [OPTIONS]           Analyze recent conversations with context intelligence
     query [OPTIONS]            Search conversations for specific topics
-    export [OPTIONS]           Export individual conversations to current directory
+    export [OPTIONS]           Export individual conversations to specified directory
     workspaces                 List available Cursor workspace databases
     help                       Show this help
 
@@ -29,16 +29,17 @@ Options:
     --query="TEXT"             Search query text
     --include_content=BOOL     Include content snippets (default: false)
     --format=FORMAT            Export format: json, md, txt (default: json)
+    --output_dir=PATH          Export directory (defaults to ~/.gandalf/exports)
     --workspace_filter=HASH    Filter by specific workspace hash
     --conversation_filter=TEXT Filter conversations by name (partial match)
     --summary=BOOL             Summary mode (default: false)
     --file=FILENAME            Output to file in current directory (optional)
 
 Examples:
-    gdlf conv ingest --fast_mode=true --days_lookback=7
+    gdlf conv recall --fast_mode=true --days_lookback=7
     gdlf conv query --query="debugging authentication" --include_content=true
     gdlf conv export --format=json --limit=10
-    gdlf conv export --format=md --conversation_filter="debugging"
+    gdlf conv export --format=md --conversation_filter="debugging" --output_dir=./exports
     gdlf conv workspaces
 
 EOF
@@ -125,6 +126,9 @@ parse_args() {
         --format=*)
             args_json=$(echo "$args_json" | jq --arg val "${1#*=}" '. + {format: $val}')
             ;;
+        --output_dir=*)
+            args_json=$(echo "$args_json" | jq --arg val "${1#*=}" '. + {output_dir: $val}')
+            ;;
         --workspace_filter=*)
             args_json=$(echo "$args_json" | jq --arg val "${1#*=}" '. + {workspace_filter: $val}')
             ;;
@@ -164,11 +168,11 @@ PARSE_RESULT=$(parse_args "$@")
 ARGS_JSON="$PARSE_RESULT"
 
 case "$COMMAND" in
-ingest)
-    call_mcp_tool "ingest_conversations" "$ARGS_JSON"
+recall)
+    call_mcp_tool "recall_cursor_conversations" "$ARGS_JSON"
     ;;
 query)
-    call_mcp_tool "query_conversation_context" "$ARGS_JSON"
+    call_mcp_tool "search_cursor_conversations" "$ARGS_JSON"
     ;;
 export)
     call_mcp_tool "export_individual_conversations" "$ARGS_JSON"

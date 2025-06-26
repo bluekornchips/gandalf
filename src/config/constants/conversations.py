@@ -1,6 +1,6 @@
 """
 Conversation configuration constants for Gandalf MCP server.
-Contains settings for conversation ingestion, processing, and caching.
+Contains settings for conversation recall, processing, and caching.
 """
 
 # Default Processing Constants
@@ -20,9 +20,7 @@ FILTER_MIN_EXCHANGE_COUNT = 1  # Minimum exchanges for consideration
 
 # Activity Scoring Constants
 ACTIVITY_SCORE_MAX_DURATION = 5.0  # Maximum activity score based on duration
-ACTIVITY_SCORE_RECENCY_BOOST = (
-    2.0  # Boost for conversations updated within 24 hours
-)
+ACTIVITY_SCORE_RECENCY_BOOST = 2.0  # Boost for conversations updated within 24 hours
 
 # Context Intelligence Constants
 CONTEXT_KEYWORD_MIN_RELEVANCE = 0.3  # Minimum keyword relevance threshold
@@ -48,7 +46,10 @@ EARLY_TERMINATION_LIMIT_MULTIPLIER = 3
 RECENT_ACTIVITY_HOURS = 24
 
 # Database and Error Messages
-DATABASE_STRUCTURE_LIMITATION_NOTE = "Prompt/generation counts are estimated based on conversation activity due to Cursor database structure limitations"
+DATABASE_STRUCTURE_LIMITATION_NOTE = (
+    "Prompt/generation counts are estimated based on conversation activity "
+    "due to Cursor database structure limitations"
+)
 
 # Pattern Matching
 TOOL_USAGE_PATTERNS = [

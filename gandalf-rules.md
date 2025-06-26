@@ -20,7 +20,7 @@ alwaysApply: true
 
 - Preserves valuable debugging sessions and architectural decisions from Cursor IDE history
 - Enables intelligent project analysis with relevance scoring and context awareness
-- Maintains continuity across sessions through conversation ingestion
+- Maintains continuity across sessions through conversation recall
 - Creates searchable knowledge base of solutions and patterns
 
 ## When to Use MCP Tools
@@ -45,6 +45,28 @@ alwaysApply: true
 - git commands that alter state
 - commands that alter files outside of the project root
 
+## Version Awareness
+
+**Check server version when:**
+
+- Starting a new conversation or session
+- User reports unexpected behavior or errors
+- Before making significant changes to the project
+- When troubleshooting MCP-related issues
+
+**Use `get_server_version` to:**
+
+- Verify you're working with the expected Gandalf version
+- Include version info in debugging or error reports
+- Ensure compatibility when suggesting features or tools
+
+**Version checking workflow:**
+
+1. Call `get_server_version` early in conversations
+2. If version seems outdated or unexpected, suggest: `gandalf install -r`
+3. Do not proceed, wait for the user to respond with directions.
+4. Include version info when reporting issues or unexpected behavior
+
 ## Context Gathering Strategy
 
 ### Phase 1: Project Intelligence
@@ -57,12 +79,13 @@ alwaysApply: true
 
 ### Phase 2: Conversation Intelligence
 
-3. **Ingest relevant conversations:** `ingest_conversations` with smart caching for recent context
+3. **Recall relevant conversations:** `recall_cursor_conversations` with smart caching for recent context
+
    - Use `fast_mode: true` for quick context gathering (recommended)
    - Set `days_lookback` to focus on recent conversations (default: 7 days)
    - Filter by `conversation_types` for specific contexts when needed
 
-4. **Query specific context:** `query_conversation_context` for targeted searches
+4. **Query specific context:** `search_cursor_conversations` for targeted searches
    - Search for specific keywords, technologies, or problem patterns
    - Use `include_content: true` when you need conversation snippets
    - Limit results appropriately for focused analysis
@@ -76,21 +99,24 @@ alwaysApply: true
 
 ## Enhanced Conversation Management
 
-### Conversation Ingestion Guidelines
+### Conversation Recall Guidelines
 
 **Fast Mode (Recommended):**
+
 - Ultra-fast conversation extraction in seconds
 - Focuses on recent conversations (default 7 days)
 - Minimal processing overhead
 - Ideal for quick context gathering
 
 **Enhanced Mode:**
+
 - Comprehensive analysis with relevance scoring
 - Intelligent keyword matching and context analysis
 - Detailed conversation categorization
 - Smart caching for performance optimization
 
 **Conversation Types Available:**
+
 - `architecture` - Design and structural discussions
 - `debugging` - Problem-solving and error resolution
 - `problem_solving` - General troubleshooting
@@ -101,6 +127,7 @@ alwaysApply: true
 ### Context Intelligence Features
 
 **Intelligent File Scoring:**
+
 - Multi-factor relevance analysis
 - Git activity tracking
 - File size optimization
@@ -108,6 +135,7 @@ alwaysApply: true
 - Recent modification scoring
 
 **Conversation Analysis:**
+
 - Keyword matching with project awareness
 - File reference detection
 - Recency scoring with time decay
@@ -117,17 +145,20 @@ alwaysApply: true
 ## File Operations Best Practices
 
 **Use `list_project_files` for:**
+
 - Understanding project structure and architecture
 - Finding relevant files before making changes
 - Discovering patterns and conventions
 - Identifying configuration files, tests, documentation
 
 **Key parameters:**
+
 - `file_types`: Filter by extensions (e.g., `['.py', '.md', '.json']`)
 - `use_relevance_scoring: true`: Get intelligent prioritization
 - `max_files`: Start with 50, increase if needed (max 10000)
 
 **Example usage patterns:**
+
 ```
 # Understand Python project structure
 list_project_files(file_types=['.py'], max_files=50, use_relevance_scoring=true)
@@ -142,14 +173,18 @@ list_project_files(max_files=100, use_relevance_scoring=true)
 ## Available Tools
 
 ### Project & File Operations
+
 - `get_project_info` - Project metadata, Git info, and file statistics (fast shell-based)
+- `get_server_version` - Get current server version and protocol information
 - `list_project_files` - Discover project structure with intelligent prioritization and relevance scoring
 
 ### Conversation Intelligence
-- `ingest_conversations` - **PRIMARY**: Analyze and ingest relevant conversations with smart caching (defaults to 7 days)
-- `query_conversation_context` - Search conversations for specific topics, keywords, or context
+
+- `recall_cursor_conversations` - **PRIMARY**: Analyze and recall relevant conversations with smart caching (defaults to 7 days)
+- `search_cursor_conversations` - Search conversations for specific topics, keywords, or context
 
 ### Cursor IDE Integration
+
 - `query_cursor_conversations` - Query conversations from Cursor IDE databases for AI context analysis
 - `list_cursor_workspaces` - List available Cursor workspace databases
 
@@ -157,25 +192,28 @@ list_project_files(max_files=100, use_relevance_scoring=true)
 
 1. **Project overview**: `get_project_info` for basic context and git status
 2. **File structure**: `list_project_files` with intelligent scoring for project understanding
-3. **Conversation context**: `ingest_conversations` in fast mode for recent relevant discussions
-4. **Targeted search**: `query_conversation_context` for specific past work or solutions
+3. **Conversation context**: `recall_cursor_conversations` in fast mode for recent relevant discussions
+4. **Targeted search**: `search_cursor_conversations` for specific past work or solutions
 5. **Cursor integration**: `query_cursor_conversations` when direct IDE history access is needed
 6. **[Complete the requested work with full context]**
 
 ## Context Intelligence Features
 
 ### File Relevance Scoring
+
 - **High Priority** (score >= 0.8): Recently modified, optimal size, important file types
 - **Medium Priority** (0.5 <= score < 0.8): Moderately relevant files
 - **Low Priority** (score < 0.5): Less relevant but still accessible files
 
 ### Conversation Analysis
+
 - **Smart Caching**: TTL-based caching with project state validation
 - **Keyword Generation**: Intelligent project-aware keyword extraction
 - **Pattern Recognition**: Automatic conversation type classification
 - **Relevance Scoring**: Multi-factor analysis for conversation importance
 
 ### Performance Optimization
+
 - **Fast Mode**: Ultra-fast conversation extraction (seconds)
 - **Enhanced Mode**: Comprehensive analysis with caching (minutes)
 - **Intelligent Filtering**: Early termination and batch processing
@@ -183,18 +221,21 @@ list_project_files(max_files=100, use_relevance_scoring=true)
 
 ## Best Practices
 
-### Conversation Ingestion
+### Conversation Recall
+
 - Use `fast_mode: true` for quick context gathering
 - Set appropriate `days_lookback` (default 7 days for recent focus)
 - Limit results with sensible `limit` values (default 20)
 - Filter by `conversation_types` when looking for specific contexts
 
 ### File Operations
+
 - Always use `use_relevance_scoring: true` for intelligent file prioritization
 - Filter by `file_types` when working with specific technologies
 - Start with smaller `max_files` values and increase as needed
 
 ### Performance
+
 - Leverage caching mechanisms for repeated operations
 - Use summary modes when full data isn't needed
 - Prefer fast modes for initial context gathering
@@ -206,8 +247,8 @@ list_project_files(max_files=100, use_relevance_scoring=true)
 1. User sends message with request
 2. get_project_info() to understand project context
 3. list_project_files() with relevance scoring for structure
-4. ingest_conversations(fast_mode=true) for recent context
-5. query_conversation_context() for specific searches if needed
+4. recall_cursor_conversations(fast_mode=true) for recent context
+5. search_cursor_conversations() for specific searches if needed
 6. Apply gathered context to complete the requested work
 ```
 

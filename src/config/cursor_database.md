@@ -13,21 +13,25 @@ Cursor IDE stores conversation data in SQLite databases located in workspace-spe
 Cursor databases are typically found in these locations:
 
 **macOS:**
+
 ```
 ~/Library/Application Support/Cursor/workspaceStorage/{workspace-hash}/
 ```
 
 **Linux:**
+
 ```
 ~/.config/Cursor/workspaceStorage/{workspace-hash}/
 ```
 
 **Windows:**
+
 ```
 %APPDATA%\Cursor\workspaceStorage\{workspace-hash}\
 ```
 
 **WSL (Windows Subsystem for Linux):**
+
 ```
 /mnt/c/Users/{username}/AppData/Roaming/Cursor/workspaceStorage/{workspace-hash}/
 ```
@@ -35,6 +39,7 @@ Cursor databases are typically found in these locations:
 ### Database Files
 
 Each workspace directory contains one of these SQLite database files:
+
 - `state.vscdb` (most common)
 - `workspace.db`
 - `storage.db`
@@ -79,6 +84,7 @@ Main conversation metadata and structure:
 ```
 
 **Key Fields:**
+
 - `composerId`: Unique identifier for the conversation
 - `name`: User-defined conversation title
 - `createdAt`: Unix timestamp (milliseconds) when conversation was created
@@ -106,6 +112,7 @@ User input messages and context:
 ```
 
 **Key Fields:**
+
 - `conversationId`: Links to `composerId` in conversations
 - `text`: The actual user prompt text
 - `timestamp`/`unixMs`: When the prompt was sent
@@ -130,6 +137,7 @@ AI assistant responses:
 ```
 
 **Key Fields:**
+
 - `conversationId`: Links to `composerId` in conversations
 - `text`: The AI-generated response text
 - `model`: AI model used for generation
@@ -149,7 +157,7 @@ result = export_conversations("my_conversations.json")
 
 # Export to markdown format
 result = export_conversations(
-    "conversations.md", 
+    "conversations.md",
     format_type="markdown"
 )
 
@@ -164,15 +172,15 @@ result = export_conversations(
 
 ### Function Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `output_path` | `str\|Path` | Required | Where to save the exported file |
-| `format_type` | `str` | `"json"` | Export format: `"json"`, `"markdown"`, or `"cursor"` |
-| `include_prompts` | `bool` | `True` | Include user prompts in export |
-| `include_generations` | `bool` | `True` | Include AI responses in export |
-| `workspace_filter` | `List[str]` | `None` | Only include specific workspace hashes |
-| `conversation_filter` | `str` | `None` | Filter by conversation name (partial match) |
-| `silent` | `bool` | `False` | Suppress console output |
+| Parameter             | Type        | Default  | Description                                          |
+| --------------------- | ----------- | -------- | ---------------------------------------------------- |
+| `output_path`         | `str\|Path` | Required | Where to save the exported file                      |
+| `format_type`         | `str`       | `"json"` | Export format: `"json"`, `"markdown"`, or `"cursor"` |
+| `include_prompts`     | `bool`      | `True`   | Include user prompts in export                       |
+| `include_generations` | `bool`      | `True`   | Include AI responses in export                       |
+| `workspace_filter`    | `List[str]` | `None`   | Only include specific workspace hashes               |
+| `conversation_filter` | `str`       | `None`   | Filter by conversation name (partial match)          |
+| `silent`              | `bool`      | `False`  | Suppress console output                              |
 
 ### Command Line Usage
 
@@ -230,6 +238,7 @@ gdlf conv export --format=txt --workspace_filter=abc123def456
 ```
 
 **Output format:**
+
 - Each conversation becomes a separate file
 - Files are named based on conversation titles (sanitized for filesystem)
 - Command line shows summary: ID, title, date, filename
@@ -264,11 +273,13 @@ Human-readable format for documentation:
 
 ```markdown
 # Cursor Conversations
+
 Queried: 2024-01-01T12:00:00.000Z
 
 ## Workspace abc123def456
 
 ### Debugging Authentication Issues
+
 - **ID**: conv-123-456
 - **Created**: 2024-01-01 10:30:00
 - **Updated**: 2024-01-01 11:45:00
@@ -280,13 +291,16 @@ Detailed format matching Cursor's native conversation display:
 
 ```markdown
 # Cursor Chat History
+
 Queried: 2024-01-01T12:00:00.000Z
 Total Workspaces: 3
 
 ## Workspace: abc123def456
+
 Conversations: 15
 
 ### Debugging Authentication Issues
+
 **ID:** conv-123-456
 **Created:** 2024-01-01 10:30:00
 **Updated:** 2024-01-01 11:45:00
@@ -391,11 +405,13 @@ print(result)
 ### Common Issues
 
 1. **No databases found**
+
    - Verify Cursor is installed and has been used
    - Check if running in WSL (databases are on Windows side)
    - Ensure proper permissions to access Cursor data directory
 
 2. **Empty conversations**
+
    - Some workspaces may not have conversation data
    - Check if conversations exist in Cursor IDE
    - Verify database files are not corrupted
@@ -435,14 +451,14 @@ python -m src.utils.conversation_export conversations.json
 This export functionality integrates seamlessly with the Gandalf MCP server's conversation intelligence features:
 
 - **Context Gathering**: Export conversations for analysis
-- **Pattern Recognition**: Use exported data to identify conversation patterns  
+- **Pattern Recognition**: Use exported data to identify conversation patterns
 - **Knowledge Base**: Build searchable archives of development conversations
 - **Team Sharing**: Export and share relevant conversation threads
 
 For more advanced conversation analysis, use the MCP tools:
-- `ingest_conversations` - Analyze recent conversations with AI
-- `query_conversation_context` - Search conversations by topic
-- `query_cursor_conversations` - Direct database access with formatting
+
+- `recall_cursor_conversations` - Recall and analyze recent conversations with AI
+- `search_cursor_conversations` - Search conversations by topic
 
 ## Limitations
 
@@ -460,4 +476,4 @@ To extend the export functionality:
 3. Implement additional filtering options in `export_conversations()`
 4. Add tests for new functionality in the test suite
 
-The export system is designed to be extensible and maintainable, following the established patterns in the Gandalf MCP codebase. 
+The export system is designed to be extensible and maintainable, following the established patterns in the Gandalf MCP codebase.

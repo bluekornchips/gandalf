@@ -12,7 +12,7 @@ from src.config.constants import (
     conversation_patterns,
     conversations,
     core,
-    file_filters,
+    filters,
     security,
     system,
     technology,
@@ -37,7 +37,7 @@ class ConfigLoader:
             "server_name": core.MCP_SERVER_NAME,
             "gandalf_home": core.GANDALF_HOME,
             "protocol_version": core.MCP_PROTOCOL_VERSION,
-            "server_version": core.SERVER_VERSION,
+            "server_version": core.GANDALF_SERVER_VERSION,
             "server_info": core.SERVER_INFO,
             "server_capabilities": core.SERVER_CAPABILITIES,
             "workspace_folder_paths": core.WORKSPACE_FOLDER_PATHS,
@@ -46,12 +46,12 @@ class ConfigLoader:
     def get_security_config(self) -> Dict[str, Any]:
         """Get security configuration."""
         return {
-            "max_string_length": security.SECURITY_MAX_STRING_LENGTH,
-            "max_array_length": security.SECURITY_MAX_ARRAY_LENGTH,
-            "max_query_length": security.SECURITY_MAX_QUERY_LENGTH,
-            "max_path_depth": security.SECURITY_MAX_PATH_DEPTH,
-            "blocked_paths": security.SECURITY_BLOCKED_PATHS,
-            "safe_extensions": security.SECURITY_SAFE_EXTENSIONS,
+            "max_string_length": security.MAX_STRING_LENGTH,
+            "max_array_length": security.MAX_ARRAY_LENGTH,
+            "max_query_length": security.MAX_QUERY_LENGTH,
+            "max_path_depth": security.MAX_PATH_DEPTH,
+            "blocked_paths": security.BLOCKED_PATHS,
+            "safe_extensions": security.BLOCKED_EXTENSIONS,
         }
 
     def get_system_config(self) -> Dict[str, Any]:
@@ -98,8 +98,8 @@ class ConfigLoader:
     def get_file_filter_config(self) -> Dict[str, Any]:
         """Get file filtering configuration."""
         return {
-            "exclude_dirs": file_filters.FIND_EXCLUDE_DIRS,
-            "exclude_patterns": file_filters.FIND_EXCLUDE_PATTERNS,
+            "exclude_dirs": filters.FIND_EXCLUDE_DIRS,
+            "exclude_patterns": filters.FIND_EXCLUDE_PATTERNS,
         }
 
     def get_conversation_config(self) -> Dict[str, Any]:

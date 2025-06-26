@@ -1,6 +1,8 @@
 """
 System constants configuration for Gandalf MCP server.
-Contains fixed thresholds, limits, and system parameters that are not configurable weights.
+
+Contains fixed thresholds, limits, and system parameters that are not
+configurable weights.
 """
 
 # Display and UI Limits
@@ -21,9 +23,7 @@ CONTEXT_TOP_FILES_COUNT = 10
 # File relevance scoring thresholds, these define priority boundaries
 PRIORITY_HIGH_THRESHOLD = 0.8
 PRIORITY_MEDIUM_THRESHOLD = 0.4
-PRIORITY_NEUTRAL_SCORE = (
-    0.5  # Default score when relevance scoring is disabled
-)
+PRIORITY_NEUTRAL_SCORE = 0.5  # Default score when relevance scoring is disabled
 
 # System Performance Parameters
 
@@ -85,9 +85,9 @@ CONVERSATION_RECENCY_THRESHOLDS = {
     "default": 0.1,
 }
 
-# Conversation Processing Limits
+# Conversation recall limits and defaults
 
-# Conversation ingestion limits and defaults
+# Conversation recall limits and defaults
 CONVERSATION_DEFAULT_LIMIT = 20
 CONVERSATION_DEFAULT_MIN_SCORE = 2.0
 CONVERSATION_DEFAULT_LOOKBACK_DAYS = 30
