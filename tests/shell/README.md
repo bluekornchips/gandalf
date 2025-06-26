@@ -4,34 +4,46 @@ This directory contains comprehensive tests for the Gandalf MCP server, ensuring
 
 ## Test Structure
 
+The test system has been restructured into separate managers for better organization:
+
+- **Main Coordinator**: `../test-suite.sh` - Coordinates between shell and Python tests
+- **Shell Test Manager**: `../shell-tests-manager.sh` - Handles all shell/bats tests
+- **Python Test Manager**: `../python-tests-manager.sh` - Handles all Python/pytest tests
+
 ### Test Categories
 
-- **Core Tests**: Basic server functionality, JSON-RPC compliance, initialization
-- **File Tests**: File operations, listing, filtering, relevance scoring  
-- **Project Tests**: Project information, git integration, statistics
-- **Context Intelligence Tests**: File prioritization, relevance scoring, context analysis
-- **Security Tests**: Security validation, input sanitization, edge cases
-- **Performance Tests**: Performance benchmarks, load testing, stress testing
-- **Integration Tests**: End-to-end workflows and tool interactions
-- **Workspace Detection Tests**: Project root identification and workspace detection
-- **Logging Tests**: RPC message logging and file operation tracking
+- **Core Tests**: Basic server functionality, JSON-RPC compliance, initialization (Python)
+- **File Tests**: File operations, listing, filtering, relevance scoring (Python)
+- **Project Tests**: Project information, git integration, statistics (Shell)
+- **Context Intelligence Tests**: File prioritization, relevance scoring, context analysis (Python)
+- **Security Tests**: Security validation, input sanitization, edge cases (Python)
+- **Performance Tests**: Performance benchmarks, load testing, stress testing (Shell)
+- **Integration Tests**: End-to-end workflows and tool interactions (Shell)
+- **Workspace Detection Tests**: Project root identification and workspace detection (Shell)
+- **Conversation Export Tests**: Conversation export functionality (Shell)
 
-### Test Suites
+### Active Shell Test Suites
 
 | Suite                  | File                            | Tests | Description                                                     |
 | ---------------------- | ------------------------------- | ----- | --------------------------------------------------------------- |
-| `core`                 | `core-tests.sh`                 | 12    | Basic server functionality, initialization, JSON-RPC compliance |
-| `file`                 | `file-tests.sh`                 | 13    | File operations, listing, filtering, relevance scoring          |
 | `project`              | `project-tests.sh`              | 9     | Project information, git integration, statistics                |
-| `context-intelligence` | `context-intelligence-tests.sh` | 13    | Context intelligence, relevance scoring, file prioritization    |
-| `security`             | `security-tests.sh`             | 10    | Security validation, input sanitization, edge cases             |
+| `workspace-detection`  | `workspace-detection-tests.sh`  | 10    | Workspace detection and project root identification             |
+| `conversation-export`  | `conversation-export-tests.sh`  | 12    | Conversation export functionality                               |
 | `performance`          | `performance-tests.sh`          | 15    | Performance benchmarks, load testing, stress testing            |
-| `integration`          | `integration-tests.sh`          | 7     | End-to-end workflows, multi-tool scenarios                      |
-| `workspace-detection`  | `workspace-detection-tests.sh`  | 8     | Workspace detection and project root identification             |
-| `rpc-logging`          | `rpc-logging-tests.sh`          | 6     | JSON-RPC message logging and analysis                           |
-| `file-logging`         | `file-logging-tests.sh`         | 4     | File operation logging and tracking                             |
+| `integration`          | `integration-tests.sh`          | 6     | End-to-end workflows, multi-tool scenarios                      |
 
-**Total: 97 test cases**
+**Total Shell Tests: 50 test cases**
+
+### Migrated to Python Tests
+
+The following test suites have been migrated from shell/bats to Python/pytest for better maintainability:
+
+- `core` - Core MCP server functionality (better JSON-RPC testing in Python)
+- `file` - File operations (complex JSON handling better suited for Python)
+- `context-intelligence` - Scoring algorithms (direct Python testing needed)
+- `security` - Security validation (precise exception testing required)
+
+**Total Python Tests: 163 test cases**
 
 ## Tool Coverage
 
@@ -53,7 +65,7 @@ This directory contains comprehensive tests for the Gandalf MCP server, ensuring
 
 ### Consistent Structure
 
-All test files follow the same pattern:
+All shell test files follow the same pattern:
 
 ```bash
 #!/usr/bin/env bats
@@ -112,11 +124,8 @@ Located in `fixtures/helpers/test-helpers.sh`:
 
 Each test suite that requires a unique project structure has its own creation function:
 
-- **File Tests**: `create_standard_project()` - Multi-file project with various types and directories
-- **Context Intelligence Tests**: `create_context_intelligence_project()` - Complex project for context intelligence testing
-- **Performance Tests**: `create_large_project_structure()` - Large project with many files for performance testing
-- **Security Tests**: `create_security_project()` - Project structure for security testing
 - **Project Tests**: `create_project_test_structure()` - Specialized structure with git history for project operation tests
+- **Performance Tests**: `create_large_project_structure()` - Large project with many files for performance testing
 - **Integration Tests**: `create_integration_test_structure()` - Realistic structure for integration testing
 
 ## Running Tests
@@ -134,46 +143,85 @@ apt-get install bats jq
 command -v bats python3 jq
 ```
 
-### All Tests
+### All Tests (Shell + Python)
 
 ```bash
-./gandalf/tests/test-suite-manager.sh
+# From gandalf directory
+./tests/test-suite.sh
 # or
-./gandalf/tests/test-suite-manager.sh all
+gdlf test
+```
+
+### Shell Tests Only
+
+```bash
+./tests/test-suite.sh --shell
+# or
+gdlf test --shell
+```
+
+### Python Tests Only
+
+```bash
+./tests/test-suite.sh --python
+# or
+gdlf test --python
 ```
 
 ### Individual Test Suites
 
 ```bash
-./gandalf/tests/test-suite-manager.sh core
-./gandalf/tests/test-suite-manager.sh file
-./gandalf/tests/test-suite-manager.sh project
-./gandalf/tests/test-suite-manager.sh context-intelligence
-./gandalf/tests/test-suite-manager.sh security
-./gandalf/tests/test-suite-manager.sh performance
-./gandalf/tests/test-suite-manager.sh integration
-./gandalf/tests/test-suite-manager.sh workspace-detection
-./gandalf/tests/test-suite-manager.sh rpc-logging
-./gandalf/tests/test-suite-manager.sh file-logging
+# Shell suites
+./tests/test-suite.sh project
+./tests/test-suite.sh workspace-detection
+./tests/test-suite.sh conversation-export
+./tests/test-suite.sh performance
+./tests/test-suite.sh integration
+
+# Python suites
+./tests/test-suite.sh python-core
+./tests/test-suite.sh python-file
+./tests/test-suite.sh python-security
+./tests/test-suite.sh python-utils
+./tests/test-suite.sh python-config
 ```
 
 ### Test Categories
 
 ```bash
-# Unit tests (core functionality)
-./gandalf/tests/test-suite-manager.sh unit
-./gandalf/tests/test-suite-manager.sh security
-./gandalf/tests/test-suite-manager.sh performance
-./gandalf/tests/test-suite-manager.sh smoke
+# Unit tests (shell functionality)
+./tests/test-suite.sh unit
+./tests/test-suite.sh security    # Python security tests
+./tests/test-suite.sh performance # Shell performance tests
+./tests/test-suite.sh smoke       # Quick validation tests
+./tests/test-suite.sh lembas       # Fast tests for lembas validation
 ```
 
 ### Test Options
 
 ```bash
-./gandalf/tests/test-suite-manager.sh --verbose
-./gandalf/tests/test-suite-manager.sh --timing
-./gandalf/tests/test-suite-manager.sh --count
-./gandalf/tests/test-suite-manager.sh --help
+./tests/test-suite.sh --verbose
+./tests/test-suite.sh --timing
+./tests/test-suite.sh --count
+./tests/test-suite.sh --help
+```
+
+### Test Counts
+
+```bash
+# All tests
+./tests/test-suite.sh --count
+# Output: Total tests: 213
+#         Shell tests (bats): 50
+#         Python tests (pytest): 163
+
+# Shell only
+./tests/test-suite.sh --shell --count
+# Output: 50
+
+# Python only  
+./tests/test-suite.sh --python --count
+# Output: 163
 ```
 
 ### Reporting
@@ -190,10 +238,23 @@ Failed suites:
   - performance
 ```
 
-To use these helpers in shell scripts (not BATS tests):
+## Migration Notes
+
+Several test suites have been migrated from shell/bats to Python/pytest for better maintainability:
+
+- **Core**: Server initialization and JSON-RPC handling better tested in Python
+- **File**: Complex JSON-RPC testing better suited for Python
+- **Context Intelligence**: Scoring algorithms need direct Python testing
+- **Security**: Security validation requires precise exception testing
+
+See `tests/MIGRATION_GAMEPLAN.md` for full migration plan.
+
+## Helper Functions
+
+To use test helpers in shell scripts (not BATS tests):
 
 ```bash
 source "$GANDALF_ROOT/tests/shell/fixtures/helpers/test-helpers.sh"
 ```
 
-Located in `fixtures/helpers/test-helpers.sh`:
+Located in `fixtures/helpers/test-helpers.sh`.

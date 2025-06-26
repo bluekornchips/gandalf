@@ -39,22 +39,22 @@ def get_windows_username() -> Optional[str]:
     windows_username = os.getenv("WINDOWS_USERNAME")
     if windows_username:
         return windows_username
-    
+
     # Try to find from /mnt/c/Users directory
     users_dir = Path("/mnt/c/Users")
     if not users_dir.exists():
         return None
-    
+
     # Look for first non-default user directory
     default_users = {"default", "defaultuser0", "public", "all users"}
-    
+
     try:
         for user_dir in users_dir.iterdir():
             if user_dir.name.lower() not in default_users:
                 return user_dir.name
     except (OSError, IOError):
         pass
-    
+
     return None
 
 
@@ -63,8 +63,10 @@ def get_wsl_cursor_path() -> Optional[Path]:
     windows_username = get_windows_username()
     if not windows_username:
         return None
-    
-    windows_path = Path(f"/mnt/c/Users/{windows_username}/AppData/Roaming/Cursor/User")
+
+    windows_path = Path(
+        f"/mnt/c/Users/{windows_username}/AppData/Roaming/Cursor/User"
+    )
     return windows_path if windows_path.exists() else None
 
 
@@ -138,12 +140,12 @@ def get_wsl_additional_paths() -> List[Path]:
     """Get additional Cursor paths for WSL environments."""
     additional_paths = []
     users_dir = Path("/mnt/c/Users")
-    
+
     if not users_dir.exists():
         return additional_paths
-    
+
     default_users = {"default", "defaultuser0", "public", "all users"}
-    
+
     try:
         for user_dir in users_dir.iterdir():
             if user_dir.name.lower() not in default_users:
@@ -152,7 +154,7 @@ def get_wsl_additional_paths() -> List[Path]:
                     additional_paths.append(windows_path)
     except (OSError, IOError):
         pass
-    
+
     return additional_paths
 
 

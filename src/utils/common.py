@@ -1,6 +1,7 @@
 """Common utility functions for the MCP server, mainly logging,."""
 
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -69,7 +70,7 @@ def send_rpc_message(
     logger: Optional[str] = None,
     data: Optional[dict] = None,
 ) -> None:
-    """Send a log notification via JSON-RPC."""
+    """Send a log notification via JSON-RPC to stderr to avoid corrupting stdout responses."""
     params = {"level": level, "message": message}
 
     if logger:
@@ -83,7 +84,7 @@ def send_rpc_message(
         "method": "notifications/message",
         "params": params,
     }
-    print(json.dumps(rpc_message), flush=True)
+    print(json.dumps(rpc_message), file=sys.stderr, flush=True)
 
 
 def log_info(message: str) -> None:

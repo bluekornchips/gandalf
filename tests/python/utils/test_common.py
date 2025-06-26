@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest.mock as mock
 from pathlib import Path
+import os
 
 from src.utils.common import (
     initialize_session_logging,

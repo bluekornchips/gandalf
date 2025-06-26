@@ -15,12 +15,12 @@ export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export MCP_DEBUG="${MCP_DEBUG:-true}"
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
-TESTS_DIR="$GANDALF_ROOT/tests/shell"
+TESTS_DIR="$GANDALF_ROOT/tests"
 SCRIPTS_DIR="$GANDALF_ROOT/scripts"
 
 # Global variables for step tracking
 CURRENT_STEP=0
-TOTAL_STEPS=7
+TOTAL_STEPS=8
 SHORT_MODE=false
 
 # Tracks and displays step progress with timing
@@ -51,17 +51,17 @@ run_tests_suite() {
     fi
 
     if [[ "$fast_tests" == "true" ]]; then
-        if ! bash "$TESTS_DIR/test-suite-manager.sh" functional --count >/dev/null 2>&1; then
+        if ! bash "$TESTS_DIR/test-suite.sh" functional --count >/dev/null 2>&1; then
             echo "Warning: Functional tests failed. Continuing with full test run..."
         else
             echo "Fast validation: All tests passed"
-            if ! bash "$TESTS_DIR/test-suite-manager.sh" functional; then
+            if ! bash "$TESTS_DIR/test-suite.sh" functional; then
                 show_fast_test_failure
                 return 1
             fi
         fi
     else
-        if ! bash "$TESTS_DIR/test-suite-manager.sh" lembas; then
+        if ! bash "$TESTS_DIR/test-suite.sh" lembas; then
             show_test_failure
             return 1
         fi

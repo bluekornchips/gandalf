@@ -15,6 +15,21 @@ MAX_FILE_EXTENSION_LENGTH = 10
 MAX_FILES_LIMIT = 10000
 MAX_FILE_SIZE_BYTES = 1048576  # 1MB
 
+# Filename sanitization constants
+FILENAME_INVALID_CHARS_PATTERN = r'[<>:"/\\|?*]'
+FILENAME_CONTROL_CHARS_PATTERN = r"[\x00-\x1f\x7f-\x9f]"
+FILENAME_MAX_LENGTH = 100
+
+# Timestamp conversion constants
+TIMESTAMP_MILLISECOND_THRESHOLD = (
+    1e10  # Threshold to detect millisecond vs second timestamps
+)
+
+# Platform identifiers
+PLATFORM_LINUX = "linux"
+PLATFORM_MACOS = "macos"
+PLATFORM_WSL = "wsl"
+
 # Display limits
 HIGH_PRIORITY_DISPLAY_LIMIT = 20
 MEDIUM_PRIORITY_DISPLAY_LIMIT = 15
@@ -22,7 +37,9 @@ LOW_PRIORITY_DISPLAY_LIMIT = 10
 TOP_FILES_DISPLAY_LIMIT = 15
 
 # Security: Blocked system paths
-SECURITY_BLOCKED_PATHS = {
+
+# Common paths blocked across all platforms
+COMMON_BLOCKED_PATHS = {
     "/etc",
     "/sys",
     "/proc",
@@ -31,46 +48,107 @@ SECURITY_BLOCKED_PATHS = {
     "/boot",
     "/var/log",
     "/var/run",
-    # "/tmp",  # Removed to allow temporary directory usage for testing
     "/usr/bin",
     "/usr/sbin",
 }
 
-# Security: Safe file extensions for operations
-SECURITY_SAFE_EXTENSIONS = {
-    # Primary languages
-    ".py",
-    ".pyi",
-    ".js",
-    ".ts",
-    ".tsx",
-    ".cjs",
-    ".mjs",
-    ".cts",
-    ".mts",
-    # Infrastructure & Configuration
-    ".tf",
-    ".yaml",
-    ".yml",
-    ".json",
-    ".toml",
-    ".ini",
-    ".cfg",
-    ".conf",
-    # Web Technologies
-    ".html",
-    ".css",
-    ".scss",
-    ".less",
-    # Documentation & Text
-    ".md",
-    ".mdx",
-    ".txt",
-    # Scripts
-    ".sh",
-    # Other formats
-    ".xml",
-    ".svg",
+# Platform-specific blocked paths
+LINUX_SPECIFIC_BLOCKED_PATHS = {
+    "/snap",
+    "/run",
+    "/lib",
+    "/lib64",
+}
+
+MACOS_SPECIFIC_BLOCKED_PATHS = {
+    "/private/etc",
+    "/private/var/log",
+    "/private/var/run",
+    "/System",
+    "/Library/System",
+    "/Applications/Utilities",
+}
+
+WSL_SPECIFIC_BLOCKED_PATHS = {
+    "/mnt/c/Windows",
+    "/mnt/c/Program Files",
+    "/mnt/c/Program Files (x86)",
+    "/mnt/c/Users",
+    "/mnt/c/System Volume Information",
+}
+
+# Combined blocked paths for runtime use
+SECURITY_BLOCKED_PATHS = (
+    COMMON_BLOCKED_PATHS
+    | LINUX_SPECIFIC_BLOCKED_PATHS
+    | MACOS_SPECIFIC_BLOCKED_PATHS
+    | WSL_SPECIFIC_BLOCKED_PATHS
+)
+
+# Note: /tmp removed from all sets to allow temporary directory usage for testing
+
+# Security: Blocked file extensions (dangerous/unwanted files)
+SECURITY_BLOCKED_EXTENSIONS = {
+    # Executable files
+    ".exe",
+    ".com",
+    ".bat",
+    ".cmd",
+    ".scr",
+    ".pif",
+    ".msi",
+    ".deb",
+    ".rpm",
+    ".dmg",
+    ".pkg",
+    ".app",
+    # Binary/Compiled files
+    ".bin",
+    ".dll",
+    ".so",
+    ".dylib",
+    ".class",
+    ".jar",
+    ".pyc",
+    ".pyo",
+    ".pyd",
+    # Archive files (can contain malicious content)
+    ".zip",
+    ".rar",
+    ".7z",
+    ".tar",
+    ".gz",
+    ".bz2",
+    ".xz",
+    # Database files
+    ".db",
+    ".sqlite",
+    ".sqlite3",
+    # Large media files
+    ".mp4",
+    ".avi",
+    ".mkv",
+    ".mov",
+    ".wmv",
+    ".mp3",
+    ".wav",
+    ".flac",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".bmp",
+    ".tiff",
+    ".pdf",
+    # System/temporary files
+    ".tmp",
+    ".temp",
+    ".log",
+    ".cache",
+    ".swp",
+    ".swo",
+    ".bak",
+    ".old",
 }
 
 # Filtering: Directory exclusion patterns for find operations
