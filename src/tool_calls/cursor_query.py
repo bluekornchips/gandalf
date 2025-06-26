@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
+from src.utils.access_control import AccessValidator
 from src.utils.common import log_error, log_info
 from src.utils.cursor_chat_query import CursorQuery
-from src.utils.access_control import AccessValidator
 
 
 def handle_query_cursor_conversations(
@@ -38,12 +38,8 @@ def handle_query_cursor_conversations(
             total_conversations = sum(
                 len(ws["conversations"]) for ws in data["workspaces"]
             )
-            total_prompts = sum(
-                len(ws["prompts"]) for ws in data["workspaces"]
-            )
-            total_generations = sum(
-                len(ws["generations"]) for ws in data["workspaces"]
-            )
+            total_prompts = sum(len(ws["prompts"]) for ws in data["workspaces"])
+            total_generations = sum(len(ws["generations"]) for ws in data["workspaces"])
 
             # Get recent conversation names for preview
             recent_conversations = []
@@ -120,9 +116,7 @@ def handle_list_cursor_workspaces(
         }
 
         log_info(f"Found {len(workspaces)} workspace databases")
-        return AccessValidator.create_success_response(
-            json.dumps(result, indent=2)
-        )
+        return AccessValidator.create_success_response(json.dumps(result, indent=2))
 
     except (OSError, ValueError, PermissionError, FileNotFoundError) as e:
         log_error(e, "list_cursor_workspaces")

@@ -8,10 +8,14 @@ import time
 from pathlib import Path
 from typing import Any, Dict
 
+from src.config.constants.core import (
+    GANDALF_SERVER_VERSION,
+    MCP_PROTOCOL_VERSION,
+)
 from src.core.file_scoring import get_files_list
+from src.utils.access_control import AccessValidator
 from src.utils.common import log_debug, log_error, log_info
 from src.utils.performance import get_duration, start_timer
-from src.utils.access_control import AccessValidator
 
 
 def validate_project_root(project_root: Path) -> bool:
@@ -120,20 +124,10 @@ def _get_file_stats_fast(project_root: Path) -> Dict[str, Any]:
 
         if file_result.returncode == 0 and dir_result.returncode == 0:
             file_count = len(
-                [
-                    line
-                    for line in file_result.stdout.splitlines()
-                    if line.strip()
-                ]
+                [line for line in file_result.stdout.splitlines() if line.strip()]
             )
             dir_count = (
-                len(
-                    [
-                        line
-                        for line in dir_result.stdout.splitlines()
-                        if line.strip()
-                    ]
-                )
+                len([line for line in dir_result.stdout.splitlines() if line.strip()])
                 - 1
             )  # Exclude root, because it's not a file
 
@@ -231,9 +225,7 @@ def _get_file_statistics(project_root: Path) -> Dict[str, Any]:
 def _create_basic_project_info(project_root: Path) -> Dict[str, Any]:
     """Create basic project information structure."""
     raw_project_name = project_root.name
-    sanitized_project_name = AccessValidator.sanitize_project_name(
-        raw_project_name
-    )
+    sanitized_project_name = AccessValidator.sanitize_project_name(raw_project_name)
 
     project_info = {
         "project_root": str(project_root),
@@ -284,9 +276,7 @@ def handle_get_project_info(
             )
 
         # Validate project root
-        valid, error_msg = AccessValidator.validate_path(
-            project_root, "project_root"
-        )
+        valid, error_msg = AccessValidator.validate_path(project_root, "project_root")
         if not valid:
             return AccessValidator.create_error_response(error_msg)
 
@@ -305,10 +295,35 @@ def handle_get_project_info(
             json.dumps(project_info, indent=2)
         )
 
-    except (OSError, ValueError, TypeError) as e:
+    except (OSError, ValueError, TypeError, Exception) as e:
         log_error(e, f"get_project_info for {project_root}")
         return AccessValidator.create_error_response(
             f"Error retrieving project info: {str(e)}"
+        )
+
+
+def handle_get_server_version(
+    arguments: Dict[str, Any], project_root: Path, **kwargs
+) -> Dict[str, Any]:
+    """Handle get_server_version tool call."""
+    try:
+        log_debug("Getting server version")
+
+        version_info = {
+            "server_version": GANDALF_SERVER_VERSION,
+            "protocol_version": MCP_PROTOCOL_VERSION,
+            "timestamp": time.time(),
+        }
+
+        log_info(f"Retrieved server version: {GANDALF_SERVER_VERSION}")
+        return AccessValidator.create_success_response(
+            json.dumps(version_info, indent=2)
+        )
+
+    except Exception as e:
+        log_error(e, "get_server_version")
+        return AccessValidator.create_error_response(
+            f"Error retrieving server version: {str(e)}"
         )
 
 
@@ -336,10 +351,30 @@ TOOL_GET_PROJECT_INFO = {
 }
 
 
+TOOL_GET_SERVER_VERSION = {
+    "name": "get_server_version",
+    "description": "Get the current server version and protocol information",
+    "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+    "annotations": {
+        "title": "Get Server Version",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+}
+
+
 PROJECT_TOOL_HANDLERS = {
     "get_project_info": handle_get_project_info,
+    "get_server_version": handle_get_server_version,
 }
 
 PROJECT_TOOL_DEFINITIONS = [
     TOOL_GET_PROJECT_INFO,
+    TOOL_GET_SERVER_VERSION,
 ]

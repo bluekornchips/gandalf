@@ -55,9 +55,7 @@ def get_storage_metadata_path(project_root: Path) -> Path:
     return CONVERSATION_CACHE_METADATA_FILE
 
 
-def get_project_storage_hash(
-    project_root: Path, context_keywords: List[str]
-) -> str:
+def get_project_storage_hash(project_root: Path, context_keywords: List[str]) -> str:
     """Generate a storage hash based on project state and keywords."""
     try:
         # Include project path, git state, and keywords in hash
@@ -73,9 +71,7 @@ def get_project_storage_hash(
 
         return hashlib.md5(hash_input.encode()).hexdigest()[:16]
     except (OSError, ValueError, UnicodeDecodeError):
-        return hashlib.md5(
-            f"{project_root}{time.time()}".encode()
-        ).hexdigest()[:16]
+        return hashlib.md5(f"{project_root}{time.time()}".encode()).hexdigest()[:16]
 
 
 def is_storage_valid(project_root: Path, context_keywords: List[str]) -> bool:
@@ -146,12 +142,9 @@ def save_conversations_to_storage(
     """Save conversations to local storage with metadata."""
     try:
         if len(conversations) < CONVERSATION_CACHE_MIN_SIZE:
-            log_debug(
-                f"Not storing - too few conversations: {len(conversations)}"
-            )
+            log_debug(f"Not storing - too few conversations: {len(conversations)}")
             return False
 
-        storage_dir = get_storage_directory()
         storage_file_path = get_storage_file_path()
         metadata_path = get_storage_metadata_path(project_root)
 
@@ -169,9 +162,7 @@ def save_conversations_to_storage(
         # Save metadata
         storage_metadata = {
             "timestamp": time.time(),
-            "project_hash": get_project_storage_hash(
-                project_root, context_keywords
-            ),
+            "project_hash": get_project_storage_hash(project_root, context_keywords),
             "conversation_count": len(conversations),
             "context_keywords": context_keywords,
             "search_metadata": metadata,
@@ -182,9 +173,7 @@ def save_conversations_to_storage(
 
         # Verify file size
         storage_size_mb = storage_file_path.stat().st_size / (1024 * 1024)
-        log_info(
-            f"Stored {len(conversations)} conversations ({storage_size_mb:.1f}MB)"
-        )
+        log_info(f"Stored {len(conversations)} conversations ({storage_size_mb:.1f}MB)")
 
         return True
 
@@ -223,9 +212,7 @@ def get_enhanced_context_keywords(
 
     try:
         # 2. Get top files with relevance scoring
-        files = get_files_list(project_root)[
-            :40
-        ]  # More files for better context
+        files = get_files_list(project_root)[:40]  # More files for better context
 
         for i, file_path in enumerate(files):
             file_path_obj = Path(file_path)
@@ -248,8 +235,7 @@ def get_enhanced_context_keywords(
                     and dir_part not in ["src", "lib", "app", "components"]
                 ):
                     keyword_weights[dir_part] = (
-                        keyword_weights.get(dir_part, 0)
-                        + position_weight * 1.5
+                        keyword_weights.get(dir_part, 0) + position_weight * 1.5
                     )
 
         # 3. Technology-based keywords from file extensions
@@ -264,8 +250,7 @@ def get_enhanced_context_keywords(
         for ext in extensions:
             tech_name = TECHNOLOGY_EXTENSION_MAPPING.get(ext, ext)
             keyword_weights[tech_name] = (
-                keyword_weights.get(tech_name, 0)
-                + CONTEXT_TECH_WEIGHT_MULTIPLIER * 3
+                keyword_weights.get(tech_name, 0) + CONTEXT_TECH_WEIGHT_MULTIPLIER * 3
             )
 
             # Also add specific technology keywords if available
@@ -280,9 +265,9 @@ def get_enhanced_context_keywords(
         log_debug(f"Error generating enhanced context keywords: {e}")
 
     # Sort by weight and return top keywords
-    sorted_keywords = sorted(
-        keyword_weights.items(), key=lambda x: x[1], reverse=True
-    )[:CONTEXT_KEYWORD_MAX_COUNT]
+    sorted_keywords = sorted(keyword_weights.items(), key=lambda x: x[1], reverse=True)[
+        :CONTEXT_KEYWORD_MAX_COUNT
+    ]
 
     keywords = [kw for kw, weight in sorted_keywords]
     log_debug(f"Generated {len(keywords)} context keywords for {project_root}")
@@ -314,10 +299,7 @@ def generate_context_keywords(project_root: Path) -> List[str]:
 
     # Clean up old storage entries
     for key in list(_context_keywords_timestamp.keys()):
-        if (
-            current_time - _context_keywords_timestamp[key]
-            > CONTEXT_STORAGE_TTL
-        ):
+        if current_time - _context_keywords_timestamp[key] > CONTEXT_STORAGE_TTL:
             _context_keywords_storage.pop(key, None)
             _context_keywords_timestamp.pop(key, None)
 
@@ -326,9 +308,6 @@ def generate_context_keywords(project_root: Path) -> List[str]:
 
 def clear_conversation_storage():
     """Clear all conversation storage."""
-    global _context_keywords_storage, _context_keywords_timestamp
-    global _conversation_storage, _conversation_storage_timestamp
-
     _context_keywords_storage.clear()
     _context_keywords_timestamp.clear()
     _conversation_storage.clear()

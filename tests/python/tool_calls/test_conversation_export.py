@@ -2,20 +2,21 @@
 Tests for conversation export functionality.
 """
 
+import json
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import Mock, mock_open, patch
 
 import pytest
 
+from src.tool_calls.conversation_export import (
+    format_timestamp,
+    handle_export_individual_conversations,
+    sanitize_filename,
+)
 from src.utils.conversation_export import (
     export_conversations_simple,
     list_workspaces,
-)
-from src.tool_calls.conversation_export import (
-    handle_export_individual_conversations,
-    sanitize_filename,
-    format_timestamp,
 )
 
 
@@ -48,7 +49,7 @@ class TestConversationExport:
                         {
                             "id": "prompt-frodo-1",
                             "conversationId": "conv-bilbo-1",
-                            "text": "What is this strange ring I found?",
+                            "text": "It's some form of elvish",
                             "timestamp": 1640995200000,
                         }
                     ],
@@ -56,7 +57,7 @@ class TestConversationExport:
                         {
                             "id": "gen-gandalf-1",
                             "conversationId": "conv-bilbo-1",
-                            "text": "That ring... it is far more dangerous than you know...",
+                            "text": ("I don't know half of you half as well as I should like."),
                             "timestamp": 1640995250000,
                         }
                     ],
@@ -71,12 +72,10 @@ class TestConversationExport:
     def test_simple_export_json(
         self, mock_cursor_query, mock_conversation_data
     ):
-        """Test simplified JSON export functionality."""
+        """Test basic JSON export functionality."""
         # Setup mock
         mock_instance = Mock()
-        mock_instance.query_all_conversations.return_value = (
-            mock_conversation_data
-        )
+        mock_instance.query_all_conversations.return_value = mock_conversation_data
         mock_instance.export_to_file = Mock()
         mock_cursor_query.return_value = mock_instance
 
@@ -94,7 +93,7 @@ class TestConversationExport:
 
     def test_sanitize_filename(self):
         """Test filename sanitization for the Shire archives."""
-        # Test normal conversation name, spaces are preserved)
+        # Test normal conversation name, spaces are preserved
         assert sanitize_filename("Ring Discovery") == "Ring Discovery"
 
         # Test with invalid characters
@@ -117,9 +116,7 @@ class TestConversationExport:
         timestamp = 1640995200000  # 2022-01-01 00:00:00 UTC
         result = format_timestamp(timestamp)
         # The format is YYYYMMDD_HHMMSS, so check for the date part
-        assert (
-            "20211231" in result or "20220101" in result
-        )  # Account for timezone
+        assert "20211231" in result or "20220101" in result  # Account for timezone
 
         # Test with no timestamp
         result_none = format_timestamp(None)
@@ -133,9 +130,7 @@ class TestConversationExport:
         """Test individual conversation export functionality."""
         # Setup mock
         mock_instance = Mock()
-        mock_instance.query_all_conversations.return_value = (
-            mock_conversation_data
-        )
+        mock_instance.query_all_conversations.return_value = mock_conversation_data
         mock_instance._create_message_map.return_value = {
             "prompts": {"conv-bilbo-1": [{"text": "Good morning."}]},
             "generations": {"conv-bilbo-1": [{"text": "Good morning."}]},
@@ -159,7 +154,6 @@ class TestConversationExport:
         # Verify export results - should be MCP response format
         assert "content" in result
         content_text = result["content"][0]["text"]
-        import json
 
         result_data = json.loads(content_text)
         assert "exported_count" in result_data
@@ -173,18 +167,14 @@ class TestConversationExport:
         """Test that invalid format raises ValueError, no Black Speech allowed."""
         with tempfile.NamedTemporaryFile(suffix=".txt") as tmp:
             with pytest.raises(ValueError, match="format_type must be one of"):
-                export_conversations_simple(
-                    tmp.name, format_type="black_speech"
-                )
+                export_conversations_simple(tmp.name, format_type="black_speech")
 
     @patch("src.utils.conversation_export.CursorQuery")
     def test_list_workspaces(self, mock_cursor_query, mock_conversation_data):
         """Test workspace listing."""
         # Setup mock
         mock_instance = Mock()
-        mock_instance.query_all_conversations.return_value = (
-            mock_conversation_data
-        )
+        mock_instance.query_all_conversations.return_value = mock_conversation_data
         mock_cursor_query.return_value = mock_instance
 
         # Test workspace listing

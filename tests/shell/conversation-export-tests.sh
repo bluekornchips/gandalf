@@ -9,24 +9,9 @@ load 'fixtures/helpers/test-helpers.sh'
 setup() {
     shared_setup
     create_minimal_project
-
-    # Create export test directory for isolated testing
-    EXPORT_TEST_DIR="$TEST_PROJECT_DIR/exports"
-    mkdir -p "$EXPORT_TEST_DIR"
-
-    # Keep test mode enabled to prevent actual file creation
-    export ORIGINAL_TEST_MODE="$GANDALF_TEST_MODE"
 }
 
 teardown() {
-    # Restore original test mode
-    export GANDALF_TEST_MODE="$ORIGINAL_TEST_MODE"
-
-    cd "$TEST_PROJECT_DIR" || cd /tmp
-    if [[ -n "$EXPORT_TEST_DIR" && -d "$EXPORT_TEST_DIR" ]]; then
-        rm -rf "$EXPORT_TEST_DIR"
-    fi
-
     shared_teardown
 }
 
@@ -120,25 +105,25 @@ execute_clean_rpc() {
     fi
 }
 
-@test "ingest_conversations: fast mode" {
-    run execute_clean_rpc "tools/call" '{"name": "ingest_conversations", "arguments": {"fast_mode": true, "limit": 5}}'
+@test "recall_cursor_conversations: fast mode" {
+    run execute_clean_rpc "tools/call" '{"name": "recall_cursor_conversations", "arguments": {"fast_mode": true, "limit": 5}}'
     [ "$status" -eq 0 ]
 
-    local ingest_content
-    ingest_content=$(echo "$output" | jq -r '.result.content[0].text')
+    local recall_content
+    recall_content=$(echo "$output" | jq -r '.result.content[0].text')
 
-    echo "$ingest_content" | jq -e '.mode' >/dev/null
-    echo "$ingest_content" | jq -e '.total_conversations' >/dev/null
-    echo "$ingest_content" | jq -e '.parameters' >/dev/null
+    echo "$recall_content" | jq -e '.mode' >/dev/null
+    echo "$recall_content" | jq -e '.total_conversations' >/dev/null
+    echo "$recall_content" | jq -e '.parameters' >/dev/null
 
     local mode
-    mode=$(echo "$ingest_content" | jq -r '.mode')
+    mode=$(echo "$recall_content" | jq -r '.mode')
     [[ "$mode" == "ultra_fast_extraction" || "$mode" == "cached_results" ]]
 }
 
-@test "query_conversation_context: basic search" {
+@test "search_cursor_conversations: basic search" {
     # Test conversation context searching for rings of power related discussions
-    run execute_clean_rpc "tools/call" '{"name": "query_conversation_context", "arguments": {"query": "rings of power", "limit": 5}}'
+    run execute_clean_rpc "tools/call" '{"name": "search_cursor_conversations", "arguments": {"query": "rings of power", "limit": 5}}'
     [ "$status" -eq 0 ]
 
     local search_content
@@ -183,8 +168,17 @@ execute_clean_rpc() {
     local export_content
     export_content=$(echo "$output" | jq -r '.result.content[0].text')
 
-    echo "$export_content" | grep -q "exported_count"
-    [[ -n "$export_content" ]]
+    local export_data
+    export_data=$(echo "$export_content")
+
+    echo "$export_data" | jq -e '.exported_count' >/dev/null
+    echo "$export_data" | jq -e '.files' >/dev/null
+    echo "$export_data" | jq -e '.output_directory' >/dev/null
+
+    # Verify files are in the temp GANDALF_HOME directory
+    local output_dir
+    output_dir=$(echo "$export_data" | jq -r '.output_directory')
+    echo "$output_dir" | grep -q "$GANDALF_HOME/exports"
 }
 
 @test "export_individual_conversations: markdown format" {
@@ -195,8 +189,17 @@ execute_clean_rpc() {
     local export_content
     export_content=$(echo "$output" | jq -r '.result.content[0].text')
 
-    # Should indicate markdown export
-    echo "$export_content" | grep -q "exported_count"
+    local export_data
+    export_data=$(echo "$export_content")
+
+    # Verify format is preserved
+    local format
+    format=$(echo "$export_data" | jq -r '.format')
+    [[ "$format" == "md" ]]
+
+    local output_dir
+    output_dir=$(echo "$export_data" | jq -r '.output_directory')
+    echo "$output_dir" | grep -q "$GANDALF_HOME/exports"
 }
 
 @test "export_individual_conversations: with conversation filter" {
@@ -207,8 +210,52 @@ execute_clean_rpc() {
     local export_content
     export_content=$(echo "$output" | jq -r '.result.content[0].text')
 
+    local export_data
+    export_data=$(echo "$export_content")
+
     # Should complete without error, may have 0 matches
-    [[ -n "$export_content" ]]
+    echo "$export_data" | jq -e '.exported_count' >/dev/null
+
+    local output_dir
+    output_dir=$(echo "$export_data" | jq -r '.output_directory')
+    echo "$output_dir" | grep -q "$GANDALF_HOME/exports"
+}
+
+@test "export_individual_conversations: project directory exports work" {
+    run execute_clean_rpc "tools/call" '{"name": "export_individual_conversations", "arguments": {"format": "json", "output_dir": "./test_exports"}}'
+    [ "$status" -eq 0 ]
+
+    local export_content
+    export_content=$(echo "$output" | jq -r '.result.content[0].text')
+
+    local export_data
+    export_data=$(echo "$export_content")
+
+    # Should work fine and create files in the specified directory
+    echo "$export_data" | jq -e '.exported_count' >/dev/null
+    local output_dir
+    output_dir=$(echo "$export_data" | jq -r '.output_directory')
+    echo "$output_dir" | grep -q "test_exports"
+}
+
+@test "export_individual_conversations: default directory" {
+    run execute_clean_rpc "tools/call" '{"name": "export_individual_conversations", "arguments": {"format": "json", "limit": 1}}'
+    [ "$status" -eq 0 ]
+
+    local export_content
+    export_content=$(echo "$output" | jq -r '.result.content[0].text')
+
+    local export_data
+    export_data=$(echo "$export_content")
+
+    local output_dir
+    output_dir=$(echo "$export_data" | jq -r '.output_directory')
+    echo "$output_dir" | grep -q "$GANDALF_HOME/exports"
+
+    # Verify files were actually created
+    local exported_count
+    exported_count=$(echo "$export_data" | jq -r '.exported_count')
+    [[ "$exported_count" =~ ^[0-9]+$ ]]
 }
 
 @test "export_individual_conversations: invalid format error" {

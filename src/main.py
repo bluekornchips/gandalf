@@ -60,11 +60,8 @@ def main() -> None:
             return getattr(self.original, name)
 
     # Configure stdin/stdout for JSON-RPC communication
-    try:
-        sys.stdin.reconfigure(line_buffering=True)
-        sys.stdout.reconfigure(line_buffering=False)
-    except AttributeError:
-        pass  # reconfigure not available in older Python versions
+    sys.stdin.reconfigure(line_buffering=True)
+    sys.stdout.reconfigure(line_buffering=False)
 
     sys.stdout = LoggingStdout(original_stdout)
 

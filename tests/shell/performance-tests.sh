@@ -102,20 +102,20 @@ teardown() {
     ! echo "$content" | grep -q "\.js\|\.md"
 }
 
-@test "conversation ingestion performs well with rapid calls" {
-    # Test rapid conversation ingestion performance
+@test "conversation recall performs well with rapid calls" {
+    # Test rapid conversation recall performance
     local start_time end_time duration
     start_time=$(date +%s)
 
-    # Test multiple rapid conversation ingestion calls
+    # Test multiple rapid conversation recall calls
     for i in {1..5}; do
-        execute_rpc "tools/call" '{"name": "ingest_conversations", "arguments": {"fast_mode": true, "limit": 5, "days_lookback": 7}}' >/dev/null
+        execute_rpc "tools/call" '{"name": "recall_cursor_conversations", "arguments": {"fast_mode": true, "limit": 5, "days_lookback": 7}}' >/dev/null
     done
 
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
 
-    check_timeout_with_warning "$duration" 30 "rapid conversation ingestion calls"
+    check_timeout_with_warning "$duration" 30 "rapid conversation recall calls"
 }
 
 @test "conversation analysis performs well with large conversation history" {
@@ -123,7 +123,7 @@ teardown() {
     local start_time end_time duration
     start_time=$(date +%s)
 
-    run execute_rpc "tools/call" '{"name": "ingest_conversations", "arguments": {"fast_mode": true, "limit": 20, "days_lookback": 30}}'
+    run execute_rpc "tools/call" '{"name": "recall_cursor_conversations", "arguments": {"fast_mode": true, "limit": 20, "days_lookback": 30}}'
 
     end_time=$(date +%s)
     duration=$((end_time - start_time))
@@ -218,11 +218,11 @@ teardown() {
 
     # Multiple conversation operations using real MCP tools
     for i in {1..3}; do
-        execute_rpc "tools/call" '{"name": "ingest_conversations", "arguments": {"fast_mode": true, "limit": 10, "days_lookback": 7}}' >/dev/null
+        execute_rpc "tools/call" '{"name": "recall_cursor_conversations", "arguments": {"fast_mode": true, "limit": 10, "days_lookback": 7}}' >/dev/null
     done
 
     # Search operations using real query tool
-    execute_rpc "tools/call" '{"name": "query_conversation_context", "arguments": {"query": "test", "limit": 5}}' >/dev/null
+    execute_rpc "tools/call" '{"name": "search_cursor_conversations", "arguments": {"query": "test", "limit": 5}}' >/dev/null
 
     # Cursor database operations
     execute_rpc "tools/call" '{"name": "query_cursor_conversations", "arguments": {"summary": true}}' >/dev/null

@@ -63,9 +63,7 @@ class TestOperationLogging:
 
     @patch("src.utils.performance.log_debug")
     @patch("src.utils.performance.log_info")
-    def test_log_operation_time_debug_level(
-        self, mock_log_info, mock_log_debug
-    ):
+    def test_log_operation_time_debug_level(self, mock_log_info, mock_log_debug):
         """Test log_operation_time with debug level."""
         with patch("src.utils.performance.time.time") as mock_time:
             mock_time.side_effect = [100.0, 102.5]  # 2.5 second operation
@@ -80,9 +78,7 @@ class TestOperationLogging:
 
     @patch("src.utils.performance.log_debug")
     @patch("src.utils.performance.log_info")
-    def test_log_operation_time_info_level(
-        self, mock_log_info, mock_log_debug
-    ):
+    def test_log_operation_time_info_level(self, mock_log_info, mock_log_debug):
         """Test log_operation_time with info level."""
         with patch("src.utils.performance.time.time") as mock_time:
             mock_time.side_effect = [100.0, 100.123]  # 0.123 second operation
@@ -97,9 +93,7 @@ class TestOperationLogging:
 
     @patch("src.utils.performance.log_debug")
     @patch("src.utils.performance.log_info")
-    def test_log_operation_time_default_debug(
-        self, mock_log_info, mock_log_debug
-    ):
+    def test_log_operation_time_default_debug(self, mock_log_info, mock_log_debug):
         """Test log_operation_time defaults to debug level."""
         with patch("src.utils.performance.time.time") as mock_time:
             mock_time.side_effect = [100.0, 101.0]
@@ -148,9 +142,7 @@ class TestTimeOperationContextManager:
             with time_operation("test_context") as start_time:
                 assert start_time == 100.0
 
-            mock_log_operation.assert_called_once_with(
-                "test_context", 100.0, "debug"
-            )
+            mock_log_operation.assert_called_once_with("test_context", 100.0, "debug")
 
     @patch("src.utils.performance.log_operation_time")
     def test_time_operation_with_log_level(self, mock_log_operation):
@@ -159,9 +151,7 @@ class TestTimeOperationContextManager:
             with time_operation("info_context", "info") as start_time:
                 assert start_time == 200.0
 
-            mock_log_operation.assert_called_once_with(
-                "info_context", 200.0, "info"
-            )
+            mock_log_operation.assert_called_once_with("info_context", 200.0, "info")
 
     @patch("src.utils.performance.log_operation_time")
     def test_time_operation_exception_handling(self, mock_log_operation):
@@ -183,9 +173,7 @@ class TestTimeOperationContextManager:
         """Test time_operation yields the start time for manual calculations."""
         expected_start = 150.5
 
-        with patch(
-            "src.utils.performance.time.time", return_value=expected_start
-        ):
+        with patch("src.utils.performance.time.time", return_value=expected_start):
             with time_operation("yield_test") as yielded_time:
                 assert yielded_time == expected_start
                 # Can use yielded time for manual duration calculations
@@ -234,9 +222,7 @@ class TestPerformanceIntegration:
                 # Simulate file listing operation
                 pass
 
-            mock_log_operation.assert_called_once_with(
-                "file_listing", 500.0, "debug"
-            )
+            mock_log_operation.assert_called_once_with("file_listing", 500.0, "debug")
 
     def test_performance_tracking_precision(self):
         """Test performance tracking maintains proper precision."""

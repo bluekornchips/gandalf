@@ -32,7 +32,6 @@ Examples:
     gandalf.sh install /path/to/repo      # Configure specific repository
     gandalf.sh install -f                 # Force overwrite existing config
     gandalf.sh install -r                 # Reset existing server and install fresh
-    gandalf.sh install --skip-test        # Skip connectivity tests
 
 What this does:
     1. Verifies system requirements (Python 3.10+, Git)
@@ -42,9 +41,6 @@ What this does:
     5. Updates Cursor MCP configuration (~/.cursor/mcp.json)
     6. Creates $MCP_SERVER_NAME rules file (.cursor/rules/$MCP_SERVER_NAME-rules.mdc)
     7. Tests server connectivity with retry mechanism
-
-Note: $MCP_SERVER_NAME requires git repositories and automatically detects the git root as the project directory.
-The same server works across all your git repositories without any per-project configuration.
 
 EOF
 }
@@ -76,7 +72,6 @@ remove_server() {
     fi
 
     local temp_file=$(mktemp)
-
     if jq --arg name "$server_name" 'del(.mcpServers[$name])' "$config_file" >"$temp_file"; then
         mv "$temp_file" "$config_file"
         echo "Successfully removed $server_name server"
@@ -93,9 +88,7 @@ restart_server() {
 
     echo "Restarting $server_name MCP server..."
 
-    # Find the server process
     local MCP_PID=$(pgrep -f "$server_name.*main.py" | head -1 || echo "")
-
     if [[ -z "$MCP_PID" ]]; then
         echo "$server_name MCP server is not running"
         echo "Make sure Cursor is running and the MCP server was configured"
@@ -103,13 +96,10 @@ restart_server() {
     fi
 
     echo "Found $server_name MCP server: PID $MCP_PID"
-
     echo "Stopping $server_name MCP server..."
     kill "$MCP_PID" 2>/dev/null || true
-
     sleep 1
 
-    # Check if it's still running, force kill if needed
     if kill -0 "$MCP_PID" 2>/dev/null; then
         echo "Force stopping MCP server..."
         killall -9 python3 2>/dev/null || true
@@ -118,7 +108,6 @@ restart_server() {
 
     echo "$server_name MCP server stopped"
     echo "Cursor will automatically restart the MCP server with new configuration"
-
     sleep 2
 }
 
@@ -127,13 +116,12 @@ perform_reset() {
     local server_name="$2"
 
     cat <<EOF
-=== RESET PHASE ===
 Performing reset before installation...
 Config file: $config_file
 Server name: $server_name
+
 EOF
 
-    # Create backup before reset
     if [[ -f "$config_file" ]]; then
         local backup_file="${config_file}.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$config_file" "$backup_file"
@@ -143,14 +131,15 @@ EOF
     remove_server "$config_file" "$server_name"
 
     cat <<EOF
+
 Reset completed successfully!
 Proceeding with fresh installation...
+
 EOF
 }
 
 get_python_executable() {
-    # Check if virtual environment exists and use it
-    local venv_python="$GANDALF_ROOT/venv/bin/python3"
+    local venv_python="$GANDALF_ROOT/.venv/bin/python3"
     if [[ -f "$venv_python" ]]; then
         echo "$venv_python"
     else
@@ -161,7 +150,6 @@ get_python_executable() {
 verify_prerequisites() {
     echo "Verifying system requirements using shared dependency checker..."
 
-    # Use the shared dependency checker
     if ! "$SCRIPTS_DIR/check-dependencies.sh" --core-only --quiet; then
         cat <<EOF
 
@@ -192,13 +180,11 @@ EOF
         exit 1
     fi
 
-    # Set executable permissions
     chmod +x "$GANDALF_ROOT/gandalf.sh" "$GANDALF_ROOT/scripts"/* "$SERVER_SCRIPT" 2>/dev/null || true
 
     # Test MCP server using the correct Python executable
     local python_exec
     python_exec=$(get_python_executable)
-
     echo "Testing MCP server with Python: $python_exec"
 
     if ! "$python_exec" "$SERVER_SCRIPT" --help >/dev/null 2>&1; then
@@ -236,7 +222,7 @@ update_cursor_config() {
                 }' "$config_file" >"$temp_file"
             mv "$temp_file" "$config_file"
         else
-            # Fallback for no jq - most people probably won't have it
+            # Fallback for no jq, most people probably won't have it
             cat >"$config_file" <<EOF
 {
     "mcpServers": {
@@ -249,7 +235,6 @@ update_cursor_config() {
 EOF
         fi
     else
-        # Create new config file
         cat >"$config_file" <<EOF
 {
     "mcpServers": {
@@ -269,7 +254,7 @@ create_rules_file() {
     local repo_root="$1"
     local rules_dir="$repo_root/.cursor/rules"
     local rules_file="$rules_dir/$MCP_SERVER_NAME-rules.mdc"
-    local source_rules_file="$GANDALF_ROOT/rules.md"
+    local source_rules_file="$GANDALF_ROOT/$MCP_SERVER_NAME-rules.md"
 
     mkdir -p "$rules_dir"
 
@@ -288,7 +273,6 @@ create_rules_file() {
     echo "Created $MCP_SERVER_NAME rules file: $rules_file"
 }
 
-# Show test results for connectivity attempts
 show_test_results() {
     local attempt="$1"
     local script_test="$2"
@@ -298,19 +282,17 @@ show_test_results() {
     echo "  Attempt $attempt: Script $([ "$script_test" = true ] && echo "PASS" || echo "FAIL") | Process $([ "$process_test" = true ] && echo "PASS" || echo "FAIL") | Server $([ "$init_test" = true ] && echo "PASS" || echo "FAIL")"
 }
 
-# Show connectivity test failure
 show_connectivity_failure() {
     local max_attempts="$1"
 
     cat <<EOF
 Server connectivity test failed after $max_attempts attempts.
-    This may be normal if Cursor hasn't fully loaded the MCP configuration yet.
-    The server should work correctly once Cursor recognizes the configuration.
-    If you are using Cursor, you can try restarting Cursor to see if that fixes the issue.
+This may be normal if Cursor hasn't fully loaded the MCP configuration yet.
+The server should work correctly once Cursor recognizes the configuration.
+If you are using Cursor, you can try restarting Cursor to see if that fixes the issue.
 EOF
 }
 
-# Show installation warning
 show_installation_warning() {
     cat <<EOF
 Installation completed with warnings:
@@ -329,7 +311,6 @@ test_server_connectivity() {
     echo "Testing server connectivity..."
     echo "Waiting ${wait_time}s for Cursor to recognize MCP server..."
 
-    # Wait for Cursor to pick up the new configuration
     sleep "$wait_time"
 
     local server_working=false
@@ -337,7 +318,6 @@ test_server_connectivity() {
     local python_exec
     python_exec=$(get_python_executable)
 
-    # Change to the repo directory for testing
     pushd "$repo_root" >/dev/null || return 1
 
     while [[ $attempt -le $max_attempts ]]; do
@@ -348,28 +328,23 @@ test_server_connectivity() {
         local init_test=false
         local tools_test=false
 
-        # Check if MCP server processes are running
         local mcp_process_count=$(pgrep -f "$MCP_SERVER_NAME.*main.py" | wc -l | tr -d ' \n\r' || echo "0")
-        # Ensure it's a valid number
         [[ "$mcp_process_count" =~ ^[0-9]+$ ]] || mcp_process_count=0
         if [[ $mcp_process_count -gt 0 ]]; then
             process_test=true
             echo "Found $mcp_process_count MCP server process(es) running"
         fi
 
-        # Test if server script runs without error
         if timeout 3 "$python_exec" "$SERVER_SCRIPT" --help >/dev/null 2>&1; then
             script_test=true
         fi
 
-        # Test server initialization
         if init_response=$(echo '{"jsonrpc": "2.0", "method": "initialize", "id": 1}' | timeout 5 "$python_exec" "$SERVER_SCRIPT" 2>/dev/null); then
             if echo "$init_response" | grep -q '"protocolVersion"'; then
                 init_test=true
             fi
         fi
 
-        # Test tools endpoint
         if tools_response=$(echo '{"jsonrpc": "2.0", "method": "tools/list", "id": 2}' | timeout 5 "$python_exec" "$SERVER_SCRIPT" 2>/dev/null); then
             if echo "$tools_response" | grep -q '"tools"'; then
                 tools_test=true
@@ -417,7 +392,6 @@ wait_for_cursor_recognition() {
         sleep "$wait_time"
 
         local mcp_process_count=$(pgrep -f "$server_name.*main.py" | wc -l | tr -d ' \n\r' || echo "0")
-        # Ensure it's a valid number
         [[ "$mcp_process_count" =~ ^[0-9]+$ ]] || mcp_process_count=0
         if [[ $mcp_process_count -gt 0 ]]; then
             echo "MCP server process started successfully (${mcp_process_count} process(es))"
@@ -431,6 +405,7 @@ wait_for_cursor_recognition() {
     return 0
 }
 
+# Parse arguments
 REPO_ROOT=""
 FORCE=false
 RESET=false
@@ -476,8 +451,6 @@ done
 echo "Verifying system requirements..."
 verify_prerequisites
 echo "Prerequisites verified successfully!"
-
-SERVER_DIR="$GANDALF_ROOT/src"
 
 echo "Configuring MCP for repository..."
 
@@ -525,10 +498,8 @@ update_cursor_config "$CONFIG_FILE" "$SERVER_NAME" "$GANDALF_ROOT/gandalf.sh"
 echo "Creating $MCP_SERVER_NAME rules file..."
 create_rules_file "$REPO_ROOT"
 
-# Wait for Cursor to recognize the new configuration
 wait_for_cursor_recognition "$CONFIG_FILE" "$SERVER_NAME" 1
 
-# Test server connectivity with retries unless skipped
 if [[ "$SKIP_TEST" != "true" ]]; then
     if ! test_server_connectivity 3 "$WAIT_TIME" "$REPO_ROOT"; then
         echo "Warning: Server connectivity test failed, but installation completed"

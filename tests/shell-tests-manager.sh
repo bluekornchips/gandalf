@@ -7,10 +7,10 @@ SHELL_MANAGER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 GANDALF_ROOT="$(cd "$SHELL_MANAGER_DIR/.." && pwd -P)"
 TESTS_DIR="$GANDALF_ROOT/tests/shell"
 
-# MIGRATION NOTE: Several test suites have been temporarily disabled during migration to Python tests
+# Several test suites have been temporarily disabled during migration to Python tests
 # The following suites are being migrated from shell/bats to Python/pytest for better maintainability:
 # - file: Complex JSON-RPC testing better suited for Python
-# - context-intelligence: Scoring algorithms need direct Python testing
+# - context-intelligence: Scoring algorithms need direct Python testing  
 # - security: Security validation requires precise exception testing
 # - core: Server initialization and JSON-RPC handling better tested in Python
 # See tests/MIGRATION_GAMEPLAN.md for full migration plan

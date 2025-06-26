@@ -4,7 +4,7 @@ File scoring and relevance ranking for the Gandalf MCP server.
 
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.config.constants.system import MCP_CACHE_TTL, PRIORITY_NEUTRAL_SCORE
 from src.core.context_intelligence import get_context_intelligence
@@ -21,15 +21,12 @@ def get_files_with_scores(project_root: Path) -> List[Tuple[str, float]]:
 
     if (
         cache_key in _file_scores_cache
-        and current_time - _file_scores_cache[cache_key]["timestamp"]
-        < MCP_CACHE_TTL
+        and current_time - _file_scores_cache[cache_key]["timestamp"] < MCP_CACHE_TTL
     ):
         log_debug(f"Using cached file scores for {project_root}")
         return _file_scores_cache[cache_key]["scored_files"]
 
-    log_info(
-        f"Refreshing file scores with relevance scoring for {project_root}"
-    )
+    log_info(f"Refreshing file scores with relevance scoring for {project_root}")
 
     # Get raw file list and compute scores
     files = filter_project_files(project_root)
@@ -71,8 +68,6 @@ def _compute_relevance_scores(
 
 def clear_file_scores(project_root: Optional[Path] = None) -> None:
     """Clear file scores for specific project or all projects."""
-    global _file_scores_cache
-
     if project_root:
         cache_key = str(project_root)
         if cache_key in _file_scores_cache:

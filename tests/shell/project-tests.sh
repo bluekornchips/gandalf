@@ -7,15 +7,25 @@ set -eo pipefail
 load 'fixtures/helpers/test-helpers.sh'
 
 create_project_test_structure() {
-    echo "# There and Back Again, a Hobbits Project" >README.md
-    echo "print('I'm going on an adventure')" >main.py
-    echo '{"name": "an-adventure", "version": "1.0.0"}' >package.json
+    cat <<'EOF' >README.md
+# There and Back Again, a Hobbits Project
+EOF
+
+    cat <<'EOF' >main.py
+print('I'm going on an adventure')
+EOF
+
+    cat <<'EOF' >package.json
+{"name": "an-adventure", "version": "1.0.0"}
+EOF
 
     git add . >/dev/null 2>&1
     git commit -m "Initial commit" >/dev/null 2>&1
 
     # Create additional commits for git history
-    echo "print('good morning')" >>main.py
+    cat <<'EOF' >>main.py
+print('good morning')
+EOF
     git add main.py >/dev/null 2>&1
     git commit -m "I'm going on an adventure" >/dev/null 2>&1
 }

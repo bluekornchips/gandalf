@@ -15,7 +15,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-
 # Database file names to search for in workspace directories
 CURSOR_DATABASE_FILES = [
     "state.vscdb",
@@ -64,9 +63,7 @@ def get_wsl_cursor_path() -> Optional[Path]:
     if not windows_username:
         return None
 
-    windows_path = Path(
-        f"/mnt/c/Users/{windows_username}/AppData/Roaming/Cursor/User"
-    )
+    windows_path = Path(f"/mnt/c/Users/{windows_username}/AppData/Roaming/Cursor/User")
     return windows_path if windows_path.exists() else None
 
 
@@ -75,16 +72,11 @@ def get_default_cursor_path() -> Path:
     system = platform.system().lower()
 
     if system == "darwin":  # macOS
-        base_path = (
-            Path.home() / "Library" / "Application Support" / "Cursor" / "User"
-        )
+        base_path = Path.home() / "Library" / "Application Support" / "Cursor" / "User"
 
         # SSH remote sessions for macOS
         remote_paths = [
-            Path.home()
-            / ".cursor-server"
-            / "data"
-            / "User",  # SSH remote sessions
+            Path.home() / ".cursor-server" / "data" / "User",  # SSH remote sessions
         ]
 
         for remote_path in remote_paths:
@@ -170,11 +162,7 @@ def find_all_cursor_paths() -> List[Path]:
     # Additional search paths based on supported systems
     if system == "darwin":
         additional_paths = [
-            Path.home()
-            / "Library"
-            / "Application Support"
-            / "Cursor"
-            / "User",
+            Path.home() / "Library" / "Application Support" / "Cursor" / "User",
             Path.home() / ".cursor-server" / "data" / "User",  # SSH remote
         ]
     elif system == "linux":
@@ -274,17 +262,13 @@ class CursorQuery:
                 )
                 if not cursor.fetchone():
                     # Try different table names that might exist
-                    cursor.execute(
-                        "SELECT name FROM sqlite_master WHERE type='table'"
-                    )
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
                     tables = [row[0] for row in cursor.fetchall()]
                     if not self.silent:
                         print(f"Available tables in {db_path}: {tables}")
                     return None
 
-                cursor.execute(
-                    "SELECT value FROM ItemTable WHERE key = ?", (key,)
-                )
+                cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
                 result = cursor.fetchone()
                 return json.loads(result[0]) if result else None
 
@@ -330,9 +314,7 @@ class CursorQuery:
         workspaces = []
         for db_path in databases:
             workspace_data = self.query_conversations_from_db(db_path)
-            if workspace_data[
-                "conversations"
-            ]:  # Only include if has conversations
+            if workspace_data["conversations"]:  # Only include if has conversations
                 workspaces.append(workspace_data)
 
         return {
@@ -344,9 +326,7 @@ class CursorQuery:
 
     def _format_timestamp(self, timestamp: int) -> str:
         """Format timestamp consistently."""
-        return datetime.fromtimestamp(timestamp / 1000).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
+        return datetime.fromtimestamp(timestamp / 1000).strftime("%Y-%m-%d %H:%M:%S")
 
     def _create_message_map(
         self, prompts: List[Dict], generations: List[Dict]
@@ -399,13 +379,9 @@ class CursorQuery:
                 lines.extend([f"### {conv_name}", f"**ID:** {conv_id}"])
 
                 if created_at:
-                    lines.append(
-                        f"**Created:** {self._format_timestamp(created_at)}"
-                    )
+                    lines.append(f"**Created:** {self._format_timestamp(created_at)}")
                 if updated_at:
-                    lines.append(
-                        f"**Updated:** {self._format_timestamp(updated_at)}"
-                    )
+                    lines.append(f"**Updated:** {self._format_timestamp(updated_at)}")
 
                 lines.append("")
 
@@ -417,22 +393,16 @@ class CursorQuery:
 
                     all_messages = []
                     all_messages.extend([("user", p) for p in conv_prompts])
-                    all_messages.extend(
-                        [("assistant", g) for g in conv_generations]
-                    )
+                    all_messages.extend([("assistant", g) for g in conv_generations])
 
                     all_messages.sort(
-                        key=lambda x: x[1].get(
-                            "unixMs", x[1].get("timestamp", 0)
-                        )
+                        key=lambda x: x[1].get("unixMs", x[1].get("timestamp", 0))
                     )
 
                     for msg_type, msg in all_messages:
                         text = msg.get("text", "")
                         if text:
-                            lines.extend(
-                                [f"**{msg_type.title()}:** {text}", ""]
-                            )
+                            lines.extend([f"**{msg_type.title()}:** {text}", ""])
 
                 lines.extend(["---", ""])
 
@@ -461,13 +431,9 @@ class CursorQuery:
                 lines.extend([f"### {conv_name}", f"- **ID**: {conv_id}"])
 
                 if created_at:
-                    lines.append(
-                        f"- **Created**: {self._format_timestamp(created_at)}"
-                    )
+                    lines.append(f"- **Created**: {self._format_timestamp(created_at)}")
                 if updated_at:
-                    lines.append(
-                        f"- **Updated**: {self._format_timestamp(updated_at)}"
-                    )
+                    lines.append(f"- **Updated**: {self._format_timestamp(updated_at)}")
 
                 lines.append("")
 
@@ -509,9 +475,7 @@ class CursorQuery:
 
 def main():
     """Main entry point for command-line usage."""
-    parser = argparse.ArgumentParser(
-        description="Query Cursor IDE chat conversations"
-    )
+    parser = argparse.ArgumentParser(description="Query Cursor IDE chat conversations")
     parser.add_argument(
         "--format",
         choices=["json", "markdown", "cursor"],

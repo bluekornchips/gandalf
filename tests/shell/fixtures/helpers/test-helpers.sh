@@ -76,7 +76,6 @@ get_python_executable() {
 }
 
 TEST_ID_COUNTER=0
-export GANDALF_TEST_MODE="true"
 export MCP_DEBUG="false"
 
 # Generate unique test ID for each request

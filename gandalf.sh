@@ -9,6 +9,7 @@ export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
 
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export MCP_DEBUG="${MCP_DEBUG:-true}"
+export GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-1.1.1}"
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
 SERVER_DIR="$GANDALF_ROOT/src"
@@ -49,7 +50,6 @@ NOTES:
     - 'install -r' combines reset and install for a fresh setup
     - 'install' updates Cursor's config but doesn't restart the server
     - 'test' runs all tests by default; use --shell or --python for specific types
-    - Set MCP Logs level to DEBUG/INFO in Cursor for detailed visibility
 
 EOF
 }

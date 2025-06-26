@@ -134,49 +134,6 @@ verify_conversation_logging() {
     return 0
 }
 
-generate_report() {
-    local report_file="$GANDALF_ROOT/report-card.md"
-
-    echo "Generating report..."
-
-    cat <<EOF >"$report_file"
-# Gandalf MCP Server Report Card
-
-Generated: $(date)
-Repository: $PROJECT_ROOT
-
-## Test Results Summary
-
-All automated tests completed successfully:
-
-EOF
-
-    cat <<EOF >>"$report_file"
-- Core functionality: All tests passed
-- Conversation management: All tests passed
-- Context intelligence: All tests passed
-- Integration tests: All tests passed
-- System tests: All tests passed
-
-
-## System Status
-
-### Core Components
-- MCP Server: Operational
-- Conversation Storage: Working
-- Context Intelligence: Enabled
-- Git Integration: Active
-
-### Configuration
-- Repository: $PROJECT_ROOT
-- Server: gandalf
-- Test Coverage: 100% automated tests passing
-
-EOF
-
-    echo "Report generated: $report_file"
-}
-
 lembas() {
     local repo_path=""
     local force_flag=""
@@ -235,8 +192,6 @@ lembas() {
 
     run_step "Verifying lembas conversation logging" verify_conversation_logging || return 1
 
-    run_step "Generating system report" generate_report || return 1
-
     # Clean up environment variable
     unset LEMBAS_MODE
 
@@ -248,14 +203,12 @@ Lembas Complete!
 All automated tests passed, system is fully validated.
 Total execution time: ${total_time}s
 Execution mode: Full mode (complete validation)
-Report Card: report-card.md
 MCP conversation system: Real-time access enabled
 
 Next Steps:
-1. Review the generated report-card.md
-2. Verify MCP server integration in Cursor
-3. Test real-time conversation queries via MCP tools
-4. Monitor system performance under normal usage
+1. Verify MCP server integration in Cursor
+2. Test real-time conversation queries via MCP tools
+3. Monitor system performance under normal usage
 EOF
 }
 

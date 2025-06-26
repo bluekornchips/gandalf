@@ -16,10 +16,9 @@ GIT_CACHE_DIR = CACHE_ROOT_DIR / "git"
 
 # Cache File Paths
 
-# Legacy cache file paths for backward compatibility
-CACHED_FILENAMES_FILE = GANDALF_HOME / "filenames.json"
-CONVERSATION_CACHE_FILE = GANDALF_HOME / "conversations.json"
-CONVERSATION_CACHE_METADATA_FILE = GANDALF_HOME / "metadata.json"
+# Conversation cache files
+CONVERSATION_CACHE_FILE = CONVERSATION_CACHE_DIR / "conversations.json"
+CONVERSATION_CACHE_METADATA_FILE = CONVERSATION_CACHE_DIR / "metadata.json"
 
 # Cache TTL Settings
 

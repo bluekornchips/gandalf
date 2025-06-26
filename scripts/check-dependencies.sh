@@ -55,12 +55,18 @@ check_python_requirements() {
         local package_name
         package_name=$(echo "$line" | sed 's/[><=!].*//' | tr -d '[:space:]')
 
+        # Map pip package names to Python import names
+        local import_name="$package_name"
+        case "$package_name" in
+        "PyYAML") import_name="yaml" ;;
+        esac
+
         local is_optional=false
         if echo "$line" | grep -q "# optional" || [[ "$package_name" =~ ^pytest ]]; then
             is_optional=true
         fi
 
-        if ! "$python_cmd" -c "import $package_name" &>/dev/null; then
+        if ! "$python_cmd" -c "import $import_name" &>/dev/null; then
             if [[ "$is_optional" != "true" ]]; then
                 if [[ -z "$missing_packages" ]]; then
                     missing_packages="$package_name"

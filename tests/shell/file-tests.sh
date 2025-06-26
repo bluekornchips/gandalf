@@ -8,19 +8,44 @@ load 'fixtures/helpers/test-helpers.sh'
 
 create_standard_project() {
     # Populate the project with some files
-    echo "# There and Back Again, a Hobbits Project" >README.md
-    echo "print('I'm going on an adventure')" >main.py
-    echo "console.log('I'm going on an adventure');" >app.js
-    echo "body { color: blue; }" >style.css
-    echo '{"name": "there_and_back_again"}' >package.json
+    cat <<'EOF' >README.md
+# There and Back Again, a Hobbits Project
+EOF
+
+    cat <<'EOF' >main.py
+print('I'm going on an adventure')
+EOF
+
+    cat <<'EOF' >app.js
+console.log('I'm going on an adventure');
+EOF
+
+    cat <<'EOF' >style.css
+body { color: blue; }
+EOF
+
+    cat <<'EOF' >package.json
+{"name": "there_and_back_again"}
+EOF
 
     mkdir -p src tests
-    echo "def function(): pass" >src/utils.py
-    echo "test_function()" >tests/test_main.py
+
+    cat <<'EOF' >src/utils.py
+def function(): pass
+EOF
+
+    cat <<'EOF' >tests/test_main.py
+test_function()
+EOF
 
     # Hidden files
-    echo "secret" >.env
-    echo "*.pyc" >.gitignore
+    cat <<'EOF' >.env
+secret
+EOF
+
+    cat <<'EOF' >.gitignore
+*.pyc
+EOF
 
     git add . >/dev/null 2>&1
     git commit -m "Initial commit" >/dev/null 2>&1

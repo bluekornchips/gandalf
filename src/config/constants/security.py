@@ -4,10 +4,10 @@ Combines file access security, filtering patterns, and operational limits.
 """
 
 # Input validation limits
-SECURITY_MAX_STRING_LENGTH = 50000
-SECURITY_MAX_ARRAY_LENGTH = 100
-SECURITY_MAX_QUERY_LENGTH = 100
-SECURITY_MAX_PATH_DEPTH = 20
+MAX_STRING_LENGTH = 50000
+MAX_ARRAY_LENGTH = 100
+MAX_QUERY_LENGTH = 100
+MAX_PATH_DEPTH = 20
 
 # File operation limits
 MAX_FILE_TYPES = 20
@@ -78,7 +78,7 @@ WSL_SPECIFIC_BLOCKED_PATHS = {
 }
 
 # Combined blocked paths for runtime use
-SECURITY_BLOCKED_PATHS = (
+BLOCKED_PATHS = (
     COMMON_BLOCKED_PATHS
     | LINUX_SPECIFIC_BLOCKED_PATHS
     | MACOS_SPECIFIC_BLOCKED_PATHS
@@ -88,7 +88,7 @@ SECURITY_BLOCKED_PATHS = (
 # Note: /tmp removed from all sets to allow temporary directory usage for testing
 
 # Security: Blocked file extensions (dangerous/unwanted files)
-SECURITY_BLOCKED_EXTENSIONS = {
+BLOCKED_EXTENSIONS = {
     # Executable files
     ".exe",
     ".com",
@@ -233,3 +233,4 @@ UNSAFE_DIRECTORY_PATTERNS = set(
         ".env",
     ]
 )
+
