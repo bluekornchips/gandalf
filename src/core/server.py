@@ -3,29 +3,19 @@ Core MCP server implementation for Gandalf.
 Handles JSON-RPC communication and tool dispatch.
 """
 
-import os
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from src.adapters.factory import AdapterFactory
 from src.config.constants.core import (
     MCP_PROTOCOL_VERSION,
     SERVER_CAPABILITIES,
     SERVER_INFO,
-    WORKSPACE_FOLDER_PATHS,
 )
-from src.tool_calls.conversation_export import (
-    CONVERSATION_EXPORT_TOOL_DEFINITIONS,
-    CONVERSATION_EXPORT_TOOL_HANDLERS,
-)
-from src.tool_calls.conversation_recall import (
-    CONVERSATION_RECALL_TOOL_DEFINITIONS,
-    CONVERSATION_RECALL_TOOL_HANDLERS,
-)
-from src.tool_calls.cursor_query import (
-    CURSOR_QUERY_TOOL_DEFINITIONS,
-    CURSOR_QUERY_TOOL_HANDLERS,
+from src.tool_calls.conversation_aggregator import (
+    CONVERSATION_AGGREGATOR_TOOL_DEFINITIONS,
+    CONVERSATION_AGGREGATOR_TOOL_HANDLERS,
 )
 from src.tool_calls.file_tools import (
     FILE_TOOL_DEFINITIONS,
@@ -42,20 +32,17 @@ from src.utils.performance import (
     start_timer,
 )
 
-ALL_TOOL_HANDLERS = {
+# Base tool handlers and definitions (conversation tools added dynamically)
+BASE_TOOL_HANDLERS = {
     **FILE_TOOL_HANDLERS,
     **PROJECT_TOOL_HANDLERS,
-    **CONVERSATION_EXPORT_TOOL_HANDLERS,
-    **CURSOR_QUERY_TOOL_HANDLERS,
-    **CONVERSATION_RECALL_TOOL_HANDLERS,
+    **CONVERSATION_AGGREGATOR_TOOL_HANDLERS,  # Add conversation tools first
 }
 
-ALL_TOOL_DEFINITIONS = (
+BASE_TOOL_DEFINITIONS = (
     FILE_TOOL_DEFINITIONS
     + PROJECT_TOOL_DEFINITIONS
-    + CONVERSATION_EXPORT_TOOL_DEFINITIONS
-    + CURSOR_QUERY_TOOL_DEFINITIONS
-    + CONVERSATION_RECALL_TOOL_DEFINITIONS
+    + CONVERSATION_AGGREGATOR_TOOL_DEFINITIONS  # Add conversation tools first
 )
 
 
@@ -65,6 +52,7 @@ class InitializationConfig:
 
     project_root: Optional[str] = None
     enable_logging: bool = True
+    explicit_ide: Optional[str] = None
 
 
 class GandalfMCP:
@@ -74,20 +62,40 @@ class GandalfMCP:
         self,
         project_root: Optional[str] = None,
         config: Optional[InitializationConfig] = None,
+        explicit_ide: Optional[str] = None,
     ):
         """Initialize GandalfMCP"""
-        self.config = config or InitializationConfig(project_root=project_root)
+        self.config = config or InitializationConfig(
+            project_root=project_root, explicit_ide=explicit_ide
+        )
 
         self.is_ready = False
 
+        # Create IDE adapter for environment-specific behavior
+        config_explicit_ide = self.config.explicit_ide if self.config else None
+        effective_explicit_ide = explicit_ide or config_explicit_ide
         config_project_root = self.config.project_root if self.config else None
-        self._explicit_project_root = (
-            project_root is not None or config_project_root is not None
+        effective_project_root = project_root or config_project_root
+
+        self.primary_adapter = AdapterFactory.create_adapter(
+            explicit_ide=effective_explicit_ide,
+            project_root=effective_project_root,
         )
 
-        # Use project_root from parameter first, then config, then detect
-        effective_project_root = project_root or config_project_root
-        self.project_root = self._resolve_project_root(effective_project_root)
+        # Use adapter to resolve project root
+        self.project_root = self.primary_adapter.resolve_project_root(
+            effective_project_root
+        )
+
+        # Build tool handlers and definitions - dynamically detect available conversation tools
+        self.tool_handlers = {
+            **BASE_TOOL_HANDLERS,
+        }
+
+        self.tool_definitions = list(BASE_TOOL_DEFINITIONS)
+
+        # Dynamically add conversation tools based on what's available
+        self._detect_and_add_conversation_tools()
 
         # Request handlers
         self.handlers = {
@@ -99,161 +107,106 @@ class GandalfMCP:
         }
 
         log_info(
-            f"Gandalf MCP server initialized with project root: " f"{self.project_root}"
+            f"Gandalf MCP server initialized:\n"
+            f"  Primary IDE: {self.primary_adapter.ide_name}\n"
+            f"  Project root: {self.project_root}\n"
+            f"  Conversation support: {self.primary_adapter.supports_conversations()}\n"
+            f"  Total tools available: {len(self.tool_definitions)}"
         )
 
-    def _find_project_root(self) -> str:
-        """
-        Find the project root using multiple strategies.
-
-        Prioritizes Cursor's workspace detection.
-
-        1. WORKSPACE_FOLDER_PATHS env var from Cursor
-        2. Git root detection in workspace paths first, then current directory
-        3. PWD
-        4. Current working directory
-        """
-        log_debug("Starting project root detection")
-
-        # Strategy 1: Use WORKSPACE_FOLDER_PATHS from Cursor
-        workspace_paths = WORKSPACE_FOLDER_PATHS
-        if workspace_paths:
-            log_info(f"Found WORKSPACE_FOLDER_PATHS: {workspace_paths}")
-            paths = (
-                workspace_paths.split(";")
-                if ";" in workspace_paths
-                else workspace_paths.split(":")
-            )
-            if paths and paths[0]:
-                workspace_path = paths[0].strip()
-                if Path(workspace_path).exists():
-                    log_debug(f"Using workspace path: {workspace_path}")
-                    return workspace_path
-                else:
-                    log_debug(f"Workspace path does not exist: {workspace_path}")
-        else:
-            log_debug("No WORKSPACE_FOLDER_PATHS environment variable found")
-
-        # Strategy 2: Try git root, should be reliable for git projects
-        # First try workspace paths if available, then current directory
-        git_check_paths = []
-
-        # Add workspace paths to check for git
-        if workspace_paths:
-            workspace_check_paths = (
-                workspace_paths.split(";")
-                if ";" in workspace_paths
-                else workspace_paths.split(":")
-            )
-            git_check_paths.extend(
-                [p.strip() for p in workspace_check_paths if p.strip()]
-            )
-
-        # Also check current working directory as fallback
-        git_check_paths.append(os.getcwd())
-
-        for check_path in git_check_paths:
-            try:
-                log_debug(f"Checking for git repository in: {check_path}")
-
-                result = subprocess.run(
-                    ["git", "rev-parse", "--show-toplevel"],
-                    cwd=check_path,
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    timeout=10,
-                )
-                git_root = result.stdout.strip()
-                if git_root and Path(git_root).exists() and git_root != "/":
-                    log_info(f"Using git root: {git_root}")
-                    return git_root
-            except (
-                subprocess.CalledProcessError,
-                FileNotFoundError,
-                subprocess.TimeoutExpired,
-                OSError,
-            ) as e:
-                log_error(e, f"Git root detection failed for {check_path}")
-                continue
-
-        log_error(
-            Exception("Git root detection failed for all paths"),
-            "project_root_detection",
-        )
-
-        # Strategy 3: Use PWD environment variable
-        pwd = os.getenv("PWD")
-        if pwd and Path(pwd).exists() and pwd != "/":
-            log_info(f"Using PWD: {pwd}")
-            return pwd
-
-        # Strategy 4: Fall back to current working directory
-        cwd = os.getcwd()
-        if Path(cwd).exists() and cwd != "/":
-            log_info(f"Using current working directory: {cwd}")
-            return cwd
-
-        # Final fallback
-        log_error(
-            Exception(
-                "All detection strategies failed, using current working directory"
-            ),
-            "project_root_detection",
-        )
-        return cwd
-
-    def _detect_current_project_root(self) -> Path:
-        """Detect the current project root using multiple strategies."""
-        return Path(self._find_project_root()).resolve()
-
-    def _resolve_project_root(self, project_root: Optional[str]) -> Path:
-        """Resolve project root to Path object."""
-        cwd_path = Path.cwd()
+    def _detect_and_add_conversation_tools(self) -> None:
+        """Dynamically detect and add available conversation tools based on environment."""
         try:
-            if project_root:
-                resolved = Path(project_root).resolve()
-                if not resolved.exists():
-                    log_debug(
-                        f"Warning: Project root does not exist yet: "
-                        f"{resolved}. Falling back to current working "
-                        f"directory: {cwd_path}"
+            # Always add tools from the primary adapter
+            primary_handlers = self.primary_adapter.get_conversation_handlers()
+            primary_tools = self.primary_adapter.get_conversation_tools()
+
+            if primary_handlers:
+                self.tool_handlers.update(primary_handlers)
+                self.tool_definitions.extend(primary_tools.values())
+                log_info(
+                    f"Added {len(primary_handlers)} conversation tools from {self.primary_adapter.ide_name}"
+                )
+
+            # Try to detect and add tools from other available IDEs
+            self._try_add_secondary_ide_tools()
+
+        except Exception as e:
+            log_error(e, "Error detecting conversation tools")
+
+    def _try_add_secondary_ide_tools(self) -> None:
+        """Try to add conversation tools from other available IDEs."""
+        try:
+            # Determine what other IDEs might be available
+            other_ides = []
+            if self.primary_adapter.ide_name == "cursor":
+                other_ides = ["claude-code"]
+            elif self.primary_adapter.ide_name == "claude-code":
+                other_ides = ["cursor"]
+
+            for ide_name in other_ides:
+                try:
+                    # Try to create adapter for secondary IDE
+                    secondary_adapter = AdapterFactory.create_adapter(
+                        explicit_ide=ide_name,
+                        project_root=str(self.project_root),
                     )
-                    return cwd_path
-                return resolved
-            else:
-                return self._detect_current_project_root()
-        except (OSError, ValueError, PermissionError) as e:
-            log_error(e, "resolving project root")
-            log_debug(
-                f"Exception fallback to current working directory: " f"{cwd_path}"
-            )
-            return cwd_path
+
+                    # Check if this IDE is actually available/detected
+                    if secondary_adapter.detect_ide():
+                        secondary_handlers = (
+                            secondary_adapter.get_conversation_handlers()
+                        )
+                        secondary_tools = (
+                            secondary_adapter.get_conversation_tools()
+                        )
+
+                        if secondary_handlers:
+                            # Add tools with prefixes to avoid naming conflicts
+                            prefix = f"{ide_name.replace('-', '_')}_"
+
+                            for (
+                                handler_name,
+                                handler_func,
+                            ) in secondary_handlers.items():
+                                prefixed_name = f"{prefix}{handler_name}"
+                                self.tool_handlers[prefixed_name] = (
+                                    handler_func
+                                )
+
+                            for tool_name, tool_def in secondary_tools.items():
+                                prefixed_tool = tool_def.copy()
+                                prefixed_tool["name"] = f"{prefix}{tool_name}"
+                                prefixed_tool["description"] = (
+                                    f"[{ide_name.upper()}] {tool_def.get('description', '')}"
+                                )
+                                self.tool_definitions.append(prefixed_tool)
+
+                            log_info(
+                                f"Added {len(secondary_handlers)} conversation tools "
+                                f"from {ide_name} (with prefix)"
+                            )
+
+                except Exception as e:
+                    log_debug(f"Could not add tools from {ide_name}: {e}")
+
+        except Exception as e:
+            log_debug(f"Error trying to add secondary IDE tools: {e}")
 
     def _setup_components(self) -> None:
         """Set up components with graceful error handling."""
         try:
-            log_info("Components initialized successfully using direct Cursor query")
+            log_info(
+                "Components initialized successfully using direct Cursor query"
+            )
 
         except (OSError, ImportError, AttributeError) as e:
             log_error(e, "component initialization")
 
     def _update_project_root_if_needed(self) -> None:
-        """
-        Update project root if it has changed, dynamic mode
-        Don't change project root if it was explicitly provided
-        """
-        if hasattr(self, "_explicit_project_root") and self._explicit_project_root:
-            return
-
-        current_project_root = self._detect_current_project_root()
-
-        if current_project_root != self.project_root:
-            log_debug(
-                f"Project root changed from {self.project_root} to "
-                f"{current_project_root}"
-            )
-            self.project_root = current_project_root
+        """Update project root if needed (now handled by adapter)."""
+        # Project root detection is handled by the IDE adapter
+        # This method is kept for compatibility but no longer updates the root
 
     def _initialize(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Handle initialization request."""
@@ -283,7 +236,7 @@ class GandalfMCP:
 
     def _tools_list(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Handle tools list request."""
-        response = {"tools": ALL_TOOL_DEFINITIONS}
+        response = {"tools": self.tool_definitions}
         return response
 
     def _list_offerings(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -327,8 +280,8 @@ class GandalfMCP:
         }
 
         try:
-            if tool_name in ALL_TOOL_HANDLERS:
-                result = ALL_TOOL_HANDLERS[tool_name](arguments, **kwargs)
+            if tool_name in self.tool_handlers:
+                result = self.tool_handlers[tool_name](arguments, **kwargs)
             else:
                 result = AccessValidator.create_error_response(
                     f"Unknown tool: {tool_name}"
@@ -344,7 +297,9 @@ class GandalfMCP:
                 f"Error executing {tool_name}: {str(e)}"
             )
 
-    def handle_request(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def handle_request(
+        self, request: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Handle incoming MCP requests."""
         try:
             method = request.get("method")

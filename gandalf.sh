@@ -9,7 +9,7 @@ export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
 
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export MCP_DEBUG="${MCP_DEBUG:-true}"
-export GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-1.1.1}"
+export GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-2.0.0}"
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
 SERVER_DIR="$GANDALF_ROOT/src"

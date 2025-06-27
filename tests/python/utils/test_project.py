@@ -112,7 +112,9 @@ class TestProjectUtilityFunctions:
         ) as mock_sanitize:
             mock_sanitize.return_value = "gondor"
 
-            raw_name, sanitized_name, was_sanitized = get_project_names(project_path)
+            raw_name, sanitized_name, was_sanitized = get_project_names(
+                project_path
+            )
 
             assert raw_name == "gondor"
             assert sanitized_name == "gondor"
@@ -128,7 +130,9 @@ class TestProjectUtilityFunctions:
         ) as mock_sanitize:
             mock_sanitize.return_value = "bag-end"
 
-            raw_name, sanitized_name, was_sanitized = get_project_names(project_path)
+            raw_name, sanitized_name, was_sanitized = get_project_names(
+                project_path
+            )
 
             assert raw_name == "bag-end$$$"
             assert sanitized_name == "bag-end"
@@ -158,7 +162,9 @@ class TestProjectUtilityFunctions:
         ) as mock_sanitize:
             mock_sanitize.return_value = "unnamed"
 
-            raw_name, sanitized_name, was_sanitized = get_project_names(project_path)
+            raw_name, sanitized_name, was_sanitized = get_project_names(
+                project_path
+            )
 
             assert raw_name == "to"  # Path("/path/to/").name returns "to"
             assert sanitized_name == "unnamed"
@@ -174,7 +180,9 @@ class TestProjectUtilityFunctions:
         ) as mock_sanitize:
             mock_sanitize.return_value = "the-shire"
 
-            raw_name, sanitized_name, was_sanitized = get_project_names(project_path)
+            raw_name, sanitized_name, was_sanitized = get_project_names(
+                project_path
+            )
 
             assert raw_name == "the-shire"
             assert sanitized_name == "the-shire"

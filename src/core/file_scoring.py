@@ -21,12 +21,15 @@ def get_files_with_scores(project_root: Path) -> List[Tuple[str, float]]:
 
     if (
         cache_key in _file_scores_cache
-        and current_time - _file_scores_cache[cache_key]["timestamp"] < MCP_CACHE_TTL
+        and current_time - _file_scores_cache[cache_key]["timestamp"]
+        < MCP_CACHE_TTL
     ):
         log_debug(f"Using cached file scores for {project_root}")
         return _file_scores_cache[cache_key]["scored_files"]
 
-    log_info(f"Refreshing file scores with relevance scoring for {project_root}")
+    log_info(
+        f"Refreshing file scores with relevance scoring for {project_root}"
+    )
 
     # Get raw file list and compute scores
     files = filter_project_files(project_root)

@@ -5,23 +5,16 @@
 set -euo pipefail
 
 # Centralized path calculation function
-# Usage: source this file and call `setup_gandalf_paths`
 setup_gandalf_paths() {
-    # Find the gandalf root by looking for the characteristic server directory
     local current_dir="$(pwd -P)"
     local search_dir="$current_dir"
 
     # If called from a script, use the script's directory as starting point
     if [[ -n "${BASH_SOURCE[1]:-}" ]]; then
-        # Kind of hard to read for non shell lovers, so lets break it down:
-        # "${BASH_SOURCE[1]}" - This is the path to the script that is sourcing this file
-        # "$(dirname "${BASH_SOURCE[1]}")" - Adding in 'dirname' we get the directory of the script that is sourcing this file
-        # "pwd -P" - Finds the pwd with the full path, no symlinks
-        # Putting it all together, we get the path to the directory of the script that is sourcing this file
         search_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd -P)"
     fi
 
-    # Try walking up the directory tree to find gandalf root, if we can't find it, we'll use the fallback
+    # Walk up directory tree to find gandalf root
     while [[ "$search_dir" != "/" ]]; do
         if [[ -d "$search_dir/src" && -f "$search_dir/src/main.py" ]]; then
             export GANDALF_ROOT="$search_dir"
@@ -34,7 +27,7 @@ setup_gandalf_paths() {
         search_dir="$(dirname "$search_dir")"
     done
 
-    # if we can't find it assume we're in tests
+    # Fallback if gandalf root not found
     echo "Warning: Could not auto-detect GANDALF_ROOT, using fallback" >&2
     export GANDALF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd -P)"
     export SERVER_DIR="$GANDALF_ROOT/src"
@@ -117,7 +110,7 @@ execute_rpc() {
     local temp_stdout=$(mktemp)
     local temp_stderr=$(mktemp)
 
-    echo "$request" | python3 "$SERVER_DIR/main.py" --project-root "$project_root" >"$temp_stdout" 2>"$temp_stderr"
+    echo "$request" | PYTHONPATH="$GANDALF_ROOT" python3 "$SERVER_DIR/main.py" --project-root "$project_root" >"$temp_stdout" 2>"$temp_stderr"
     local exit_code=$?
 
     local full_output

@@ -44,10 +44,13 @@ class TestGetServerVersion:
         with patch.dict(os.environ, {"GANDALF_SERVER_VERSION": "2.0.0"}):
             # Need to reload the module to pick up the new env var
             with patch(
-                "src.tool_calls.project_operations.GANDALF_SERVER_VERSION", "2.0.0"
+                "src.tool_calls.project_operations.GANDALF_SERVER_VERSION",
+                "2.0.0",
             ):
                 with patch("time.time", return_value=1234567890.0):
-                    result = handle_get_server_version(arguments, mock_project_root)
+                    result = handle_get_server_version(
+                        arguments, mock_project_root
+                    )
 
         assert "content" in result
         content = json.loads(result["content"][0]["text"])
@@ -131,11 +134,11 @@ class TestGitInfoRetrieval:
 
     def test_get_git_info_valid_repo(self):
         """Test Git info retrieval for valid repository."""
-        mock_project_root = Path("/path/to/repo")
+        mock_project_root = Path("/path/to/shire")
 
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = "main\n"
+        mock_result.stdout = "fellowship\n"
 
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = [
@@ -144,18 +147,18 @@ class TestGitInfoRetrieval:
                 # Second call: git branch --show-current
                 mock_result,
                 # Third call: git rev-parse --show-toplevel
-                Mock(returncode=0, stdout="/path/to/repo\n"),
+                Mock(returncode=0, stdout="/path/to/shire\n"),
             ]
 
             result = get_git_info(mock_project_root)
 
             assert result["is_git_repo"] is True
-            assert result["current_branch"] == "main"
-            assert result["repo_root"] == "/path/to/repo"
+            assert result["current_branch"] == "fellowship"
+            assert result["repo_root"] == "/path/to/shire"
 
     def test_get_git_info_not_a_repo(self):
         """Test Git info retrieval for non-repository."""
-        mock_project_root = Path("/path/to/non-repo")
+        mock_project_root = Path("/path/to/mordor")
 
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=1)
@@ -166,9 +169,11 @@ class TestGitInfoRetrieval:
 
     def test_get_git_info_subprocess_error(self):
         """Test Git info retrieval with subprocess error."""
-        mock_project_root = Path("/path/to/repo")
+        mock_project_root = Path("/path/to/isengard")
 
-        with patch("subprocess.run", side_effect=OSError("Git not found")):
+        with patch(
+            "subprocess.run", side_effect=OSError("Git not found in Isengard")
+        ):
             result = get_git_info(mock_project_root)
 
             assert result["is_git_repo"] is False
@@ -232,7 +237,9 @@ class TestVersionEnvironmentIntegration:
                 "src.tool_calls.project_operations.GANDALF_SERVER_VERSION",
                 test_version,
             ):
-                result = handle_get_server_version(arguments, mock_project_root)
+                result = handle_get_server_version(
+                    arguments, mock_project_root
+                )
 
         assert "content" in result
         content = json.loads(result["content"][0]["text"])
@@ -289,7 +296,10 @@ class TestToolDefinitionCompliance:
 
         assert "get_server_version" in PROJECT_TOOL_HANDLERS
         assert callable(PROJECT_TOOL_HANDLERS["get_server_version"])
-        assert PROJECT_TOOL_HANDLERS["get_server_version"] == handle_get_server_version
+        assert (
+            PROJECT_TOOL_HANDLERS["get_server_version"]
+            == handle_get_server_version
+        )
 
     def test_tool_definitions_registration(self):
         """Test that all tool definitions are properly registered."""

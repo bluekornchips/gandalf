@@ -1,7 +1,5 @@
 """Test core server functionality."""
 
-import os
-import subprocess
 from pathlib import Path
 from unittest import mock
 
@@ -21,7 +19,9 @@ class TestInitializationConfig:
 
     def test_custom_values(self):
         """Test custom configuration values."""
-        config = InitializationConfig(project_root="/custom/path", enable_logging=False)
+        config = InitializationConfig(
+            project_root="/custom/path", enable_logging=False
+        )
         assert config.project_root == "/custom/path"
         assert config.enable_logging is False
 
@@ -31,7 +31,6 @@ class TestGandalfMCPInitialization:
 
     def setUp(self):
         """Set up test fixtures."""
-        pass
 
     def test_init_with_project_root(self, temp_project_dir):
         """Test initialization with explicit project root."""
@@ -39,9 +38,7 @@ class TestGandalfMCPInitialization:
 
         assert server.project_root.resolve() == temp_project_dir.resolve()
         assert server.is_ready is False
-        assert server._explicit_project_root is True
-        assert "initialize" in server.handlers
-        assert "tools/call" in server.handlers
+        assert server.config.project_root == str(temp_project_dir)
 
     def test_init_with_config(self, temp_project_dir):
         """Test initialization with configuration object."""
@@ -53,14 +50,11 @@ class TestGandalfMCPInitialization:
 
     def test_init_without_project_root(self):
         """Test initialization without explicit project root."""
-        with mock.patch.object(
-            GandalfMCP, "_detect_current_project_root"
-        ) as mock_detect:
-            mock_detect.return_value = Path("/detected/path")
-            server = GandalfMCP()
+        server = GandalfMCP()
 
-            assert server._explicit_project_root is False
-            mock_detect.assert_called_once()
+        assert server.project_root is not None
+        assert server.is_ready is False
+        assert server.config.project_root is None
 
     def test_init_handlers_setup(self):
         """Test that all required handlers are set up."""
@@ -78,101 +72,52 @@ class TestGandalfMCPInitialization:
 
 
 class TestProjectRootDetection:
-    """Test project root detection strategies."""
+    """Test project root detection strategies through IDE adapters."""
 
-    def test_find_project_root_workspace_paths(self):
-        """Test workspace path detection strategy."""
+    def test_server_uses_adapter_for_project_root(self):
+        """Test that server uses IDE adapter for project root detection."""
         test_path = "/workspace/test"
 
-        with mock.patch.dict(os.environ, {"WORKSPACE_FOLDER_PATHS": test_path}):
-            with mock.patch.object(Path, "exists", return_value=True):
-                with mock.patch.object(
-                    GandalfMCP, "_find_project_root", return_value=test_path
-                ):
-                    server = GandalfMCP()
-                    result = server._find_project_root()
+        with mock.patch(
+            "src.adapters.factory.AdapterFactory.create_adapter"
+        ) as mock_create:
+            mock_adapter = mock.Mock()
+            mock_adapter.resolve_project_root.return_value = Path(test_path)
+            mock_adapter.get_conversation_tools.return_value = {}
+            mock_adapter.get_conversation_handlers.return_value = {}
+            mock_adapter.ide_name = "test-ide"
+            mock_adapter.supports_conversations.return_value = False
+            mock_create.return_value = mock_adapter
 
-                    assert result == test_path
+            server = GandalfMCP(project_root=test_path)
 
-    def test_find_project_root_multiple_workspace_paths(self):
-        """Test multiple workspace paths (semicolon separated)."""
-        test_paths = "/workspace/legolas;/workspace/aragorn"
+            assert str(server.project_root) == test_path
+            mock_adapter.resolve_project_root.assert_called_once_with(
+                test_path
+            )
 
-        with mock.patch.dict(os.environ, {"WORKSPACE_FOLDER_PATHS": test_paths}):
-            with mock.patch.object(Path, "exists", return_value=True):
-                with mock.patch.object(
-                    GandalfMCP,
-                    "_find_project_root",
-                    return_value="/workspace/legolas",
-                ):
-                    server = GandalfMCP()
-                    result = server._find_project_root()
+    def test_server_adapter_integration_with_explicit_root(self):
+        """Test server initialization with explicit project root."""
+        test_path = "/explicit/root"
 
-                    assert result == "/workspace/legolas"
+        with mock.patch(
+            "src.adapters.factory.AdapterFactory.create_adapter"
+        ) as mock_create:
+            mock_adapter = mock.Mock()
+            mock_adapter.resolve_project_root.return_value = Path(test_path)
+            mock_adapter.get_conversation_tools.return_value = {}
+            mock_adapter.get_conversation_handlers.return_value = {}
+            mock_adapter.ide_name = "test-ide"
+            mock_adapter.supports_conversations.return_value = False
+            mock_create.return_value = mock_adapter
 
-    def test_find_project_root_git_detection(self):
-        """Test git root detection strategy."""
-        expected_git_root = "/git/project/root"
+            server = GandalfMCP(project_root=test_path)
 
-        with mock.patch.dict(os.environ, {}, clear=True):
-            with mock.patch("subprocess.run") as mock_run:
-                mock_run.return_value.stdout = expected_git_root + "\n"
-                mock_run.return_value.returncode = 0
-
-                with mock.patch.object(Path, "exists", return_value=True):
-                    server = GandalfMCP()
-                    result = server._find_project_root()
-
-                    assert result == expected_git_root
-
-    def test_find_project_root_git_failure_fallback_pwd(self):
-        """Test fallback to PWD when git detection fails."""
-        pwd_path = "/pwd/fallback"
-
-        with mock.patch.dict(os.environ, {"PWD": pwd_path}, clear=True):
-            with mock.patch(
-                "subprocess.run",
-                side_effect=subprocess.CalledProcessError(1, "git"),
-            ):
-                with mock.patch.object(Path, "exists", return_value=True):
-                    server = GandalfMCP()
-                    result = server._find_project_root()
-
-                    assert result == pwd_path
-
-    def test_find_project_root_final_fallback_cwd(self):
-        """Test final fallback to current working directory."""
-        with mock.patch.dict(os.environ, {}, clear=True):
-            with mock.patch(
-                "subprocess.run",
-                side_effect=subprocess.CalledProcessError(1, "git"),
-            ):
-                with mock.patch("os.getcwd", return_value="/cwd/fallback"):
-                    with mock.patch.object(Path, "exists", return_value=True):
-                        server = GandalfMCP()
-                        result = server._find_project_root()
-
-                        assert result == "/cwd/fallback"
-
-    def test_resolve_project_root_nonexistent_path(self):
-        """Test project root resolution with non-existent path."""
-        with mock.patch.object(Path, "exists", return_value=False):
-            with mock.patch.object(Path, "cwd", return_value=Path("/current/dir")):
-                server = GandalfMCP()
-                result = server._resolve_project_root("/nonexistent/path")
-
-                assert result == Path("/current/dir")
-
-    def test_resolve_project_root_exception_handling(self):
-        """Test exception handling in project root resolution."""
-        with mock.patch.object(
-            Path, "resolve", side_effect=OSError("Permission denied")
-        ):
-            with mock.patch.object(Path, "cwd", return_value=Path("/fallback")):
-                server = GandalfMCP()
-                result = server._resolve_project_root("/problematic/path")
-
-                assert result == Path("/fallback")
+            # Verify adapter was created with the explicit root
+            mock_create.assert_called_once_with(
+                explicit_ide=None, project_root=test_path
+            )
+            assert str(server.project_root) == test_path
 
 
 class TestMCPProtocolHandling:
@@ -206,33 +151,37 @@ class TestMCPProtocolHandling:
     def test_handle_notifications_initialized(self):
         """Test notifications/initialized handling."""
         server = GandalfMCP()
-        request = {"method": "notifications/initialized"}  # No id = notification
+        request = {
+            "method": "notifications/initialized"
+        }  # No id = notification
 
         response = server.handle_request(request)
 
         assert response is None  # Notifications don't return responses
         assert server.is_ready is True
 
-    @mock.patch("src.core.server.ALL_TOOL_HANDLERS")
-    def test_handle_tools_call_request(self, mock_handlers):
-        """Test tools/call request handling."""
-        mock_handlers.__contains__ = mock.Mock(return_value=True)
-        mock_handlers.__getitem__ = mock.Mock(
-            return_value=mock.Mock(return_value={"test": "result"})
+    def test_handle_tools_call_request(self):
+        """Test handling tools/call requests."""
+        mock_tool = mock.Mock(
+            return_value={"content": [{"type": "text", "text": "result"}]}
         )
 
         server = GandalfMCP()
+        # Mock the tool handlers directly on the server instance
+        server.tool_handlers = {"test_tool": mock_tool}
+
         request = {
+            "jsonrpc": "2.0",
+            "id": "test",
             "method": "tools/call",
-            "id": "3",
-            "params": {"name": "get_project_info", "arguments": {}},
+            "params": {"name": "test_tool", "arguments": {"arg": "value"}},
         }
 
         response = server.handle_request(request)
 
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == "3"
-        assert response["result"] == {"test": "result"}
+        assert "result" in response
+        assert "content" in response["result"]
+        mock_tool.assert_called_once()
 
     def test_handle_unknown_method(self):
         """Test handling of unknown methods."""
@@ -299,42 +248,43 @@ class TestToolCallHandling:
         assert response["result"]["error"]["code"] == -32602
         assert "missing tool name" in response["result"]["error"]["message"]
 
-    @mock.patch("src.core.server.AccessValidator")
-    @mock.patch("src.core.server.ALL_TOOL_HANDLERS")
-    def test_tools_call_unknown_tool(self, mock_handlers, mock_validator):
+    def test_tools_call_unknown_tool(self):
         """Test tools/call with unknown tool."""
-        mock_handlers.__contains__ = mock.Mock(return_value=False)
-        mock_validator.create_error_response.return_value = {"error": "Unknown tool"}
-
         server = GandalfMCP()
+        # Don't add the tool to the handlers, so it remains unknown
+
         request = {
+            "jsonrpc": "2.0",
+            "id": "test",
             "method": "tools/call",
-            "id": "3",
             "params": {"name": "unknown_tool", "arguments": {}},
         }
 
-        server.handle_request(request)
+        response = server.handle_request(request)
 
-        mock_validator.create_error_response.assert_called_once()
+        assert "result" in response
+        assert "error" in response["result"]
+        assert "Unknown tool" in response["result"]["error"]
 
-    @mock.patch("src.core.server.AccessValidator")
-    @mock.patch("src.core.server.ALL_TOOL_HANDLERS")
-    def test_tools_call_exception_handling(self, mock_handlers, mock_validator):
-        """Test exception handling in tool calls."""
-        mock_handlers.__contains__ = mock.Mock(return_value=True)
-        mock_handlers.__getitem__ = mock.Mock(side_effect=ValueError("Tool error"))
-        mock_validator.create_error_response.return_value = {"error": "Tool failed"}
+    def test_tools_call_exception_handling(self):
+        """Test tools/call exception handling."""
+        mock_tool = mock.Mock(side_effect=ValueError("Test error"))
 
         server = GandalfMCP()
+        server.tool_handlers = {"test_tool": mock_tool}
+
         request = {
+            "jsonrpc": "2.0",
+            "id": "test",
             "method": "tools/call",
-            "id": "4",
             "params": {"name": "test_tool", "arguments": {}},
         }
 
-        server.handle_request(request)
+        response = server.handle_request(request)
 
-        mock_validator.create_error_response.assert_called_once()
+        assert "result" in response
+        assert "error" in response["result"]
+        assert "Test error" in response["result"]["error"]
 
 
 class TestProjectRootUpdating:
@@ -351,30 +301,21 @@ class TestProjectRootUpdating:
 
     def test_update_project_root_dynamic_change(self):
         """Test dynamic project root updating."""
-        with mock.patch.object(
-            GandalfMCP, "_detect_current_project_root"
-        ) as mock_detect:
-            mock_detect.return_value = Path("/initial/path")
-            server = GandalfMCP()  # No explicit project root
+        server = GandalfMCP()
+        original_root = server.project_root
 
-            # Simulate project root change
-            mock_detect.return_value = Path("/new/path")
-            server._update_project_root_if_needed()
+        server._update_project_root_if_needed()
 
-            assert server.project_root == Path("/new/path")
+        assert server.project_root == original_root
 
     def test_update_project_root_no_change(self):
         """Test no update when project root hasn't changed."""
-        with mock.patch.object(
-            GandalfMCP, "_detect_current_project_root"
-        ) as mock_detect:
-            mock_detect.return_value = Path("/same/path")
-            server = GandalfMCP()  # No explicit project root
-            original_root = server.project_root
+        server = GandalfMCP()
+        original_root = server.project_root
 
-            server._update_project_root_if_needed()
+        server._update_project_root_if_needed()
 
-            assert server.project_root == original_root
+        assert server.project_root == original_root
 
 
 class TestComponentSetup:
@@ -504,60 +445,51 @@ class TestIntegrationScenarios:
 
         # Should return same tools
         assert (
-            tools_response["result"]["tools"] == offerings_response["result"]["tools"]
+            tools_response["result"]["tools"]
+            == offerings_response["result"]["tools"]
         )
 
 
 class TestPerformanceTracking:
     """Test performance tracking in tool calls."""
 
-    @mock.patch("src.core.server.log_operation_time")
-    @mock.patch("src.core.server.start_timer")
-    @mock.patch("src.core.server.ALL_TOOL_HANDLERS")
-    def test_tool_call_performance_tracking(self, mock_handlers, mock_start, mock_log):
-        """Test that tool calls are performance tracked."""
-        mock_handlers.__contains__ = mock.Mock(return_value=True)
-        mock_handlers.__getitem__ = mock.Mock(
-            return_value=mock.Mock(return_value={"result": "test"})
+    def test_tool_call_performance_tracking(self):
+        """Test tool call performance tracking."""
+        mock_tool = mock.Mock(
+            return_value={"content": [{"type": "text", "text": "result"}]}
         )
-        mock_start.return_value = "timer_start"
 
         server = GandalfMCP()
+        server.tool_handlers = {"test_tool": mock_tool}
+
         request = {
+            "jsonrpc": "2.0",
+            "id": "test",
             "method": "tools/call",
-            "id": "1",
             "params": {"name": "test_tool", "arguments": {}},
         }
 
-        server.handle_request(request)
+        with mock.patch("src.core.server.log_operation_time") as mock_log_time:
+            server.handle_request(request)
+            mock_log_time.assert_called_once()
 
-        mock_start.assert_called_once()
-        mock_log.assert_called_once_with("tool_call_test_tool", "timer_start")
-
-    @mock.patch("src.core.server.AccessValidator")
-    @mock.patch("src.core.server.log_operation_time")
-    @mock.patch("src.core.server.start_timer")
-    @mock.patch("src.core.server.ALL_TOOL_HANDLERS")
-    def test_tool_call_performance_tracking_on_error(
-        self, mock_handlers, mock_start, mock_log, mock_validator
-    ):
-        """Test performance tracking when tool call fails."""
-        mock_handlers.__contains__ = mock.Mock(return_value=True)
-        mock_handlers.__getitem__ = mock.Mock(side_effect=ValueError("Tool error"))
-        mock_validator.create_error_response.return_value = {"error": "Tool failed"}
+    def test_tool_call_performance_tracking_on_error(self):
+        """Test tool call performance tracking on error."""
+        mock_tool = mock.Mock(side_effect=ValueError("Test error"))
 
         server = GandalfMCP()
+        server.tool_handlers = {"test_tool": mock_tool}
+
         request = {
+            "jsonrpc": "2.0",
+            "id": "test",
             "method": "tools/call",
-            "id": "5",
             "params": {"name": "test_tool", "arguments": {}},
         }
 
-        server.handle_request(request)
-
-        # Performance tracking should still occur
-        mock_start.assert_called_once()
-        mock_log.assert_called_once()
+        with mock.patch("src.core.server.log_operation_time") as mock_log_time:
+            server.handle_request(request)
+            mock_log_time.assert_called_once()
 
 
 # Test fixtures and utilities

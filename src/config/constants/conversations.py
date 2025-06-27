@@ -20,7 +20,9 @@ FILTER_MIN_EXCHANGE_COUNT = 1  # Minimum exchanges for consideration
 
 # Activity Scoring Constants
 ACTIVITY_SCORE_MAX_DURATION = 5.0  # Maximum activity score based on duration
-ACTIVITY_SCORE_RECENCY_BOOST = 2.0  # Boost for conversations updated within 24 hours
+ACTIVITY_SCORE_RECENCY_BOOST = (
+    2.0  # Boost for conversations updated within 24 hours
+)
 
 # Context Intelligence Constants
 CONTEXT_KEYWORD_MIN_RELEVANCE = 0.3  # Minimum keyword relevance threshold

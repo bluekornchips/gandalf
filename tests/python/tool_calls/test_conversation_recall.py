@@ -31,9 +31,7 @@ class TestConversationRecall:
             yield mock
 
     @patch("src.tool_calls.conversation_recall.CursorQuery")
-    def test_recall_cursor_conversations_fast_mode(
-        self, mock_cursor_query
-    ):
+    def test_recall_cursor_conversations_fast_mode(self, mock_cursor_query):
         """Test fast mode conversation recall."""
         arguments = {"fast_mode": True, "limit": 10, "days_lookback": 7}
 
@@ -70,9 +68,7 @@ class TestConversationRecall:
         assert len(result["content"]) > 0
 
     @patch("src.tool_calls.conversation_recall.CursorQuery")
-    def test_search_cursor_conversations_basic(
-        self, mock_cursor_query
-    ):
+    def test_search_cursor_conversations_basic(self, mock_cursor_query):
         """Test basic conversation search functionality."""
         arguments = {
             "query": "test query",

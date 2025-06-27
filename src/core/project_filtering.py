@@ -40,7 +40,9 @@ def filter_project_files(project_root: Path) -> List[str]:
             log_debug(f"Find command failed: {result.stderr}")
             return []
 
-        files = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        files = [
+            line.strip() for line in result.stdout.splitlines() if line.strip()
+        ]
 
         # Limit the number of files stored in the cache
         if len(files) > MAX_PROJECT_FILES:

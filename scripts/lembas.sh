@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Lembas
-# Lembas bread could not fullfill the hunger of a hobbit, but it could fullfill the hunger of a developer.
+# Lembas bread could not fulfill the hunger of a hobbit, but it could fulfill the hunger of a developer.
 
 set -euo pipefail
 
@@ -78,7 +78,7 @@ check_conversation_system() {
         if "$SCRIPTS_DIR/conversations.sh" workspaces >/dev/null 2>&1; then
             echo "MCP conversation tools are working"
 
-            # Get basic conversation count for reporting
+            # Get workspace count for reporting
             local workspace_count=0
             if workspace_output=$("$SCRIPTS_DIR/conversations.sh" workspaces 2>/dev/null); then
                 workspace_count=$(echo "$workspace_output" | jq -r '.total_workspaces // 0' 2>/dev/null || echo "0")
@@ -98,12 +98,12 @@ check_conversation_system() {
 verify_conversation_logging() {
     echo "Checking MCP conversation system accessibility..."
 
-    # Get current session ID from MCP logs if available
+    # Check for session activity in MCP logs
     local session_check_passed=false
     local mcp_log_file="$HOME/.cursor/logs/mcp.log"
 
     if [[ -f "$mcp_log_file" ]]; then
-        # Look for recent session activity in the last few minutes
+        # Look for recent session activity
         local recent_session_activity=$(tail -100 "$mcp_log_file" 2>/dev/null | grep -i "session\|conversation\|$MCP_SERVER_NAME" | tail -5 || echo "")
         if [[ -n "$recent_session_activity" ]]; then
             show_recent_activity "$recent_session_activity"
@@ -169,7 +169,6 @@ lembas() {
     echo "Repository path: $repo_path"
 
     local start_time=$(date +%s)
-    local workspace_count=0
 
     export LEMBAS_MODE=true
 

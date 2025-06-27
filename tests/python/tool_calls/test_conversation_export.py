@@ -25,7 +25,7 @@ class TestConversationExport:
 
     @pytest.fixture
     def mock_conversation_data(self):
-        """Mock conversation data for testing with Fellowship scenarios."""
+        """Mock conversation data for testing."""
         return {
             "workspaces": [
                 {
@@ -57,7 +57,9 @@ class TestConversationExport:
                         {
                             "id": "gen-gandalf-1",
                             "conversationId": "conv-bilbo-1",
-                            "text": ("I don't know half of you half as well as I should like."),
+                            "text": (
+                                "I don't know half of you half as well as I should like."
+                            ),
                             "timestamp": 1640995250000,
                         }
                     ],
@@ -75,7 +77,9 @@ class TestConversationExport:
         """Test basic JSON export functionality."""
         # Setup mock
         mock_instance = Mock()
-        mock_instance.query_all_conversations.return_value = mock_conversation_data
+        mock_instance.query_all_conversations.return_value = (
+            mock_conversation_data
+        )
         mock_instance.export_to_file = Mock()
         mock_cursor_query.return_value = mock_instance
 
@@ -83,7 +87,7 @@ class TestConversationExport:
         with tempfile.NamedTemporaryFile(suffix=".json") as tmp:
             result = export_conversations_simple(tmp.name, silent=True)
 
-        # Verify the quest was successful
+        # Verify the export was successful
         assert result is True
 
         # Verify CursorQuery was called correctly
@@ -92,7 +96,7 @@ class TestConversationExport:
         mock_instance.export_to_file.assert_called_once()
 
     def test_sanitize_filename(self):
-        """Test filename sanitization for the Shire archives."""
+        """Test filename sanitization."""
         # Test normal conversation name, spaces are preserved
         assert sanitize_filename("Ring Discovery") == "Ring Discovery"
 
@@ -112,11 +116,13 @@ class TestConversationExport:
         assert sanitize_filename("") == "unnamed_conversation"
 
     def test_format_timestamp(self):
-        """Test timestamp formatting for hobbit calendars."""
+        """Test timestamp formatting."""
         timestamp = 1640995200000  # 2022-01-01 00:00:00 UTC
         result = format_timestamp(timestamp)
         # The format is YYYYMMDD_HHMMSS, so check for the date part
-        assert "20211231" in result or "20220101" in result  # Account for timezone
+        assert (
+            "20211231" in result or "20220101" in result
+        )  # Account for timezone
 
         # Test with no timestamp
         result_none = format_timestamp(None)
@@ -130,7 +136,9 @@ class TestConversationExport:
         """Test individual conversation export functionality."""
         # Setup mock
         mock_instance = Mock()
-        mock_instance.query_all_conversations.return_value = mock_conversation_data
+        mock_instance.query_all_conversations.return_value = (
+            mock_conversation_data
+        )
         mock_instance._create_message_map.return_value = {
             "prompts": {"conv-bilbo-1": [{"text": "Good morning."}]},
             "generations": {"conv-bilbo-1": [{"text": "Good morning."}]},
@@ -138,9 +146,10 @@ class TestConversationExport:
         mock_cursor_query.return_value = mock_instance
 
         # Mock file operations to prevent actual file creation
-        with patch("pathlib.Path.mkdir") as mock_mkdir, patch(
-            "builtins.open", mock_open()
-        ) as mock_file_open:
+        with (
+            patch("pathlib.Path.mkdir") as mock_mkdir,
+            patch("builtins.open", mock_open()) as mock_file_open,
+        ):
 
             result = handle_export_individual_conversations(
                 {
@@ -167,14 +176,18 @@ class TestConversationExport:
         """Test that invalid format raises ValueError, no Black Speech allowed."""
         with tempfile.NamedTemporaryFile(suffix=".txt") as tmp:
             with pytest.raises(ValueError, match="format_type must be one of"):
-                export_conversations_simple(tmp.name, format_type="black_speech")
+                export_conversations_simple(
+                    tmp.name, format_type="black_speech"
+                )
 
     @patch("src.utils.conversation_export.CursorQuery")
     def test_list_workspaces(self, mock_cursor_query, mock_conversation_data):
         """Test workspace listing."""
         # Setup mock
         mock_instance = Mock()
-        mock_instance.query_all_conversations.return_value = mock_conversation_data
+        mock_instance.query_all_conversations.return_value = (
+            mock_conversation_data
+        )
         mock_cursor_query.return_value = mock_instance
 
         # Test workspace listing

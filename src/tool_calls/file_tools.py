@@ -109,7 +109,9 @@ def handle_list_project_files(
             )
 
         # project_root
-        valid, error_msg = AccessValidator.validate_path(project_root, "project_root")
+        valid, error_msg = AccessValidator.validate_path(
+            project_root, "project_root"
+        )
         if not valid:
             return AccessValidator.create_error_response(error_msg)
 
@@ -145,12 +147,16 @@ def handle_list_project_files(
                         if path_obj.suffix.lower() in extensions:
                             filtered_files.append((file_path, score))
                     except (OSError, ValueError) as e:
-                        log_debug(f"Skipping file due to path error: {file_path}, {e}")
+                        log_debug(
+                            f"Skipping file due to path error: {file_path}, {e}"
+                        )
                         continue
                 scored_files = filtered_files
 
             # Sort by score: higher should always be first. Limit results.
-            sorted_files = sorted(scored_files, key=lambda x: x[1], reverse=True)
+            sorted_files = sorted(
+                scored_files, key=lambda x: x[1], reverse=True
+            )
             if max_files:
                 sorted_files = sorted_files[:max_files]
 
@@ -180,11 +186,15 @@ def handle_list_project_files(
                     output_lines.append(f"  {file}")
 
             output_lines.append("\nTOP FILES BY RELEVANCE:")
-            top_files = sorted_files[: min(TOP_FILES_DISPLAY_LIMIT, len(sorted_files))]
+            top_files = sorted_files[
+                : min(TOP_FILES_DISPLAY_LIMIT, len(sorted_files))
+            ]
             for file, score in top_files:
                 output_lines.append(f"  {file} (score: {score:.2f})")
 
-            output_lines.append(f"\nSUMMARY: {len(files_to_return)} total files")
+            output_lines.append(
+                f"\nSUMMARY: {len(files_to_return)} total files"
+            )
             output_lines.append(f"High priority: {len(high_priority)}")
             output_lines.append(f"Medium priority: {len(medium_priority)}")
             output_lines.append(f"Low priority: {len(low_priority)}")
@@ -210,7 +220,9 @@ def handle_list_project_files(
                         if path_obj.suffix.lower() in extensions:
                             filtered_files.append(file_path)
                     except (OSError, ValueError) as e:
-                        log_debug(f"Skipping file due to path error: {file_path}, {e}")
+                        log_debug(
+                            f"Skipping file due to path error: {file_path}, {e}"
+                        )
                         continue
                 files = filtered_files
 
@@ -226,7 +238,9 @@ def handle_list_project_files(
 
     except (OSError, ValueError, TypeError, KeyError) as e:
         log_debug(f"Error in list_project_files: {e}")
-        return AccessValidator.create_error_response(f"Error listing files: {str(e)}")
+        return AccessValidator.create_error_response(
+            f"Error listing files: {str(e)}"
+        )
 
 
 def _validate_cache_security(
@@ -240,10 +254,14 @@ def _validate_cache_security(
             try:
                 resolved_path = Path(file_path).resolve()
                 if not str(resolved_path).startswith(project_root_str):
-                    log_debug(f"Security: File outside project root: {file_path}")
+                    log_debug(
+                        f"Security: File outside project root: {file_path}"
+                    )
                     return False
             except (OSError, ValueError) as e:
-                log_debug(f"Security: Invalid file path in cache: {file_path}, {e}")
+                log_debug(
+                    f"Security: Invalid file path in cache: {file_path}, {e}"
+                )
                 return False
 
         return True

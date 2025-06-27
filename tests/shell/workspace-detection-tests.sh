@@ -16,13 +16,13 @@ teardown() {
 }
 
 @test "Strategy 1: WORKSPACE_FOLDER_PATHS takes highest priority" {
-    local workspace_project="$TEST_HOME/workspace-project"
+    local workspace_project="$TEST_HOME/rivendell-workspace"
     mkdir -p "$workspace_project"
     cd "$workspace_project"
     git init >/dev/null 2>&1
-    git config user.email "test@gandalf.test"
-    git config user.name "Gandalf Test"
-    echo "# Workspace Project" >README.md
+    git config user.email "elrond@rivendell.middleearth"
+    git config user.name "Lord Elrond"
+    echo "# Rivendell Workspace" >README.md
 
     local python_exec
     python_exec=$(get_python_executable)
@@ -43,8 +43,8 @@ teardown() {
 }
 
 @test "Strategy 1: Multiple workspace paths - uses first valid one" {
-    local workspace1="$TEST_HOME/workspace1"
-    local workspace2="$TEST_HOME/workspace2"
+    local workspace1="$TEST_HOME/moria-mines"
+    local workspace2="$TEST_HOME/lothlorien-realm"
 
     # Create first workspace (invalid)
     mkdir -p "$workspace1"
@@ -53,9 +53,9 @@ teardown() {
     mkdir -p "$workspace2"
     cd "$workspace2"
     git init >/dev/null 2>&1
-    git config user.email "test@gandalf.test"
-    git config user.name "Gandalf Test"
-    echo "# Workspace 2" >README.md
+    git config user.email "galadriel@lothlorien.middleearth"
+    git config user.name "Lady Galadriel"
+    echo "# Lothlorien Realm" >README.md
 
     local python_exec
     python_exec=$(get_python_executable)
@@ -77,13 +77,13 @@ teardown() {
 }
 
 @test "Strategy 2: Git root detection in workspace paths" {
-    local git_subdir="$TEST_HOME/git-project/subdir"
+    local git_subdir="$TEST_HOME/isengard-tower/saruman-quarters"
     mkdir -p "$git_subdir"
-    cd "$TEST_HOME/git-project"
+    cd "$TEST_HOME/isengard-tower"
     git init >/dev/null 2>&1
-    git config user.email "test@gandalf.test"
-    git config user.name "Gandalf Test"
-    echo "# Git Project" >README.md
+    git config user.email "saruman@isengard.middleearth"
+    git config user.name "Saruman the White"
+    echo "# Isengard Tower" >README.md
 
     local python_exec
     python_exec=$(get_python_executable)
@@ -100,7 +100,7 @@ teardown() {
 
     # Compare resolved paths since server resolves symlinks
     local expected_resolved
-    expected_resolved=$(cd "$TEST_HOME/git-project" && pwd -P)
+    expected_resolved=$(cd "$TEST_HOME/isengard-tower" && pwd -P)
     [[ "$detected_root" == "$expected_resolved" ]]
 }
 
@@ -178,14 +178,14 @@ teardown() {
 }
 
 @test "Real-world scenario: Cursor MCP server startup" {
-    local cursor_workspace="$TEST_HOME/cursor-workspace"
+    local cursor_workspace="$TEST_HOME/rohan-kingdom"
     mkdir -p "$cursor_workspace/src"
     cd "$cursor_workspace"
     git init >/dev/null 2>&1
-    git config user.email "test@gandalf.test"
-    git config user.name "Gandalf Test"
-    echo "# Cursor Workspace" >README.md
-    echo "console.log('hello');" >src/app.js
+    git config user.email "theoden@rohan.middleearth"
+    git config user.name "King Theoden"
+    echo "# Rohan Kingdom" >README.md
+    echo "console.log('Riders of Rohan!');" >src/app.js
 
     local python_exec
     python_exec=$(get_python_executable)

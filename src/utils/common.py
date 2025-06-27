@@ -27,7 +27,9 @@ def initialize_session_logging(session_id: str) -> None:
     _log_file_path = logs_dir / log_filename
 
     # Write session start marker
-    write_log("info", f"{MCP_SERVER_NAME.upper()} session started: {session_id}")
+    write_log(
+        "info", f"{MCP_SERVER_NAME.upper()} session started: {session_id}"
+    )
 
 
 def write_log(
@@ -86,19 +88,19 @@ def send_rpc_message(
 
 
 def log_info(message: str) -> None:
-    """Log an info message to both file and RPC."""
+    """Log an info message to both file and MCP notification."""
     write_log("info", message)
     send_rpc_message("info", message)
 
 
 def log_error(error: Exception, context: str = "") -> None:
-    """Log an error message to both file and RPC."""
+    """Log an error message to both file and MCP notification."""
     error_msg = f"{context}: {error}" if context else str(error)
     write_log("error", error_msg)
     send_rpc_message("error", error_msg)
 
 
 def log_debug(message: str) -> None:
-    """Log a debug message to both file and RPC."""
+    """Log a debug message to both file and MCP notification."""
     write_log("debug", message)
     send_rpc_message("debug", message)

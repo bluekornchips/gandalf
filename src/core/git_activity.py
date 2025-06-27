@@ -43,8 +43,7 @@ class GitActivityTracker:
             OSError,
             subprocess.SubprocessError,
             subprocess.TimeoutExpired,
-        ) as e:
-            log_debug(f"Git activity error for {file_path}: {e}")
+        ):
             return CONTEXT_MIN_SCORE
 
     def _refresh_activity_data(self):
@@ -62,15 +61,14 @@ class GitActivityTracker:
             No exceptions raised; errors are logged and handled gracefully
         """
         try:
-            log_debug(f"Refreshing git activity data for {self.project_root}")
+            # Get git activity data
             result = subprocess.run(
                 [
                     "git",
                     "log",
-                    f"--since={GIT_ACTIVITY_RECENT_DAYS} days ago",
                     "--name-only",
                     "--pretty=format:",
-                    "--",
+                    f"--since={GIT_ACTIVITY_RECENT_DAYS} days ago",
                 ],
                 cwd=self.project_root,
                 capture_output=True,
@@ -80,7 +78,9 @@ class GitActivityTracker:
 
             if result.returncode == 0:
                 files = [
-                    line.strip() for line in result.stdout.split("\n") if line.strip()
+                    line.strip()
+                    for line in result.stdout.split("\n")
+                    if line.strip()
                 ]
                 file_counts = {}
 
@@ -93,7 +93,6 @@ class GitActivityTracker:
                     self._activity_data[file] = count / max_count
 
                 self._last_update = time.time()
-                log_debug(f"Refreshed git activity data with {len(file_counts)} files")
                 log_info(
                     f"Git activity data refreshed: {len(file_counts)} active files"
                 )

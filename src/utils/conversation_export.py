@@ -40,9 +40,12 @@ def export_conversations_simple(
 
         if not silent:
             total_conversations = sum(
-                len(ws.get("conversations", [])) for ws in data.get("workspaces", [])
+                len(ws.get("conversations", []))
+                for ws in data.get("workspaces", [])
             )
-            print(f"Exported {total_conversations} conversations to {output_path}")
+            print(
+                f"Exported {total_conversations} conversations to {output_path}"
+            )
 
         return True
 
@@ -86,7 +89,9 @@ def list_workspaces(silent: bool = False) -> List[str]:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Simple conversation export utility")
+    parser = argparse.ArgumentParser(
+        description="Simple conversation export utility"
+    )
     parser.add_argument("output_path", help="Output file path")
     parser.add_argument(
         "--format", choices=["json", "markdown", "cursor"], default="json"
@@ -96,7 +101,9 @@ if __name__ == "__main__":
         action="store_true",
         help="List available workspaces and exit",
     )
-    parser.add_argument("--silent", action="store_true", help="Suppress console output")
+    parser.add_argument(
+        "--silent", action="store_true", help="Suppress console output"
+    )
 
     args = parser.parse_args()
 

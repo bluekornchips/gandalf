@@ -257,14 +257,18 @@ teardown() {
     mkdir -p "$non_git_project"
     echo "# Non-git project" >"$non_git_project/README.md"
 
-    local python_exec
-    python_exec=$(get_python_executable)
-    run bash -c "echo '{\"jsonrpc\": \"2.0\", \"method\": \"tools/call\", \"id\": 1, \"params\": {\"name\": \"list_project_files\", \"arguments\": {}}}' | '$python_exec' '$SERVER_DIR/main.py' --project-root '$non_git_project' 2>/dev/null"
+    # Use the proper execute_rpc helper function with the non-git project root
+    run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {}}' "$non_git_project"
+    
+    # The operation should succeed (exit code 0) even for non-git directories
     [ "$status" -eq 0 ]
 
-    # Should return file list even for non-git directories
-    local result_line
-    result_line=$(echo "$output" | grep '"result"' | head -1)
-    echo "$result_line" | jq -e '.result.content[0].text' >/dev/null
-    echo "$result_line" | jq -r '.result.content[0].text' | grep -q "README.md"
+    # Should return valid JSON response
+    validate_jsonrpc_response "$output"
+
+    local content
+    content=$(echo "$output" | jq -r '.result.content[0].text')
+    
+    # Should include our README.md file
+    echo "$content" | grep -q "README.md"
 }

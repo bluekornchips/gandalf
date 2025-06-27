@@ -1,46 +1,14 @@
 """
-Context intelligence module for Gandalf MCP server.
-
-Provides intelligent context analysis and keyword extraction.
+Context intelligence for file scoring and project analysis.
 """
 
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.config.cache import (
-    CONVERSATION_CACHE_DIR,
-    CONVERSATION_CACHE_FILE,
-    CONVERSATION_CACHE_METADATA_FILE,
-    CONVERSATION_CACHE_MIN_SIZE,
-    CONVERSATION_CACHE_TTL_HOURS,
-    CONVERSATION_CACHE_TTL_SECONDS,
-    FILE_CACHE_DIR,
-)
-from src.config.constants.conversations import (
-    CONTEXT_CACHE_TTL_SECONDS,
-    CONTEXT_KEYWORD_MAX_COUNT,
-    CONTEXT_KEYWORD_MIN_RELEVANCE,
-    CONTEXT_KEYWORDS_FILE_LIMIT,
-)
-from src.config.constants.core import (
-    GANDALF_HOME,
-    MCP_SERVER_NAME,
-    GANDALF_SERVER_VERSION,
-)
 from src.config.constants.system import (
-    CONTEXT_FILE_SIZE_LARGE_MULTIPLIER,
-    CONTEXT_FILE_SIZE_OPTIMAL_MAX,
-    CONTEXT_FILE_SIZE_OPTIMAL_MIN,
-    CONTEXT_GIT_CACHE_TTL,
-    CONTEXT_GIT_LOOKBACK_DAYS,
-    CONTEXT_GIT_TIMEOUT,
-    CONTEXT_HIGH_PRIORITY_THRESHOLD,
-    CONTEXT_MEDIUM_PRIORITY_THRESHOLD,
     CONTEXT_MIN_SCORE,
     CONTEXT_TOP_FILES_COUNT,
-    CONVERSATION_DEFAULT_LIMIT,
-    CONVERSATION_DEFAULT_LOOKBACK_DAYS,
 )
 from src.config.weights import (
     CONTEXT_WEIGHTS,
@@ -48,17 +16,16 @@ from src.config.weights import (
     get_file_extension_weights,
 )
 from src.core.git_activity import GitActivityTracker
-from src.utils.common import log_debug, log_error, log_info
+from src.utils.common import log_debug, log_info
 
-# Define constants that aren't in the config files
-# Import cache constants (not in system config yet)
+# Import cache constants
 CONTEXT_IMPORT_CACHE_TTL = 3600  # 1 hour
 CONTEXT_IMPORT_TIMEOUT = 10  # 10 seconds
 
-# File size penalty threshold (not in system config yet)
+# File size penalty threshold
 CONTEXT_FILE_SIZE_PENALTY_THRESHOLD = 100000  # 100KB
 
-# Recent modification thresholds (from system config but need local constants)
+# Recent modification thresholds
 CONTEXT_RECENT_HOUR_THRESHOLD = 24  # Hours to consider a file "recent"
 CONTEXT_RECENT_DAY_THRESHOLD = 24  # "recent" - 1 day
 CONTEXT_RECENT_WEEK_THRESHOLD = 168  # "somewhat recent" - 1 week
@@ -91,11 +58,18 @@ IMPORT_NEIGHBOR_DEPTH_WEIGHT = 0.2
 ACTIVE_FILE_SCORE_THRESHOLD = 0.3
 ACTIVE_FILE_WEIGHT_MULTIPLIER = 3.0
 
-# Additional context intelligence constants not in system config
+# File size constants
+CONTEXT_FILE_SIZE_OPTIMAL_MIN = 100  # 100 bytes
+CONTEXT_FILE_SIZE_OPTIMAL_MAX = 50000  # 50KB
+CONTEXT_FILE_SIZE_LARGE_MULTIPLIER = 0.3  # Penalty for large files
+
+# Additional context intelligence constants
 CONTEXT_FILE_SIZE_ACCEPTABLE_MAX = (
     100 * 1024
 )  # 100KB - files larger than this get penalized
-CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER = 0.7  # Multiplier for acceptable size files
+CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER = (
+    0.7  # Multiplier for acceptable size files
+)
 
 
 class ContextIntelligence:
@@ -120,7 +94,6 @@ class ContextIntelligence:
             score = CONTEXT_MIN_SCORE
 
             if not full_path.exists():
-                log_debug(f"File does not exist: {file_path}")
                 return score
 
             recent_score = self._score_recent_modification(full_path)
@@ -129,7 +102,9 @@ class ContextIntelligence:
             dir_score = self._score_directory_importance(file_path)
             git_score = self._score_git_activity(file_path)
 
-            score = recent_score + size_score + type_score + dir_score + git_score
+            score = (
+                recent_score + size_score + type_score + dir_score + git_score
+            )
 
             if context and "active_files" in context:
                 import_score = self._score_import_relationships(
@@ -137,9 +112,6 @@ class ContextIntelligence:
                 )
                 score += import_score
 
-            log_debug(
-                f"Scored {file_path}: {score:.3f} (recent:{recent_score:.2f}, size:{size_score:.2f}, type:{type_score:.2f}, dir:{dir_score:.2f}, git:{git_score:.2f})"
-            )
             return max(score, CONTEXT_MIN_SCORE)
 
         except (OSError, FileNotFoundError):
@@ -156,11 +128,13 @@ class ContextIntelligence:
                 return self.weights["recent_modification"]
             elif hours_ago < CONTEXT_RECENT_DAY_THRESHOLD:
                 return (
-                    self.weights["recent_modification"] * CONTEXT_RECENT_DAY_MULTIPLIER
+                    self.weights["recent_modification"]
+                    * CONTEXT_RECENT_DAY_MULTIPLIER
                 )
             elif hours_ago < CONTEXT_RECENT_WEEK_THRESHOLD:
                 return (
-                    self.weights["recent_modification"] * CONTEXT_RECENT_WEEK_MULTIPLIER
+                    self.weights["recent_modification"]
+                    * CONTEXT_RECENT_WEEK_MULTIPLIER
                 )
             else:
                 return CONTEXT_MIN_SCORE
@@ -173,10 +147,16 @@ class ContextIntelligence:
         try:
             size = full_path.stat().st_size
 
-            if CONTEXT_FILE_SIZE_OPTIMAL_MIN <= size <= CONTEXT_FILE_SIZE_OPTIMAL_MAX:
+            if (
+                CONTEXT_FILE_SIZE_OPTIMAL_MIN
+                <= size
+                <= CONTEXT_FILE_SIZE_OPTIMAL_MAX
+            ):
                 return self.weights["file_size_optimal"]
             elif (
-                CONTEXT_FILE_SIZE_OPTIMAL_MAX < size <= CONTEXT_FILE_SIZE_ACCEPTABLE_MAX
+                CONTEXT_FILE_SIZE_OPTIMAL_MAX
+                < size
+                <= CONTEXT_FILE_SIZE_ACCEPTABLE_MAX
             ):
                 return (
                     self.weights["file_size_optimal"]
@@ -291,6 +271,12 @@ class ContextIntelligence:
         if limit:
             scored_files = scored_files[:limit]
 
+        # Add summary debug information instead of per-file logging
+        if scored_files:
+            log_debug(
+                f"Cached {len(scored_files)} files with relevance scores for {self.project_root}"
+            )
+
         return scored_files
 
     def get_context_summary(
@@ -330,34 +316,41 @@ class ContextIntelligence:
         # Score all files
         scored_files = self.rank_files(files, context)
 
-        # Calculate priority distribution
-        priority_dist = {"high": 0, "medium": 0, "low": 0}
-        file_type_dist = {}
-        total_score = 0.0
+        # Categorize files by priority
+        high_priority = [f for f, s in scored_files if s >= 0.8]
+        medium_priority = [f for f, s in scored_files if 0.5 <= s < 0.8]
+        low_priority = [f for f, s in scored_files if s < 0.5]
 
-        for file_path, score in scored_files:
-            total_score += score
-
-            # Categorize by priority
-            if score >= CONTEXT_HIGH_PRIORITY_THRESHOLD:
-                priority_dist["high"] += 1
-            elif score >= CONTEXT_MEDIUM_PRIORITY_THRESHOLD:
-                priority_dist["medium"] += 1
-            else:
-                priority_dist["low"] += 1
-
-            # Track file types
-            suffix = Path(file_path).suffix.lower()
-            file_type_dist[suffix] = file_type_dist.get(suffix, 0) + 1
+        # Calculate average score
+        average_score = (
+            sum(score for _, score in scored_files) / len(scored_files)
+            if scored_files
+            else 0.0
+        )
 
         # Get top files for display
         top_files = scored_files[:CONTEXT_TOP_FILES_COUNT]
 
+        # Generate file type distribution
+        file_type_dist = {}
+        for file_path in files:
+            suffix = Path(file_path).suffix.lower()
+            if suffix:
+                file_type_dist[suffix] = file_type_dist.get(suffix, 0) + 1
+
         return {
             "file_count": len(files),
-            "priority_distribution": priority_dist,
+            "priority_distribution": {
+                "high": len(high_priority),
+                "medium": len(medium_priority),
+                "low": len(low_priority),
+            },
             "file_type_distribution": file_type_dist,
-            "average_score": total_score / len(files) if files else 0.0,
+            "total_files": len(scored_files),
+            "high_priority_files": len(high_priority),
+            "medium_priority_files": len(medium_priority),
+            "low_priority_files": len(low_priority),
+            "average_score": average_score,
             "top_files": [(path, f"{score:.3f}") for path, score in top_files],
         }
 

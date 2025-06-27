@@ -15,7 +15,7 @@ usage() {
     cat <<EOF
 Usage: gandalf.sh install [repo_path] [OPTIONS]
 
-Configure MCP server for repository in Cursor.
+Configure MCP server for repository in Cursor or Claude Code (auto-detected).
 
 Arguments:
     repo_path               Repository path (default: current directory)
@@ -23,26 +23,96 @@ Arguments:
 Options:
     -f, --force            Force setup (overwrite existing config)
     -r, --reset            Reset/remove existing server before installing
+    --ide <ide>            Force specific IDE (cursor|claude-code)
     -h, --help             Show this help
     --skip-test           Skip connectivity testing (faster install)
-    --wait-time <seconds> Wait time for Cursor recognition (default: 1)
+    --wait-time <seconds> Wait time for IDE recognition (default: 1)
 
 Examples:
-    gandalf.sh install                    # Configure current directory
+    gandalf.sh install                    # Configure current directory (auto-detect IDE)
     gandalf.sh install /path/to/repo      # Configure specific repository
     gandalf.sh install -f                 # Force overwrite existing config
     gandalf.sh install -r                 # Reset existing server and install fresh
+    gandalf.sh install --ide cursor       # Force Cursor installation
+    gandalf.sh install --ide claude-code  # Force Claude Code installation
 
 What this does:
-    1. Verifies system requirements (Python 3.10+, Git)
-    2. (Optional) Resets existing server configuration if -r flag used
-    3. Installs global $MCP_SERVER_NAME MCP server
-    4. Configures single dynamic "$MCP_SERVER_NAME" server in Cursor
-    5. Updates Cursor MCP configuration (~/.cursor/mcp.json)
-    6. Creates $MCP_SERVER_NAME rules file (.cursor/rules/$MCP_SERVER_NAME-rules.mdc)
-    7. Tests server connectivity with retry mechanism
+    1. Detects your IDE environment (Cursor or Claude Code)
+    2. Verifies system requirements (Python 3.10+, Git)
+    3. (Optional) Resets existing server configuration if -r flag used
+    4. Installs global $MCP_SERVER_NAME MCP server for detected IDE
+    5. Configures dynamic "$MCP_SERVER_NAME" server in IDE
+    6. Updates IDE MCP configuration
+    7. Creates $MCP_SERVER_NAME rules file (.cursor/rules/$MCP_SERVER_NAME-rules.mdc)
+    8. Tests server connectivity with retry mechanism
 
 EOF
+}
+
+detect_ide() {
+    # Check for Claude Code environment variables
+    if [[ "$CLAUDECODE" == "1" ]] || [[ "$CLAUDE_CODE_ENTRYPOINT" == "cli" ]]; then
+        echo "claude-code"
+        return 0
+    fi
+
+    # Check for Cursor environment variables
+    if [[ -n "$CURSOR_TRACE_ID" ]] || [[ -n "$CURSOR_WORKSPACE" ]] || [[ "$VSCODE_INJECTION" == "1" ]]; then
+        echo "cursor"
+        return 0
+    fi
+
+    # Check for running processes
+    if pgrep -f "claude" >/dev/null 2>&1; then
+        echo "claude-code"
+        return 0
+    fi
+
+    if pgrep -f "Cursor" >/dev/null 2>&1; then
+        echo "cursor"
+        return 0
+    fi
+
+    # Check for configuration directories
+    if [[ -d "$HOME/.claude" ]] || [[ -d "$HOME/.config/claude" ]]; then
+        echo "claude-code"
+        return 0
+    fi
+
+    if [[ -d "$HOME/.cursor" ]]; then
+        echo "cursor"
+        return 0
+    fi
+
+    # Check for application installation
+    if [[ -d "/Applications/Cursor.app" ]]; then
+        echo "cursor"
+        return 0
+    fi
+
+    # Default fallback
+    echo "${GANDALF_FALLBACK_IDE:-cursor}"
+}
+
+detect_ide_by_database() {
+    # Check for Cursor databases (more reliable indicator)
+    local cursor_workspace_storage="$HOME/Library/Application Support/Cursor/workspaceStorage"
+    if [[ -d "$cursor_workspace_storage" ]] && [[ -n "$(find "$cursor_workspace_storage" -name "*.vscdb" -o -name "*.db" 2>/dev/null | head -1)" ]]; then
+        echo "cursor"
+        return 0
+    fi
+
+    # Check for Claude Code storage
+    local claude_storage_paths=("$HOME/.claude" "$HOME/.config/claude")
+    for claude_path in "${claude_storage_paths[@]}"; do
+        if [[ -d "$claude_path" ]] && [[ -n "$(find "$claude_path" -type f 2>/dev/null | head -1)" ]]; then
+            echo "claude-code"
+            return 0
+        fi
+    done
+
+    # Fallback to environment-based detection
+    detect_ide
 }
 
 check_config_exists() {
@@ -250,6 +320,69 @@ EOF
     echo "Updated Cursor configuration: $server_name"
 }
 
+update_claude_code_config() {
+    local config_file="$1"
+    local server_name="$2"
+    local gandalf_root="$3"
+
+    # Claude CLI is required for proper MCP management
+    if ! command -v claude >/dev/null 2>&1; then
+        echo "Error: claude CLI not found. Please install Claude Code first."
+        return 1
+    fi
+
+    # Clean slate; remove any existing configurations
+    claude mcp remove "$server_name" -s local 2>/dev/null || true
+    claude mcp remove "$server_name" -s user 2>/dev/null || true
+
+    # Install globally so it works everywhere; no need to reinstall per project
+    echo "Adding $server_name MCP server with global scope..."
+    cd "$gandalf_root"
+    if claude mcp add "$server_name" python3 -s user src/main.py \
+        -e "PYTHONPATH=$gandalf_root" \
+        -e "CLAUDECODE=1" \
+        -e "CLAUDE_CODE_ENTRYPOINT=cli"; then
+        echo "Updated Claude Code configuration: $server_name (global scope)"
+        return 0
+    else
+        echo "Failed to add $server_name MCP server via Claude CLI"
+        return 1
+    fi
+}
+
+install_for_claude_code() {
+    local server_name="$1"
+    local gandalf_root="$2"
+
+    echo "Installing Gandalf MCP for Claude Code..."
+
+    # One-time global installation; works in all projects after this
+    if update_claude_code_config "" "$server_name" "$gandalf_root"; then
+        echo "Claude Code MCP configuration installed successfully!"
+        echo "Server configured with global scope; available in all projects"
+        return 0
+    else
+        echo "Failed to install Claude Code MCP configuration"
+        echo "Make sure Claude Code is installed and the 'claude' CLI is available"
+        return 1
+    fi
+}
+
+install_for_cursor() {
+    local server_name="$1"
+    local gandalf_root="$2"
+
+    echo "Installing Gandalf MCP for Cursor..."
+
+    local config_file="$HOME/.cursor/mcp.json"
+    local mcp_script="$gandalf_root/gandalf.sh"
+
+    update_cursor_config "$config_file" "$server_name" "$mcp_script"
+
+    echo "Cursor MCP configuration installed successfully!"
+    return 0
+}
+
 create_rules_file() {
     local repo_root="$1"
     local rules_dir="$repo_root/.cursor/rules"
@@ -307,9 +440,10 @@ test_server_connectivity() {
     local max_attempts="${1:-3}"
     local wait_time="${2:-1}"
     local repo_root="$3"
+    local ide="${4:-cursor}"
 
-    echo "Testing server connectivity..."
-    echo "Waiting ${wait_time}s for Cursor to recognize MCP server..."
+    echo "Testing server connectivity for $ide..."
+    echo "Waiting ${wait_time}s for $ide to recognize MCP server..."
 
     sleep "$wait_time"
 
@@ -337,6 +471,13 @@ test_server_connectivity() {
 
         if timeout 3 "$python_exec" "$SERVER_SCRIPT" --help >/dev/null 2>&1; then
             script_test=true
+        fi
+
+        # Set environment variables based on IDE
+        local env_vars=""
+        if [[ "$ide" == "claude-code" ]]; then
+            export CLAUDECODE=1
+            export CLAUDE_CODE_ENTRYPOINT=cli
         fi
 
         if init_response=$(echo '{"jsonrpc": "2.0", "method": "initialize", "id": 1}' | timeout 5 "$python_exec" "$SERVER_SCRIPT" 2>/dev/null); then
@@ -380,15 +521,29 @@ test_server_connectivity() {
     return 0
 }
 
-wait_for_cursor_recognition() {
+wait_for_ide_recognition() {
     local config_file="$1"
     local server_name="$2"
     local wait_time="${3:-1}"
+    local ide="${4:-cursor}"
 
-    echo "Giving Cursor time to recognize new MCP configuration..."
+    echo "Giving $ide time to recognize new MCP configuration..."
 
-    if pgrep -f "Cursor" >/dev/null 2>&1; then
-        echo "   Cursor process detected - waiting ${wait_time}s for config reload"
+    local ide_process_name
+    case "$ide" in
+    "cursor")
+        ide_process_name="Cursor"
+        ;;
+    "claude-code")
+        ide_process_name="claude"
+        ;;
+    *)
+        ide_process_name="$ide"
+        ;;
+    esac
+
+    if pgrep -f "$ide_process_name" >/dev/null 2>&1; then
+        echo "   $ide process detected - waiting ${wait_time}s for config reload"
         sleep "$wait_time"
 
         local mcp_process_count=$(pgrep -f "$server_name.*main.py" | wc -l | tr -d ' \n\r' || echo "0")
@@ -399,7 +554,7 @@ wait_for_cursor_recognition() {
             echo "MCP server process not yet detected (may start on first use)"
         fi
     else
-        echo "Cursor process not detected - configuration will be loaded on next start"
+        echo "$ide process not detected - configuration will be loaded on next start"
     fi
 
     return 0
@@ -411,6 +566,7 @@ FORCE=false
 RESET=false
 SKIP_TEST=false
 WAIT_TIME=1
+FORCE_IDE=""
 
 if [[ $# -gt 0 && "${1:-}" != -* ]]; then
     REPO_ROOT="$1"
@@ -426,6 +582,14 @@ while [[ $# -gt 0 ]]; do
     -r | --reset)
         RESET=true
         shift
+        ;;
+    --ide)
+        FORCE_IDE="$2"
+        if [[ "$FORCE_IDE" != "cursor" && "$FORCE_IDE" != "claude-code" ]]; then
+            echo "Error: --ide must be 'cursor' or 'claude-code'"
+            exit 1
+        fi
+        shift 2
         ;;
     --skip-test)
         SKIP_TEST=true
@@ -452,6 +616,28 @@ echo "Verifying system requirements..."
 verify_prerequisites
 echo "Prerequisites verified successfully!"
 
+# Detect or use forced IDE
+if [[ -n "$FORCE_IDE" ]]; then
+    DETECTED_IDE="$FORCE_IDE"
+    echo "Using forced IDE: $DETECTED_IDE"
+else
+    DETECTED_IDE=$(detect_ide_by_database)
+
+    # If no databases found, fall back to environment detection
+    if [[ "$DETECTED_IDE" == "${GANDALF_FALLBACK_IDE:-cursor}" ]]; then
+        echo "No conversation databases found, checking environment..."
+        ENV_IDE=$(detect_ide)
+        if [[ "$ENV_IDE" != "${GANDALF_FALLBACK_IDE:-cursor}" ]]; then
+            DETECTED_IDE="$ENV_IDE"
+            echo "Environment detection found: $DETECTED_IDE"
+        else
+            echo "Using database detection result: $DETECTED_IDE"
+        fi
+    else
+        echo "Database detection found: $DETECTED_IDE"
+    fi
+fi
+
 echo "Configuring MCP for repository..."
 
 if [[ -n "$REPO_ROOT" ]]; then
@@ -473,14 +659,27 @@ SERVER_NAME="$MCP_SERVER_NAME"
 
 echo "Server name: $SERVER_NAME"
 
-CONFIG_DIR="$HOME/.cursor"
-CONFIG_FILE="$CONFIG_DIR/mcp.json"
+# Set config file and directory based on detected IDE
+case "$DETECTED_IDE" in
+"cursor")
+    CONFIG_DIR="$HOME/.cursor"
+    CONFIG_FILE="$CONFIG_DIR/mcp.json"
+    ;;
+"claude-code")
+    CONFIG_DIR="$HOME/.claude"
+    CONFIG_FILE="$CONFIG_DIR/mcp.json"
+    ;;
+*)
+    echo "Error: Unsupported IDE: $DETECTED_IDE"
+    exit 1
+    ;;
+esac
 
 if [[ "$RESET" == "true" ]]; then
     perform_reset "$CONFIG_FILE" "$SERVER_NAME"
 fi
 
-echo "Configuring Cursor MCP settings..."
+echo "Configuring $DETECTED_IDE MCP settings..."
 
 if [[ -f "$CONFIG_FILE" ]] && grep -q "\"$SERVER_NAME\"" "$CONFIG_FILE" 2>/dev/null; then
     if [[ "$FORCE" != "true" ]] && [[ "$RESET" != "true" ]]; then
@@ -493,17 +692,29 @@ if [[ -f "$CONFIG_FILE" ]] && grep -q "\"$SERVER_NAME\"" "$CONFIG_FILE" 2>/dev/n
     fi
 fi
 
-update_cursor_config "$CONFIG_FILE" "$SERVER_NAME" "$GANDALF_ROOT/gandalf.sh"
+# Install based on detected IDE
+case "$DETECTED_IDE" in
+"cursor")
+    install_for_cursor "$SERVER_NAME" "$GANDALF_ROOT"
+    ;;
+"claude-code")
+    install_for_claude_code "$SERVER_NAME" "$GANDALF_ROOT"
+    ;;
+*)
+    echo "Error: Unsupported IDE: $DETECTED_IDE"
+    exit 1
+    ;;
+esac
 
 echo "Creating $MCP_SERVER_NAME rules file..."
 create_rules_file "$REPO_ROOT"
 
-wait_for_cursor_recognition "$CONFIG_FILE" "$SERVER_NAME" 1
+wait_for_ide_recognition "$CONFIG_FILE" "$SERVER_NAME" 1 "$DETECTED_IDE"
 
 if [[ "$SKIP_TEST" != "true" ]]; then
-    if ! test_server_connectivity 3 "$WAIT_TIME" "$REPO_ROOT"; then
+    if ! test_server_connectivity 3 "$WAIT_TIME" "$REPO_ROOT" "$DETECTED_IDE"; then
         echo "Warning: Server connectivity test failed, but installation completed"
-        echo "The server may still work correctly in Cursor - try using MCP tools"
+        echo "The server may still work correctly in $DETECTED_IDE - try using MCP tools"
     fi
 else
     echo "Skipping connectivity tests (--skip-test flag used)"
@@ -514,23 +725,26 @@ cat <<EOF
 MCP Repository Configuration Complete!
 
 Configuration Summary:
+    IDE:         $DETECTED_IDE$([[ "$DETECTED_IDE" == "claude-code" ]] && echo " (global scope - works in all projects)")
     Server Name: $SERVER_NAME
     Repository:  $REPO_ROOT
-    Server Path: $GANDALF_ROOT/gandalf.sh run
+    Server Path: $([[ "$DETECTED_IDE" == "cursor" ]] && echo "$GANDALF_ROOT/gandalf.sh run" || echo "python3 -m src.main")
     Rules File:  $REPO_ROOT/.cursor/rules/$MCP_SERVER_NAME-rules.mdc
-    Reset Mode:  $([[ "$RESET" == "true" ]] && echo "Yes - server was reset before installation" || echo "No")
+    Reset Mode:  $([[ "$RESET" == "true" ]] && echo "Yes - server was reset before installation" || echo "No")$([[ "$DETECTED_IDE" == "claude-code" ]] && echo "
+    Scope:       Global - no need to reinstall for other projects")
 
 Next Steps:
-    1. Restart Cursor completely (recommended for best results)
+    1. Restart $DETECTED_IDE completely (recommended for best results)
     2. Wait a few moments after restart for MCP server initialization
     3. Test MCP integration by asking:
         - "What files are in my project?"
         - "Show me the git status"
-    4. The $MCP_SERVER_NAME rules file guides AI interactions
+    4. The $MCP_SERVER_NAME rules file guides AI interactions$([[ "$DETECTED_IDE" == "claude-code" ]] && echo "
+    5. Use Gandalf from any directory; no reinstallation needed")
 
 Troubleshooting:
-    - If MCP tools aren't available, restart Cursor and wait 30 seconds
-    - Check Cursor's MCP logs: View -> Developer -> Toggle Developer Tools -> Console
+    - If MCP tools aren't available, restart $DETECTED_IDE and wait 30 seconds
+    $([[ "$DETECTED_IDE" == "cursor" ]] && echo "- Check Cursor's MCP logs: View -> Developer -> Toggle Developer Tools -> Console")
     - Run 'gdlf test' to verify server functionality
     - Use 'gdlf install --skip-test' for faster installation without connectivity tests
     - Use 'gdlf install -r' to reset existing server and install fresh

@@ -1,8 +1,6 @@
 """
-Cache configuration for the Gandalf MCP server.
+Cache configuration constants for Gandalf MCP server.
 """
-
-from pathlib import Path
 
 from src.config.constants.core import GANDALF_HOME
 

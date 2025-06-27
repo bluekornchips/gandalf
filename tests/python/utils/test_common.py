@@ -19,7 +19,9 @@ class TestSessionLogging:
     """Test session logging initialization and management."""
 
     @mock.patch("src.utils.common.write_log")
-    def test_initialize_session_logging_creates_directory(self, mock_write_log):
+    def test_initialize_session_logging_creates_directory(
+        self, mock_write_log
+    ):
         """Test initialize_session_logging creates logs directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with mock.patch("src.utils.common.GANDALF_HOME", Path(temp_dir)):
@@ -35,11 +37,15 @@ class TestSessionLogging:
         """Test initialize_session_logging creates properly formatted filename."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with mock.patch("src.utils.common.GANDALF_HOME", Path(temp_dir)):
-                mock_datetime.now.return_value.strftime.return_value = "20240115_143022"
+                mock_datetime.now.return_value.strftime.return_value = (
+                    "20240115_143022"
+                )
 
                 initialize_session_logging("session_456")
 
-                expected_filename = "gandalf_session_session_456_20240115_143022.log"
+                expected_filename = (
+                    "gandalf_session_session_456_20240115_143022.log"
+                )
                 log_file = Path(temp_dir) / "logs" / expected_filename
 
                 # File should be created, even if empty initially
@@ -141,7 +147,10 @@ class TestSendRpcMessage:
         assert rpc_data["jsonrpc"] == "2.0"
         assert rpc_data["method"] == "notifications/message"
         assert rpc_data["params"]["level"] == "info"
-        assert rpc_data["params"]["message"] == "one does not simply walk into mordor"
+        assert (
+            rpc_data["params"]["message"]
+            == "one does not simply walk into mordor"
+        )
 
     @mock.patch("builtins.print")
     def test_send_rpc_message_with_logger(self, mock_print):
@@ -198,7 +207,9 @@ class TestLogConvenienceFunctions:
 
     @mock.patch("src.utils.common.send_rpc_message")
     @mock.patch("src.utils.common.write_log")
-    def test_log_info_calls_both_functions(self, mock_write_log, mock_send_rpc):
+    def test_log_info_calls_both_functions(
+        self, mock_write_log, mock_send_rpc
+    ):
         """Test log_info calls both write_log and send_rpc_message."""
         message = "how do you pick up the threads of an old life?"
         log_info(message)
@@ -208,7 +219,9 @@ class TestLogConvenienceFunctions:
 
     @mock.patch("src.utils.common.send_rpc_message")
     @mock.patch("src.utils.common.write_log")
-    def test_log_debug_calls_both_functions(self, mock_write_log, mock_send_rpc):
+    def test_log_debug_calls_both_functions(
+        self, mock_write_log, mock_send_rpc
+    ):
         """Test log_debug calls both write_log and send_rpc_message."""
         message = "I made a promise, Mr Frodo. A promise."
         log_debug(message)
@@ -266,7 +279,9 @@ class TestLoggingIntegration:
 
     @mock.patch("src.utils.common.send_rpc_message")
     @mock.patch("src.utils.common.write_log")
-    def test_logging_functions_work_together(self, mock_write_log, mock_send_rpc):
+    def test_logging_functions_work_together(
+        self, mock_write_log, mock_send_rpc
+    ):
         """Test that log_info calls both write_log and send_rpc_message."""
         message = "Let them come! There is one dwarf yet in Moria!"
         log_info(message)
@@ -318,7 +333,9 @@ class TestLoggingEdgeCases:
     @mock.patch("builtins.print")
     def test_send_rpc_message_with_special_characters(self, mock_print):
         """Test send_rpc_message handles special characters."""
-        special_message = "Fake elvish test üñíçödé and 'quotes' and \"double quotes\""
+        special_message = (
+            "Fake elvish test unicode and 'quotes' and \"double quotes\""
+        )
         send_rpc_message("info", special_message)
 
         # Should successfully create valid JSON

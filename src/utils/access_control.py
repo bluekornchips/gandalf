@@ -2,26 +2,22 @@
 Access control and security validation for the Gandalf MCP server.
 """
 
-import os
 import re
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from src.config.constants.security import (
-    BLOCKED_PATHS,
     BLOCKED_EXTENSIONS,
-    FILENAME_CONTROL_CHARS_PATTERN,
-    FILENAME_INVALID_CHARS_PATTERN,
-    FILENAME_MAX_LENGTH,
-    MAX_ARRAY_LENGTH,
-    MAX_PATH_DEPTH,
-    MAX_QUERY_LENGTH,
-    MAX_STRING_LENGTH,
-    TIMESTAMP_MILLISECOND_THRESHOLD,
-    MAX_FILE_TYPES,
+    BLOCKED_PATHS,
     COMMON_BLOCKED_PATHS,
     LINUX_SPECIFIC_BLOCKED_PATHS,
     MACOS_SPECIFIC_BLOCKED_PATHS,
+    MAX_ARRAY_LENGTH,
+    MAX_FILE_TYPES,
+    MAX_PATH_DEPTH,
+    MAX_QUERY_LENGTH,
+    MAX_STRING_LENGTH,
     WSL_SPECIFIC_BLOCKED_PATHS,
 )
 from src.utils.common import log_debug, log_info
@@ -60,7 +56,6 @@ CONVERSATION_DANGEROUS_PATTERNS = [
 
 class AccessValidator:
     """Centralized access control and validation for MCP tools."""
-
 
     @classmethod
     def validate_string(
@@ -428,7 +423,7 @@ class AccessValidator:
 
         sanitized = re.sub(PROJECT_NAME_SANITIZE_PATTERN, "_", project_name)
 
-        # Ensure it doesn't start with a dot (hidden file)
+        # Ensure it doesn't start with a dot to avoid hidden files
         if sanitized.startswith("."):
             sanitized = "project" + sanitized
 
@@ -444,11 +439,20 @@ class AccessValidator:
         sanitized = sanitized.rstrip(".-")
 
         if sanitized != original_name:
-            log_info(f"Project name sanitized: '{original_name}' -> '{sanitized}'")
+            log_info(
+                f"Project name sanitized: '{original_name}' -> '{sanitized}'"
+            )
         else:
             log_debug(f"Project name validation passed: '{original_name}'")
 
         return sanitized
+
+    @staticmethod
+    def create_json_response(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a standardized JSON success response."""
+        return AccessValidator.create_success_response(
+            json.dumps(data, indent=2)
+        )
 
 
 def validate_conversation_id(conv_id: Any) -> Tuple[bool, str]:

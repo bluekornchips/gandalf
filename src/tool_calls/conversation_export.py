@@ -4,33 +4,20 @@ Handles exporting individual conversations to various formats.
 """
 
 import json
-import os
-import shutil
-import subprocess
-import time
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from src.config.constants.core import GANDALF_HOME
 from src.config.constants.security import (
-    FIND_EXCLUDE_DIRS,
-    FIND_EXCLUDE_PATTERNS,
-    BLOCKED_PATHS,
-    MAX_ARRAY_LENGTH,
-    MAX_PATH_DEPTH,
-    MAX_QUERY_LENGTH,
-    MAX_STRING_LENGTH,
-    BLOCKED_EXTENSIONS,
-    FILENAME_INVALID_CHARS_PATTERN,
     FILENAME_CONTROL_CHARS_PATTERN,
+    FILENAME_INVALID_CHARS_PATTERN,
     FILENAME_MAX_LENGTH,
     TIMESTAMP_MILLISECOND_THRESHOLD,
 )
-from src.config.constants.system import MAX_PROJECT_FILES
 from src.utils.access_control import AccessValidator
-from src.utils.common import log_debug, log_error, log_info
+from src.utils.common import log_debug, log_info
 from src.utils.cursor_chat_query import CursorQuery
 
 
@@ -47,7 +34,9 @@ def format_timestamp(timestamp: Optional[float] = None) -> str:
         timestamp = datetime.now().timestamp()
 
     dt = datetime.fromtimestamp(
-        timestamp / 1000 if timestamp > TIMESTAMP_MILLISECOND_THRESHOLD else timestamp
+        timestamp / 1000
+        if timestamp > TIMESTAMP_MILLISECOND_THRESHOLD
+        else timestamp
     )
     return dt.strftime("%Y%m%d_%H%M%S")
 
@@ -160,7 +149,9 @@ def handle_export_individual_conversations(
                     "created_at": conv.get("createdAt", 0),
                     "last_updated": conv.get("lastUpdatedAt", 0),
                     "prompts": message_maps["prompts"].get(conv_id, []),
-                    "generations": message_maps["generations"].get(conv_id, []),
+                    "generations": message_maps["generations"].get(
+                        conv_id, []
+                    ),
                 }
                 all_conversations.append(conversation_data)
 
@@ -193,7 +184,9 @@ def handle_export_individual_conversations(
 
             exported_files.append(str(file_path))
 
-        log_info(f"Exported {len(exported_files)} conversations to {output_dir}")
+        log_info(
+            f"Exported {len(exported_files)} conversations to {output_dir}"
+        )
 
         return AccessValidator.create_success_response(
             json.dumps(
@@ -208,7 +201,9 @@ def handle_export_individual_conversations(
 
     except Exception as e:
         log_debug(f"Error in export_individual_conversations: {e}")
-        return AccessValidator.create_error_response(f"Export failed: {str(e)}")
+        return AccessValidator.create_error_response(
+            f"Export failed: {str(e)}"
+        )
 
 
 def handle_list_cursor_workspaces(
@@ -261,7 +256,9 @@ def _format_conversation_markdown(conversation: Dict[str, Any]) -> str:
 
     if created:
         dt = datetime.fromtimestamp(
-            created / 1000 if created > TIMESTAMP_MILLISECOND_THRESHOLD else created
+            created / 1000
+            if created > TIMESTAMP_MILLISECOND_THRESHOLD
+            else created
         )
         content += f"**Created:** {dt.strftime('%Y-%m-%d %H:%M:%S')}\n"
 
@@ -282,7 +279,9 @@ def _format_conversation_text(conversation: Dict[str, Any]) -> str:
 
     if created:
         dt = datetime.fromtimestamp(
-            created / 1000 if created > TIMESTAMP_MILLISECOND_THRESHOLD else created
+            created / 1000
+            if created > TIMESTAMP_MILLISECOND_THRESHOLD
+            else created
         )
         content += f"Created: {dt.strftime('%Y-%m-%d %H:%M:%S')}\n"
 

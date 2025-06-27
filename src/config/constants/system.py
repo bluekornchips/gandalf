@@ -5,6 +5,8 @@ Contains fixed thresholds, limits, and system parameters that are not
 configurable weights.
 """
 
+from enum import Enum
+
 # Display and UI Limits
 
 # Maximum number of files to display in different priority categories
@@ -23,7 +25,9 @@ CONTEXT_TOP_FILES_COUNT = 10
 # File relevance scoring thresholds, these define priority boundaries
 PRIORITY_HIGH_THRESHOLD = 0.8
 PRIORITY_MEDIUM_THRESHOLD = 0.4
-PRIORITY_NEUTRAL_SCORE = 0.5  # Default score when relevance scoring is disabled
+PRIORITY_NEUTRAL_SCORE = (
+    0.5  # Default score when relevance scoring is disabled
+)
 
 # System Performance Parameters
 
@@ -63,7 +67,7 @@ CONTEXT_RECENT_WEEK_MULTIPLIER = 0.4  # week-old files
 RECENT_FILE_COUNT_LIMIT = 20  # Maximum recent files to track for scoring
 MAX_PROJECT_FILES = 10000  # Maximum files to process in a project
 MCP_CACHE_TTL = 3600  # MCP cache time-to-live in seconds
-MAX_FILE_SIZE_BYTES = 1048576  # Maximum file size to process (1MB)
+MAX_FILE_SIZE_BYTES = 1048576  # Maximum file size to process is 1MB
 
 # Conversation Analysis Constants
 
@@ -94,3 +98,15 @@ CONVERSATION_DEFAULT_LOOKBACK_DAYS = 30
 CONVERSATION_MAX_LIMIT = 100
 CONVERSATION_SNIPPET_CONTEXT_CHARS = 150
 CONVERSATION_SNIPPET_MAX_LENGTH = 100
+
+# Supported IDE types
+SUPPORTED_IDES = ["cursor", "claude-code"]
+
+
+class LogLevel(Enum):
+    """Log level enumeration for consistent logging across the application."""
+
+    DEBUG = "debug"
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"

@@ -16,13 +16,13 @@ TESTS_DIR="$GANDALF_ROOT/tests/shell"
 # See tests/MIGRATION_GAMEPLAN.md for full migration plan
 
 declare -A SHELL_TEST_SUITES=(
-    # ["core"]="Core MCP server functionality"                    # DISABLED: Migrating to Python tests
-    # ["file"]="File operations"                                  # DISABLED: Migrating to Python tests
+    ["core"]="Core MCP server functionality"
+    ["file"]="File operations"                                 
     ["project"]="Project operations"
     ["workspace-detection"]="Workspace detection strategies"
     ["conversation-export"]="Conversation export functionality"
-    # ["context-intelligence"]="Context intelligence and relevance scoring"  # DISABLED: Migrating to Python tests
-    # ["security"]="Security validation and edge cases"          # DISABLED: Migrating to Python tests
+    ["context-intelligence"]="Context intelligence and relevance scoring"
+    ["security"]="Security validation and edge cases"          # RE-ENABLED: Working on fixes
     ["performance"]="Performance and load testing"
     ["integration"]="Integration tests"
 )

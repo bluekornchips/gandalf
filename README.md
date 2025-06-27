@@ -1,8 +1,8 @@
 # Gandalf
 
-Gandalf is a Model Context Protocol for intelligent code assistance for your projects in Cursor. In the Lord of the Rings, Gandalf is a powerful wizard, but he is not omnipotent. He can see much, but there's only so much an maiar can do; that's where we mortals come in.
+Gandalf is a Model Context Protocol (MCP) server for intelligent code assistance in **Cursor IDE** and **Claude Code**. In the Lord of the Rings, Gandalf is a powerful wizard, but he is not omnipotent. He can see much, but there's only so much a maiar can do; that's where we mortals come in.
 
-In the Lord of the Rings, Gandalf the Grey is a powerful wizard, but even he cannot see all ends. _"All we have to decide is what to do with the time that is given us."_ That's where we mortals come in - by providing Gandalf with the right context, we help him illuminate the path forward.
+In the Lord of the Rings, Gandalf the Grey is a powerful wizard, but even he cannot see all ends. _"All we have to decide is what to do with the time that is given us."_ That's where we mortals come in; by providing Gandalf with the right context, we help him illuminate the path forward.
 
 ## Quick Start
 
@@ -10,7 +10,7 @@ In the Lord of the Rings, Gandalf the Grey is a powerful wizard, but even he can
 # Check dependencies
 ./gandalf.sh deps
 
-# Install and configure
+# Install and configure (auto-detects Cursor or Claude Code)
 ./gandalf.sh install
 
 # Verify installation
@@ -22,38 +22,56 @@ alias gdlf='/path/to/gandalf/gandalf.sh'
 
 ## What is MCP?
 
-The Model Context Protocol (MCP) is an open protocol that standardizes how applications provide context and tools to LLMs. Think of MCP as a plugin system for Cursor; it allows you to extend the AI agent's capabilities by connecting it to various data sources and tools through standardized interfaces.
+The Model Context Protocol (MCP) is an open protocol that standardizes how applications provide context and tools to LLMs. Think of MCP as a plugin system for your IDE; it allows you to extend the AI agent's capabilities by connecting it to various data sources and tools through standardized interfaces.
+
+## Supported IDEs
+
+### **Cursor IDE**
+
+- Full conversation history access
+- Workspace detection and analysis
+- Chat integration with SQLite database access
+
+### **Claude Code**
+
+- Session history management
+- Project-specific conversation storage
+- JSONL session format support
+- Standard MCP configuration
+
+**Environment Detection**: Gandalf automatically detects your IDE environment and adapts its functionality accordingly.
 
 ## Key Features
 
 ### **Smart Context Intelligence**
 
-- **File Relevance Scoring**: Multi-point analysis based on Git activity, file size, type, relationships, and recency.
+- **File Relevance Scoring**: Multi-point analysis based on Git activity, file size, type, relationships, and recency
 - **Intelligent Prioritization**: Automatically surfaces the most relevant files for your current work
 - **Project Awareness**: "Understands" your codebase structure and dependencies
 
 ### **Conversation Intelligence**
 
-- **Cursor Chat Integration**: Direct access to your Cursor IDE conversation history
+- **IDE Chat Integration**: Direct access to your IDE conversation history
 - **Context-Aware Analysis**: Learns from past conversations to provide better assistance
-- **Manual Conversation Storage**: Save important discussions for future reference
+- **Cross-Session Intelligence**: Maintains context across different IDE sessions
 
 ### **Developer Tools**
 
-- **Git Integration**: Repository analysis and diff tracking (Remainder of features don't need MCP)
+- **Git Integration**: Repository analysis and diff tracking
 - **Performance Optimization**: Intelligent caching with 1-hour TTL and smart invalidation
 - **Cross-Platform Support**: Works on macOS and Linux; Windows via WSL2
 
 ## Core MCP Tools
 
-| Tool                          | Purpose                                            |
-| ----------------------------- | -------------------------------------------------- |
-| `list_project_files`          | Smart file discovery with relevance scoring        |
-| `get_project_info`            | Project metadata, Git status, and statistics       |
-| `get_server_version`          | Get current server version and protocol information |
-| `recall_cursor_conversations` | Recall and analyze Cursor IDE conversation history |
-| `search_cursor_conversations` | Search conversations for specific topics           |
-| `query_cursor_conversations`  | Direct database access to Cursor chats             |
+| Tool                   | Purpose                                             | Cursor | Claude Code |
+| ---------------------- | --------------------------------------------------- | ------ | ----------- |
+| `list_project_files`   | Smart file discovery with relevance scoring         | Yes    | Yes         |
+| `get_project_info`     | Project metadata, Git status, and statistics        | Yes    | Yes         |
+| `get_server_version`   | Get current server version and protocol information | Yes    | Yes         |
+| `recall_conversations` | Recall and analyze IDE conversation history         | Yes    | Yes         |
+| `search_conversations` | Search conversations for specific topics            | Yes    | Yes         |
+| `query_conversations`  | Direct database/session access to chats             | Yes    | Yes         |
+| `export_conversations` | Export conversations to files                       | Yes    | Yes         |
 
 ## Commands
 
@@ -68,7 +86,7 @@ The Model Context Protocol (MCP) is an open protocol that standardizes how appli
 
 - **Python 3.10+** - Required for MCP server
 - **Git** - Required for repository operations
-- **Cursor IDE** - With MCP support enabled
+- **IDE**: Cursor IDE or Claude Code with MCP support
 - **BATS** - For running shell tests (optional)
 
 ## Installation
@@ -88,13 +106,13 @@ The Model Context Protocol (MCP) is an open protocol that standardizes how appli
    ./gandalf.sh deps
    ```
 
-3. **Install to current repository:**
+3. **Install (auto-detects your IDE):**
 
    ```bash
    ./gandalf.sh install
    ```
 
-4. **Restart Cursor** and test MCP integration
+4. **Restart your IDE** and test MCP integration
 
 ### Advanced Installation
 
@@ -102,11 +120,36 @@ The Model Context Protocol (MCP) is an open protocol that standardizes how appli
 # Install with reset
 ./gandalf.sh install -r
 
-# Install to specific repository, not neccesary though
+# Force specific IDE
+./gandalf.sh install --ide claude-code
+./gandalf.sh install --ide cursor
+
+# Install to specific repository
 ./gandalf.sh install /path/to/project
 
-# Skip connectivity tests, faster
+# Skip connectivity tests (faster)
 ./gandalf.sh install --skip-test
+```
+
+### IDE-Specific Setup
+
+**Claude Code Manual Setup** (if auto-install fails):
+
+```bash
+claude mcp add gandalf python3 -m src.main --cwd /path/to/gandalf --env PYTHONPATH=/path/to/gandalf --env CLAUDECODE=1
+```
+
+**Cursor IDE Manual Setup** (if auto-install fails):
+
+```json
+{
+  "mcpServers": {
+    "gandalf": {
+      "command": "/path/to/gandalf/gandalf.sh",
+      "args": ["run"]
+    }
+  }
+}
 ```
 
 ## Usage Recommendations
@@ -126,15 +169,16 @@ The Model Context Protocol (MCP) is an open protocol that standardizes how appli
 
 ## Remote Development
 
-**Important:** When working in remote environments (SSH, WSL, containers), conversation data is **not available** on the remote server. Cursor stores chat history locally for privacy and performance; Gandalf is not able to access it.
+**Important**: When working in remote environments (SSH, WSL, containers), conversation data availability varies by IDE:
 
-- Each Cursor session (local vs remote) maintains separate MCP configurations
-- Gandalf must be installed separately in each environment
-- Conversation tools only work in local Cursor sessions
+- **Claude Code**: Session data may be available depending on configuration
+- **Cursor IDE**: Chat history is stored locally and not available on remote servers
+
+Each IDE session (local vs remote) maintains separate MCP configurations; Gandalf must be installed separately in each environment.
 
 ## Documentation
 
-- **[Installation Guide](INSTALLATION.md)** - Detailed setup instructions
+- **[Installation Guide](INSTALLATION.md)** - Detailed setup instructions for both IDEs
 - **[API Reference](API.md)** - Complete MCP tools documentation
 - **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Contributing](CONTRIBUTING.md)** - Development guidelines
@@ -157,7 +201,19 @@ The Model Context Protocol (MCP) is an open protocol that standardizes how appli
 
 ## Support
 
+### **Claude Code**
+
+- **Status**: Use `/mcp` command in Claude Code
+- **Configuration**: `claude mcp list` and `claude mcp get gandalf`
+- **Logs**: Check Claude Code's output for MCP-related messages
+
+### **Cursor IDE**
+
 - **Logs**: View → Output → MCP Logs (set to DEBUG level)
+- **Configuration**: Check `~/.cursor/mcp.json`
+
+### **General**
+
 - **Reset**: `./gandalf.sh install -r` for clean reinstall
 - **Test**: `./gandalf.sh test` to verify components
 - **Dependencies**: `./gandalf.sh deps --verbose` for environment analysis
@@ -178,5 +234,5 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 - Validate `weights.yaml` on startup and provide helpful error messages for invalid configs
 - Add ability to send notifications to the IDE
 - Remove the backwards compatability we have in place.
-- Add adapter pattern for integrations with claude code (and maybe windsurf?).
 - Complete the export conversation tool. Add another directory in the home folder under conversation called "imports" that will store imported conversations. These are not stored or ever intended to be stored in the actual agent's database or conversation history, these are just part of the "minas_tirith" component, the library of conversations that are not part of the agent's conversation history.
+- Create automation for a "gandalf" user on the system that will run the MCP server and handle the conversation history, and run any cli commands to keep a clean and clear seperaation of access, permissions, and history.

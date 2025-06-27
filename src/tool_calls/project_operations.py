@@ -65,7 +65,6 @@ def get_git_info(project_root: Path) -> Dict[str, Any]:
                 OSError,
             ):
                 log_debug(f"Failed to get current branch for {project_root}")
-                pass
 
             try:
                 result = subprocess.run(
@@ -88,7 +87,6 @@ def get_git_info(project_root: Path) -> Dict[str, Any]:
                 OSError,
             ):
                 log_debug(f"Failed to get current branch for {project_root}")
-                pass
         else:
             git_info["is_git_repo"] = False
             log_info(f"Project {project_root} is not a git repository")
@@ -124,10 +122,20 @@ def _get_file_stats_fast(project_root: Path) -> Dict[str, Any]:
 
         if file_result.returncode == 0 and dir_result.returncode == 0:
             file_count = len(
-                [line for line in file_result.stdout.splitlines() if line.strip()]
+                [
+                    line
+                    for line in file_result.stdout.splitlines()
+                    if line.strip()
+                ]
             )
             dir_count = (
-                len([line for line in dir_result.stdout.splitlines() if line.strip()])
+                len(
+                    [
+                        line
+                        for line in dir_result.stdout.splitlines()
+                        if line.strip()
+                    ]
+                )
                 - 1
             )  # Exclude root, because it's not a file
 
@@ -175,24 +183,21 @@ def _get_file_stats_with_cache_optimization(
             )
 
             if dir_result.returncode == 0:
-                # Explain this more.
-                dir_count = (
-                    len(
-                        [
-                            line
-                            for line in dir_result.stdout.splitlines()
-                            if line.strip()
-                        ]
-                    )
-                    - 1
-                )
+                # Count directories, excluding the root directory itself
+                dir_lines = [
+                    line
+                    for line in dir_result.stdout.splitlines()
+                    if line.strip()
+                ]
+                dir_count = max(0, len(dir_lines) - 1)
+
                 return {
                     "total_files": len(cached_files),
-                    "total_directories": max(0, dir_count),
+                    "total_directories": dir_count,
                     "method": "cached_optimized",
                 }
 
-        # Fallback, because the cache is not available
+        # Fallback when cache is not available
         return _get_file_stats_fast(project_root)
 
     except (
@@ -225,7 +230,9 @@ def _get_file_statistics(project_root: Path) -> Dict[str, Any]:
 def _create_basic_project_info(project_root: Path) -> Dict[str, Any]:
     """Create basic project information structure."""
     raw_project_name = project_root.name
-    sanitized_project_name = AccessValidator.sanitize_project_name(raw_project_name)
+    sanitized_project_name = AccessValidator.sanitize_project_name(
+        raw_project_name
+    )
 
     project_info = {
         "project_root": str(project_root),
@@ -276,7 +283,9 @@ def handle_get_project_info(
             )
 
         # Validate project root
-        valid, error_msg = AccessValidator.validate_path(project_root, "project_root")
+        valid, error_msg = AccessValidator.validate_path(
+            project_root, "project_root"
+        )
         if not valid:
             return AccessValidator.create_error_response(error_msg)
 

@@ -162,3 +162,27 @@ teardown() {
     echo "$content" | grep -q "OTHER.md"
     ! echo "$content" | grep -q "README.md"
 }
+
+@test "conversation tools are automatically detected" {
+    # Test that conversation tools are automatically available based on environment
+    run execute_rpc "tools/list" '{}'
+    [ "$status" -eq 0 ]
+
+    validate_jsonrpc_response "$output"
+
+    local tools
+    tools=$(echo "$output" | jq -r '.result.tools[].name')
+
+    # Should have conversation tools based on detected IDE
+    if echo "$tools" | grep -q "query_cursor_conversations"; then
+        echo "✓ Cursor conversation tools detected"
+    elif echo "$tools" | grep -q "recall_claude_conversations"; then
+        echo "✓ Claude Code conversation tools detected"
+    else
+        echo "ℹ No conversation tools detected (may be expected based on environment)"
+    fi
+
+    # Should have basic tools regardless
+    echo "$tools" | grep -q "list_project_files"
+    echo "$tools" | grep -q "get_project_info"
+}

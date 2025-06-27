@@ -18,14 +18,14 @@ SHELL_MANAGER="$SCRIPT_DIR/shell-tests-manager.sh"
 source "$SHELL_MANAGER"
 
 declare -A TEST_CATEGORIES=(
-    ["unit"]="project workspace-detection conversation-export"
-    ["security"]="python-security"
+    ["unit"]="project workspace-detection conversation-export core file context-intelligence"
+    ["security"]="security python-security"
     ["performance"]="performance"
-    ["integration"]="integration conversation-export"
-    ["smoke"]="workspace-detection conversation-export"
-    ["lembas"]="project workspace-detection conversation-export integration" # Fast tests for lembas (excludes performance and python)
-    ["shell"]="project workspace-detection conversation-export performance integration"
-    ["all"]="project workspace-detection conversation-export performance integration" # Both shell and Python tests by default
+    ["integration"]="integration conversation-export core file"
+    ["smoke"]="workspace-detection conversation-export core"
+    ["lembas"]="project workspace-detection conversation-export integration core file context-intelligence" # Fast tests for lembas (excludes performance and python)
+    ["shell"]="project workspace-detection conversation-export performance integration core file context-intelligence security"
+    ["all"]="project workspace-detection conversation-export performance integration core file context-intelligence security" # Both shell and Python tests by default
 )
 
 usage() {

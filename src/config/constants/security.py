@@ -233,4 +233,3 @@ UNSAFE_DIRECTORY_PATTERNS = set(
         ".env",
     ]
 )
-

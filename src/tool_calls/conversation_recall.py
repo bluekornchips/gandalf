@@ -2,22 +2,19 @@
 Enhanced conversation recall and analysis for Gandalf MCP server.
 
 This module provides intelligent conversation recall capabilities for Cursor IDE,
-including fast extraction, context analysis, and conversation search functionality.
+using shared conversation analysis functionality for consistency across IDEs.
 """
 
 import hashlib
 import json
 import re
-import sys
 import time
 from datetime import datetime, timedelta
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from src.config.cache import (
     CONVERSATION_CACHE_FILE,
-    CONVERSATION_CACHE_MAX_SIZE_MB,
     CONVERSATION_CACHE_METADATA_FILE,
     CONVERSATION_CACHE_MIN_SIZE,
     CONVERSATION_CACHE_TTL_HOURS,
@@ -25,13 +22,7 @@ from src.config.cache import (
 from src.config.constants.conversations import (
     ACTIVITY_SCORE_MAX_DURATION,
     ACTIVITY_SCORE_RECENCY_BOOST,
-    CONTEXT_CACHE_TTL_SECONDS,
-    CONTEXT_KEYWORD_MAX_COUNT,
-    CONTEXT_KEYWORD_MIN_RELEVANCE,
-    CONTEXT_KEYWORDS_FILE_LIMIT,
     CONTEXT_KEYWORDS_QUICK_LIMIT,
-    CONTEXT_PROJECT_WEIGHT_MULTIPLIER,
-    CONTEXT_TECH_WEIGHT_MULTIPLIER,
     CONVERSATION_DEFAULT_RECENT_DAYS,
     CONVERSATION_EARLY_TERMINATION_MULTIPLIER,
     CONVERSATION_MAX_LOOKBACK_DAYS,
@@ -41,16 +32,11 @@ from src.config.constants.conversations import (
     DATABASE_STRUCTURE_LIMITATION_NOTE,
     EARLY_TERMINATION_LIMIT_MULTIPLIER,
     FILE_REFERENCE_PATTERNS,
-    FIRST_WORDS_ANALYSIS_LIMIT,
     KEYWORD_CHECK_LIMIT,
     KEYWORD_MATCHES_LIMIT,
     KEYWORD_MATCHES_TOP_LIMIT,
     MATCHES_OUTPUT_LIMIT,
-    MAX_TECH_WEIGHT,
     PATTERN_MATCHES_DEFAULT_LIMIT,
-    PROJECT_NAME_WEIGHT_MULTIPLIER,
-    RECENT_ACTIVITY_HOURS,
-    TECH_WEIGHT_DIVISOR,
 )
 from src.config.constants.system import (
     CONVERSATION_DEFAULT_LIMIT,
@@ -64,7 +50,7 @@ from src.config.constants.system import (
 )
 from src.config.constants.technology import TECHNOLOGY_KEYWORD_MAPPING
 from src.config.weights import CONVERSATION_WEIGHTS
-from src.core.file_scoring import get_files_list
+from src.core.conversation_analysis import generate_shared_context_keywords
 from src.utils.access_control import AccessValidator
 from src.utils.cache import get_cache_directory
 from src.utils.common import log_debug, log_error, log_info
@@ -78,7 +64,9 @@ _conversation_cache = {}
 _conversation_cache_time = {}
 
 
-def get_project_cache_hash(project_root: Path, context_keywords: List[str]) -> str:
+def get_project_cache_hash(
+    project_root: Path, context_keywords: List[str]
+) -> str:
     """Generate a cache hash based on project state and keywords."""
     try:
         # Include project path, git state, and keywords in hash
@@ -95,62 +83,47 @@ def get_project_cache_hash(project_root: Path, context_keywords: List[str]) -> s
         # Simple short md5 hash to avoid bloating the cache. Maybe sha256? Probably overkill.
         return hashlib.md5(hash_input.encode()).hexdigest()[:16]
     except (OSError, ValueError, UnicodeDecodeError):
-        return hashlib.md5(f"{project_root}{time.time()}".encode()).hexdigest()[:16]
+        return hashlib.md5(
+            f"{project_root}{time.time()}".encode()
+        ).hexdigest()[:16]
 
 
 def is_cache_valid(project_root: Path, context_keywords: List[str]) -> bool:
-    """Check if the conversation cache is valid and up to date."""
+    """Check if cached conversation data is still valid."""
     try:
-        metadata_path = CONVERSATION_CACHE_METADATA_FILE
-        cache_file_path = CONVERSATION_CACHE_FILE
-
-        if not metadata_path.exists() or not cache_file_path.exists():
+        cache_metadata_path = (
+            get_cache_directory() / CONVERSATION_CACHE_METADATA_FILE
+        )
+        if not cache_metadata_path.exists():
             return False
 
-        cache_size_mb = cache_file_path.stat().st_size / (1024 * 1024)
-        if cache_size_mb > CONVERSATION_CACHE_MAX_SIZE_MB:
-            log_debug(f"Cache file too large: {cache_size_mb:.1f}MB")
-            return False
-
-        with open(metadata_path, "r") as f:
+        with open(cache_metadata_path, "r") as f:
             metadata = json.load(f)
 
-        cache_age_hours = (time.time() - metadata.get("timestamp", 0)) / 3600
+        # Check cache age
+        cache_age_hours = (time.time() - metadata.get("cached_at", 0)) / 3600
         if cache_age_hours > CONVERSATION_CACHE_TTL_HOURS:
-            log_debug(f"Cache expired: {cache_age_hours:.1f} hours old")
             return False
 
+        # Check project hash
         current_hash = get_project_cache_hash(project_root, context_keywords)
-        if metadata.get("project_hash") != current_hash:
-            log_debug("Project state changed, cache invalid")
-            return False
+        return metadata.get("project_hash") == current_hash
 
-        return True
-
-    except (OSError, json.decoder.JSONDecodeError, ValueError, KeyError) as e:
-        log_debug(f"Cache validation error: {e}")
+    except (OSError, ValueError, json.JSONDecodeError):
         return False
 
 
 def load_cached_conversations(project_root: Path) -> Optional[Dict[str, Any]]:
-    """Load conversations from cache if valid."""
+    """Load cached conversation data if valid."""
     try:
-        cache_file_path = CONVERSATION_CACHE_FILE
-
+        cache_file_path = get_cache_directory() / CONVERSATION_CACHE_FILE
         if not cache_file_path.exists():
             return None
 
         with open(cache_file_path, "r") as f:
-            cached_data = json.load(f)
+            return json.load(f)
 
-        log_info(
-            f"Loaded {len(cached_data.get('conversations', []))} "
-            f"conversations from cache"
-        )
-        return cached_data
-
-    except (OSError, json.decoder.JSONDecodeError) as e:
-        log_error(e, "loading cached conversations")
+    except (OSError, ValueError, json.JSONDecodeError):
         return None
 
 
@@ -160,133 +133,88 @@ def save_conversations_to_cache(
     context_keywords: List[str],
     metadata: Dict[str, Any],
 ) -> bool:
-    """Save conversations to local cache with metadata."""
+    """Save conversation data to cache."""
     try:
-        if len(conversations) < CONVERSATION_CACHE_MIN_SIZE:
-            log_debug(f"Not caching - too few conversations: {len(conversations)}")
-            return False
+        cache_dir = get_cache_directory()
+        cache_dir.mkdir(parents=True, exist_ok=True)
 
-        get_cache_directory()
-
-        # Save metadata
-        metadata_content = {
-            "timestamp": time.time(),
-            "conversation_count": len(conversations),
-            "context_keywords": context_keywords,
-            "project_hash": get_project_cache_hash(project_root, context_keywords),
-            **metadata,
+        # Save conversation data
+        cache_data = {
+            "conversations": conversations,
+            "metadata": metadata,
+            "cached_at": time.time(),
         }
 
-        with open(CONVERSATION_CACHE_METADATA_FILE, "w") as f:
-            json.dump(metadata_content, f, indent=2)
+        cache_file_path = cache_dir / CONVERSATION_CACHE_FILE
+        with open(cache_file_path, "w") as f:
+            json.dump(cache_data, f, indent=2)
 
-        # Save conversations
-        cache_content = {"conversations": conversations, **metadata}
-        with open(CONVERSATION_CACHE_FILE, "w") as f:
-            json.dump(cache_content, f)
+        # Save cache metadata
+        cache_metadata = {
+            "project_hash": get_project_cache_hash(
+                project_root, context_keywords
+            ),
+            "cached_at": time.time(),
+            "conversation_count": len(conversations),
+        }
 
-        cache_size_mb = CONVERSATION_CACHE_FILE.stat().st_size / (1024 * 1024)
-        log_info(
-            f"Cached {len(conversations)} conversations " f"({cache_size_mb:.1f}MB)"
-        )
+        cache_metadata_path = cache_dir / CONVERSATION_CACHE_METADATA_FILE
+        with open(cache_metadata_path, "w") as f:
+            json.dump(cache_metadata, f, indent=2)
+
         return True
 
-    except (OSError, json.decoder.JSONDecodeError) as e:
-        log_error(e, "saving conversations to cache")
+    except (OSError, ValueError, json.JSONDecodeError):
         return False
 
 
-def get_project_hash(project_root: Path) -> str:
-    """Generate a hash for the project to use in caching."""
-    try:
-        hash_input = str(project_root)
-
-        git_head = project_root / ".git" / "HEAD"
-        if git_head.exists():
-            hash_input += git_head.read_text().strip()
-
-        return hashlib.md5(hash_input.encode()).hexdigest()[:12]
-    except (OSError, UnicodeDecodeError):
-        return hashlib.md5(str(project_root).encode()).hexdigest()[:12]
+# Use shared implementation from conversation_analysis module
+generate_context_keywords = generate_shared_context_keywords
 
 
-@lru_cache(maxsize=32)
-def get_enhanced_context_keywords(
-    project_root_str: str, project_hash: str
-) -> List[str]:
-    """Enhanced context keyword generation with intelligent filtering."""
-    project_root = Path(project_root_str)
-    keyword_weights = {}
-
-    project_name = project_root.name
-    keyword_weights[project_name] = (
-        CONTEXT_PROJECT_WEIGHT_MULTIPLIER * PROJECT_NAME_WEIGHT_MULTIPLIER
-    )
-
-    try:
-        files = get_files_list(project_root)[:CONTEXT_KEYWORDS_FILE_LIMIT]
-
-        extensions = {}
-        for file_path in files:
-            ext = Path(file_path).suffix.lower()
-            if ext:
-                clean_ext = ext[1:]
-                extensions[clean_ext] = extensions.get(clean_ext, 0) + 1
-
-        for ext, count in extensions.items():
-            if ext in TECHNOLOGY_KEYWORD_MAPPING:
-                tech_weight = CONTEXT_TECH_WEIGHT_MULTIPLIER * min(
-                    count / TECH_WEIGHT_DIVISOR, MAX_TECH_WEIGHT
-                )
-                for tech_keyword in TECHNOLOGY_KEYWORD_MAPPING[ext]:
-                    keyword_weights[tech_keyword] = (
-                        keyword_weights.get(tech_keyword, 0) + tech_weight
-                    )
-
-    except (OSError, ValueError, AttributeError) as e:
-        log_debug(f"Error processing project files: {e}")
-
-    sorted_keywords = sorted(keyword_weights.items(), key=lambda x: x[1], reverse=True)
-
-    final_keywords = []
-    for keyword, weight in sorted_keywords:
-        if (
-            weight >= CONTEXT_KEYWORD_MIN_RELEVANCE
-            and len(final_keywords) < CONTEXT_KEYWORD_MAX_COUNT
-        ):
-            final_keywords.append(keyword)
-
-    log_debug(
-        f"Generated {len(final_keywords)} weighted keywords from {len(keyword_weights)} candidates"
-    )
-    return final_keywords
+def _get_tech_category_from_extension(extension: str) -> Optional[str]:
+    """Get technology category from file extension."""
+    ext_mapping = {
+        ".py": "python",
+        ".js": "javascript",
+        ".ts": "typescript",
+        ".jsx": "react",
+        ".tsx": "react",
+        ".vue": "vue",
+        ".rs": "rust",
+        ".go": "go",
+        ".java": "java",
+        ".rb": "ruby",
+        ".php": "php",
+        ".cs": "csharp",
+        ".cpp": "cpp",
+        ".c": "c",
+        ".swift": "swift",
+        ".kt": "kotlin",
+    }
+    return ext_mapping.get(extension.lower())
 
 
-def generate_context_keywords(project_root: Path) -> List[str]:
-    """Generate context keywords with intelligent caching and weighting."""
-    project_root_str = str(project_root)
-    project_hash = get_project_hash(project_root)
+def _extract_keywords_from_content(file_name: str, content: str) -> List[str]:
+    """Extract keywords from file content."""
+    keywords = []
 
-    cache_key = f"{project_root_str}:{project_hash}"
-    current_time = time.time()
+    if file_name == "package.json":
+        try:
+            data = json.loads(content)
+            if "name" in data:
+                keywords.append(data["name"])
+            if "keywords" in data:
+                keywords.extend(data["keywords"][:5])
+        except json.JSONDecodeError:
+            pass
 
-    if (
-        cache_key in _context_keywords_cache
-        and cache_key in _context_keywords_cache_time
-        and current_time - _context_keywords_cache_time[cache_key]
-        < CONTEXT_CACHE_TTL_SECONDS
-    ):
-        return _context_keywords_cache[cache_key]
-
-    keywords = get_enhanced_context_keywords(project_root_str, project_hash)
-
-    _context_keywords_cache[cache_key] = keywords
-    _context_keywords_cache_time[cache_key] = current_time
-
-    for key in list(_context_keywords_cache_time.keys()):
-        if current_time - _context_keywords_cache_time[key] > CONTEXT_CACHE_TTL_SECONDS:
-            _context_keywords_cache.pop(key, None)
-            _context_keywords_cache_time.pop(key, None)
+    elif file_name in ["README.md", "CLAUDE.md"]:
+        content_lower = content.lower()
+        for tech_category, tech_terms in TECHNOLOGY_KEYWORD_MAPPING.items():
+            for term in tech_terms:
+                if term.lower() in content_lower:
+                    keywords.append(term)
 
     return keywords
 
@@ -366,36 +294,40 @@ def quick_conversation_filter(
     context_keywords: List[str],
     min_exchanges: int = 2,
 ) -> bool:
-    """Quick filter to eliminate obviously irrelevant conversations early."""
+    """Quick filter to eliminate obviously irrelevant conversations."""
+    try:
+        # Check recency first
+        created_at = conversation.get("createdAt")
+        if created_at:
+            try:
+                if isinstance(created_at, str):
+                    conv_date = datetime.fromisoformat(
+                        created_at.replace("Z", "+00:00")
+                    )
+                else:
+                    conv_date = datetime.fromtimestamp(created_at / 1000)
 
-    # recency
-    last_updated = conversation.get("lastUpdatedAt", 0)
-    if last_updated:
-        conv_date = datetime.fromtimestamp(last_updated / 1000)
-        if conv_date < cutoff_date:
+                if conv_date < cutoff_date:
+                    return False
+            except (ValueError, TypeError, OSError):
+                pass
+
+        # Check for minimum activity (exchanges)
+        exchange_count = conversation.get("numExchanges", 0)
+        if exchange_count < min_exchanges:
             return False
 
-    # Skip untitled conversations with no recent activity
-    conv_name = conversation.get("name", "")
-    if (not conv_name or conv_name == "Untitled") and last_updated == 0:
+        # Quick keyword check in conversation name
+        conv_name = conversation.get("name", "").lower()
+        if conv_name and conv_name != "untitled":
+            for keyword in context_keywords[:CONTEXT_KEYWORDS_QUICK_LIMIT]:
+                if keyword.lower() in conv_name:
+                    return True
+
+        return True
+
+    except (AttributeError, TypeError, KeyError):
         return False
-
-    # keyword check in title
-    if conv_name and context_keywords:
-        conv_name_lower = conv_name.lower()
-        for keyword in context_keywords[:CONTEXT_KEYWORDS_QUICK_LIMIT]:
-            if keyword.lower() in conv_name_lower:
-                return True
-
-    # Always include recent conversations
-    if last_updated > 0:
-        hours_ago = (
-            datetime.now() - datetime.fromtimestamp(last_updated / 1000)
-        ).total_seconds() / 3600
-        if hours_ago < RECENT_ACTIVITY_HOURS:
-            return True
-
-    return True  # Default operation is to include
 
 
 def analyze_conversation_relevance_optimized(
@@ -406,60 +338,54 @@ def analyze_conversation_relevance_optimized(
     project_root: Path,
     include_detailed_analysis: bool = False,
 ) -> Tuple[float, Dict[str, Any]]:
-    """Optimized conversation relevance analysis."""
-
-    score = 0.0
-    analysis = {
-        "keyword_matches": [],
-        "recency_score": 0.0,
-        "conversation_type": "general",
-    }
-
-    recency_score = score_recency(conversation)
-    score += recency_score * CONVERSATION_WEIGHTS["recency"]
-    analysis["recency_score"] = recency_score
-
-    conv_text = extract_conversation_text_lazy(conversation, prompts, generations)
-
-    if not conv_text:
-        return score, analysis
-
-    if context_keywords:
-        keyword_score, matches = score_keyword_matches_optimized(
-            conv_text, context_keywords
+    """Optimized conversation relevance analysis with early termination."""
+    try:
+        # Quick extraction with limits
+        conversation_text = extract_conversation_text_lazy(
+            conversation, prompts, generations
         )
-        score += keyword_score * CONVERSATION_WEIGHTS["keyword_match"]
-        analysis["keyword_matches"] = matches[:MATCHES_OUTPUT_LIMIT]
 
-    conv_name = conversation.get("name", "").lower()
-    first_words = conv_text.split()[:FIRST_WORDS_ANALYSIS_LIMIT]
+        if not conversation_text or len(conversation_text) < 10:
+            return 0.0, {"reason": "insufficient_content"}
 
-    if any(
-        word in ["test", "testing", "pytest"]
-        for word in (analysis["keyword_matches"] + [conv_name])
-    ):
-        analysis["conversation_type"] = "technical"
-    elif any(word in ["error", "debug", "fix", "issue", "bug"] for word in first_words):
-        analysis["conversation_type"] = "debugging"
-    elif any(
-        word in ["architecture", "design", "structure", "refactor"]
-        for word in first_words
-    ):
-        analysis["conversation_type"] = "architecture"
-    elif len(analysis["keyword_matches"]) > 3:
-        analysis["conversation_type"] = "code_discussion"
-    else:
-        analysis["conversation_type"] = "general"
+        # Optimized keyword matching
+        keyword_score, keyword_matches = score_keyword_matches_optimized(
+            conversation_text, context_keywords
+        )
 
-    # Add file reference check if detailed analysis requested
-    if include_detailed_analysis:
-        file_score, refs = score_file_references(conv_text, project_root)
-        score += file_score * CONVERSATION_WEIGHTS["file_reference"]
-        analysis["file_references"] = refs[:5]
-    else:
-        analysis["file_references"] = []
+        # Quick recency score
+        recency_score = score_recency(conversation)
 
-    return score, analysis
+        # Early termination for low scores
+        base_score = keyword_score + recency_score
+        if base_score < 0.1 and not include_detailed_analysis:
+            return base_score, {
+                "keyword_score": keyword_score,
+                "recency_score": recency_score,
+                "matches": keyword_matches[:KEYWORD_MATCHES_TOP_LIMIT],
+            }
+
+        # File reference analysis (more expensive)
+        file_score, file_refs = score_file_references(
+            conversation_text, project_root
+        )
+
+        total_score = keyword_score + recency_score + file_score
+
+        analysis = {
+            "keyword_score": keyword_score,
+            "recency_score": recency_score,
+            "file_score": file_score,
+            "matches": keyword_matches[:KEYWORD_MATCHES_TOP_LIMIT],
+            "file_references": file_refs[:MATCHES_OUTPUT_LIMIT],
+            "total_score": min(total_score, 1.0),
+        }
+
+        return min(total_score, 1.0), analysis
+
+    except Exception as e:
+        log_debug(f"Error analyzing conversation relevance: {e}")
+        return 0.0, {"error": str(e)}
 
 
 def extract_conversation_text(
@@ -467,7 +393,7 @@ def extract_conversation_text(
     prompts: List[Dict[str, Any]],
     generations: List[Dict[str, Any]],
 ) -> str:
-    """Extract all text content from a conversation."""
+    """Extract conversation text for analysis."""
     text_parts = []
 
     # Add conversation name/title
@@ -475,20 +401,26 @@ def extract_conversation_text(
     if conv_name and conv_name != "Untitled":
         text_parts.append(conv_name)
 
+    # Add prompts and generations
+    conv_id = conversation.get("composerId", "")
     for prompt in prompts:
-        text = prompt.get("text", "")
-        if text:
-            text_parts.append(text)
+        if prompt.get("conversationId") == conv_id:
+            text = prompt.get("text", "")
+            if text:
+                text_parts.append(text)
 
     for gen in generations:
-        text = gen.get("text", "")
-        if text:
-            text_parts.append(text)
+        if gen.get("conversationId") == conv_id:
+            text = gen.get("text", "")
+            if text:
+                text_parts.append(text)
 
     return " ".join(text_parts).lower()
 
 
-def score_keyword_matches(text: str, keywords: List[str]) -> Tuple[float, List[str]]:
+def score_keyword_matches(
+    text: str, keywords: List[str]
+) -> Tuple[float, List[str]]:
     """Score based on keyword matches."""
     matches = []
     score = 0.0
@@ -502,7 +434,9 @@ def score_keyword_matches(text: str, keywords: List[str]) -> Tuple[float, List[s
     return min(score, 1.0), matches
 
 
-def score_file_references(text: str, project_root: Path) -> Tuple[float, List[str]]:
+def score_file_references(
+    text: str, project_root: Path
+) -> Tuple[float, List[str]]:
     """Score based on file references that exist in current project."""
     refs = []
     score = 0.0
@@ -553,26 +487,16 @@ def score_pattern_matches(
     max_matches: int = PATTERN_MATCHES_DEFAULT_LIMIT,
 ) -> Tuple[float, List[str]]:
     """Score based on pattern matches in text."""
-    indicators = []
+    matches = []
     score = 0.0
-    # Use set to avoid counting duplicates
-    unique_matches = set()
 
     for pattern in patterns:
-        matches = re.findall(pattern, text, re.IGNORECASE)
-        if matches:
-            for match in matches:
-                unique_matches.add(match.lower())
-                if len(unique_matches) >= max_matches:
-                    break
-            score += len(matches) * score_per_match
+        found_matches = re.findall(pattern, text, re.IGNORECASE)
+        for match in found_matches[:max_matches]:
+            matches.append(match)
+            score += score_per_match
 
-        # Early termination if we have enough matches
-        if len(unique_matches) >= max_matches:
-            break
-
-    indicators = list(unique_matches)[:max_matches]
-    return min(score, 1.0), indicators
+    return min(score, 1.0), matches[:max_matches]
 
 
 def classify_conversation_type(
@@ -582,17 +506,16 @@ def classify_conversation_type(
     debug_score: float,
     problem_score: float,
 ) -> str:
-    """Classify the type of conversation."""
-    # Use threshold constants for classification
-    if arch_score > 0.5:
-        return "architecture"
-    elif debug_score > 0.5:
+    """Classify conversation type based on various indicators."""
+    if debug_score > 0.3:
         return "debugging"
-    elif problem_score > 0.5:
+    elif arch_score > 0.2:
+        return "architecture"
+    elif problem_score > 0.2:
         return "problem_solving"
-    elif file_references:
+    elif len(technical_indicators) > 2 or len(file_references) > 1:
         return "code_discussion"
-    elif technical_indicators:
+    elif len(technical_indicators) > 0:
         return "technical"
     else:
         return "general"
@@ -622,7 +545,9 @@ def analyze_conversation_relevance(
 
     # Context keyword matching, primary scoring mechanism
     if context_keywords:
-        keyword_score, matches = score_keyword_matches(conv_text, context_keywords)
+        keyword_score, matches = score_keyword_matches(
+            conv_text, context_keywords
+        )
         score += keyword_score * CONVERSATION_WEIGHTS["keyword_match"]
         analysis["keyword_matches"] = matches[:KEYWORD_MATCHES_TOP_LIMIT]
 
@@ -664,36 +589,35 @@ def analyze_conversation_relevance(
 
 
 def extract_snippet(text: str, query: str) -> str:
-    """Extract a snippet around the query match."""
-    try:
-        index = text.find(query)
-        if index == -1:
-            return (
-                text[:CONVERSATION_SNIPPET_MAX_LENGTH] + "..."
-                if len(text) > CONVERSATION_SNIPPET_MAX_LENGTH
-                else text
-            )
+    """Extract a relevant snippet around the query match."""
+    query_lower = query.lower()
+    text_lower = text.lower()
 
-        start = max(0, index - CONVERSATION_SNIPPET_CONTEXT_CHARS // 2)
-        end = min(
-            len(text),
-            index + len(query) + CONVERSATION_SNIPPET_CONTEXT_CHARS // 2,
-        )
-
-        snippet = text[start:end]
-        if start > 0:
-            snippet = "..." + snippet
-        if end < len(text):
-            snippet = snippet + "..."
-
-        return snippet.strip()
-
-    except (ValueError, AttributeError):
+    # Find the position of the query in the text
+    query_pos = text_lower.find(query_lower)
+    if query_pos == -1:
+        # If exact query not found, return first part of text
         return (
             text[:CONVERSATION_SNIPPET_MAX_LENGTH] + "..."
             if len(text) > CONVERSATION_SNIPPET_MAX_LENGTH
             else text
         )
+
+    # Calculate snippet bounds
+    start = max(0, query_pos - CONVERSATION_SNIPPET_CONTEXT_CHARS)
+    end = min(
+        len(text), query_pos + len(query) + CONVERSATION_SNIPPET_CONTEXT_CHARS
+    )
+
+    snippet = text[start:end]
+
+    # Add ellipsis if we're not at the beginning/end
+    if start > 0:
+        snippet = "..." + snippet
+    if end < len(text):
+        snippet = snippet + "..."
+
+    return snippet
 
 
 def handle_recall_cursor_conversations(
@@ -705,18 +629,27 @@ def handle_recall_cursor_conversations(
         min_relevance_score = arguments.get(
             "min_relevance_score", CONVERSATION_DEFAULT_MIN_SCORE
         )
-        days_lookback = arguments.get("days_lookback", CONVERSATION_DEFAULT_RECENT_DAYS)
+        days_lookback = arguments.get(
+            "days_lookback", CONVERSATION_DEFAULT_RECENT_DAYS
+        )
         conversation_types = arguments.get("conversation_types", [])
         include_analysis = arguments.get("include_analysis", False)
         fast_mode = arguments.get("fast_mode", True)
 
         # Validate parameters
-        if not isinstance(limit, int) or limit < 1 or limit > CONVERSATION_MAX_LIMIT:
+        if (
+            not isinstance(limit, int)
+            or limit < 1
+            or limit > CONVERSATION_MAX_LIMIT
+        ):
             return AccessValidator.create_error_response(
                 f"limit must be an integer between 1 and {CONVERSATION_MAX_LIMIT}"
             )
 
-        if not isinstance(min_relevance_score, (int, float)) or min_relevance_score < 0:
+        if (
+            not isinstance(min_relevance_score, (int, float))
+            or min_relevance_score < 0
+        ):
             return AccessValidator.create_error_response(
                 "min_relevance_score must be a non-negative number"
             )
@@ -735,23 +668,26 @@ def handle_recall_cursor_conversations(
         context_keywords = generate_context_keywords(project_root)
         log_debug(f"Generated context keywords: {context_keywords[:15]}...")
 
-        # Check for valid cache first
+        # Check cache first
         if is_cache_valid(project_root, context_keywords):
-            log_info("Loading conversations from valid cache...")
+            log_info("Loading conversations from cache...")
             cached_data = load_cached_conversations(project_root)
             if cached_data:
-                # Filter cached results based on current parameters
                 cached_conversations = cached_data.get("conversations", [])
 
                 # Apply current filters to cached data
+                cutoff_date = datetime.now() - timedelta(days=days_lookback)
                 filtered_cached = []
+
                 for conv in cached_conversations:
-                    # Check if it meets current criteria
-                    last_updated = conv.get("last_updated", 0)
-                    if last_updated:
-                        conv_date = datetime.fromtimestamp(last_updated / 1000)
-                        cutoff_date = datetime.now() - timedelta(days=days_lookback)
-                        if conv_date >= cutoff_date:
+                    # Apply relevance score filter
+                    if conv.get("relevance_score", 0) >= min_relevance_score:
+                        # Apply conversation type filter
+                        if (
+                            not conversation_types
+                            or conv.get("conversation_type")
+                            in conversation_types
+                        ):
                             filtered_cached.append(conv)
 
                 # Return cached results if sufficient
@@ -768,7 +704,8 @@ def handle_recall_cursor_conversations(
                         },
                         "cache_info": {
                             "cache_age_hours": round(
-                                (time.time() - cached_data.get("cached_at", 0)) / 3600,
+                                (time.time() - cached_data.get("cached_at", 0))
+                                / 3600,
                                 1,
                             ),
                             "total_cached": len(cached_conversations),
@@ -899,7 +836,9 @@ def handle_recall_cursor_conversations(
         )
 
         # Sort and limit results
-        relevant_conversations.sort(key=lambda x: x["relevance_score"], reverse=True)
+        relevant_conversations.sort(
+            key=lambda x: x["relevance_score"], reverse=True
+        )
         final_conversations = relevant_conversations[:limit]
 
         result = {
@@ -933,10 +872,18 @@ def handle_recall_cursor_conversations(
                 "name": conv_data["conversation"].get("name", "Untitled"),
                 "workspace_hash": conv_data["workspace_hash"][:8],
                 "relevance_score": round(conv_data["relevance_score"], 2),
-                "conversation_type": conv_data["analysis"]["conversation_type"],
-                "last_updated": conv_data["conversation"].get("lastUpdatedAt", 0),
-                "keyword_matches": len(conv_data["analysis"]["keyword_matches"]),
-                "file_references": len(conv_data["analysis"]["file_references"]),
+                "conversation_type": conv_data["analysis"][
+                    "conversation_type"
+                ],
+                "last_updated": conv_data["conversation"].get(
+                    "lastUpdatedAt", 0
+                ),
+                "keyword_matches": len(
+                    conv_data["analysis"]["keyword_matches"]
+                ),
+                "file_references": len(
+                    conv_data["analysis"]["file_references"]
+                ),
             }
 
             # Only include detailed analysis if explicitly requested
@@ -965,7 +912,9 @@ def handle_recall_cursor_conversations(
             f"(analyzed {efficiency:.1f}% of conversations)"
         )
 
-        return AccessValidator.create_success_response(json.dumps(result, indent=2))
+        return AccessValidator.create_success_response(
+            json.dumps(result, indent=2)
+        )
 
     except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
         log_error(e, "recall_cursor_conversations")
@@ -1023,7 +972,9 @@ def handle_fast_conversation_extraction(
             activity_score = 0
             if created_at and last_updated:
                 duration_hours = (last_updated - created_at) / (1000 * 3600)
-                recency_hours = (time.time() * 1000 - last_updated) / (1000 * 3600)
+                recency_hours = (time.time() * 1000 - last_updated) / (
+                    1000 * 3600
+                )
 
                 # Score based on conversation duration and recency
                 if duration_hours > 0:
@@ -1055,7 +1006,10 @@ def handle_fast_conversation_extraction(
 
             conversations.append(conv_data)
 
-            if len(conversations) >= limit * EARLY_TERMINATION_LIMIT_MULTIPLIER:
+            if (
+                len(conversations)
+                >= limit * EARLY_TERMINATION_LIMIT_MULTIPLIER
+            ):
                 break
 
     # Sort by last updated, most recent first, and limit
@@ -1096,7 +1050,9 @@ def handle_fast_conversation_extraction(
         f"Ultra-fast extracted {len(conversations)} conversations in {extraction_time + processing_time:.2f}s "
         f"(processed {processed_count}, skipped {skipped_count})"
     )
-    return AccessValidator.create_success_response(json.dumps(result, indent=2))
+    return AccessValidator.create_success_response(
+        json.dumps(result, indent=2)
+    )
 
 
 def handle_search_cursor_conversations(
@@ -1199,7 +1155,9 @@ def handle_search_cursor_conversations(
                     matching_conversations.append(match_data)
 
         # Sort by last updated (most recent first) and limit
-        matching_conversations.sort(key=lambda x: x["last_updated"], reverse=True)
+        matching_conversations.sort(
+            key=lambda x: x["last_updated"], reverse=True
+        )
         matching_conversations = matching_conversations[:limit]
 
         result = {
@@ -1216,7 +1174,9 @@ def handle_search_cursor_conversations(
         log_info(
             f"Found {len(matching_conversations)} conversations matching '{query}' from {processed_count} total"
         )
-        return AccessValidator.create_success_response(json.dumps(result, indent=2))
+        return AccessValidator.create_success_response(
+            json.dumps(result, indent=2)
+        )
 
     except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
         log_error(e, "search_cursor_conversations")

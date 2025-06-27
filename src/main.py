@@ -1,9 +1,9 @@
 """
 Gandalf MCP Entry Point
 
-This module launches the Gandalf Model Context Protocol (MCP) server, to provide intelligent code assistance for the Cursor IDE.
+This module launches the Gandalf Model Context Protocol (MCP) server, to provide intelligent code assistance for IDEs.
 It handles argument parsing, server initialization, and the main JSON-RPC loop.
-All communication with Cursor is performed over stdin/stdout using the JSON-RPC protocol.
+All communication with IDEs is performed over stdin/stdout using the JSON-RPC protocol.
 Logging is handled via the project logging utilities, except for JSON-RPC responses which are printed directly to stdout as required by the protocol.
 """
 
@@ -25,11 +25,12 @@ def main() -> None:
         "--project-root",
         "-p",
         default=None,
-        help="Path to the project root (default: auto-detect from Cursor workspace or git)",
+        help="Path to the project root (default: auto-detect from IDE workspace or git)",
     )
 
     try:
         args = parser.parse_args()
+
         config = InitializationConfig(project_root=args.project_root)
         server = GandalfMCP(args.project_root, config)
 
@@ -40,62 +41,48 @@ def main() -> None:
     # Store original stdout for logging notifications
     original_stdout = sys.stdout
 
-    class LoggingStdout:
-        """Wrapper for stdout that logs JSON-RPC messages.
-
-        Args:
-            original_stdout (TextIO): The original sys.stdout object to wrap.
-        """
-
-        def __init__(self, original_stdout: object) -> None:
-            self.original = original_stdout
-
-        def write(self, data: str) -> int:
-            return self.original.write(data)
-
-        def flush(self) -> None:
-            return self.original.flush()
-
-        def __getattr__(self, name: str) -> object:
-            return getattr(self.original, name)
-
-    # Configure stdin/stdout for JSON-RPC communication
-    sys.stdin.reconfigure(line_buffering=True)
-    sys.stdout.reconfigure(line_buffering=False)
-
-    sys.stdout = LoggingStdout(original_stdout)
-
+    # Main message loop
     try:
-        while True:
-            try:
-                line = sys.stdin.readline()
-                if not line:
-                    break
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    request = json.loads(line)
-                    response = server.handle_request(request)
-                    if response is not None:
-                        print(json.dumps(response))
-                        sys.stdout.flush()
-                except json.JSONDecodeError:
-                    error = {
-                        "jsonrpc": "2.0",
-                        "error": {"code": -32700, "message": "Parse error"},
-                        "id": None,
-                    }
-                    print(json.dumps(error))
-                    sys.stdout.flush()
-            except (BrokenPipeError, EOFError, KeyboardInterrupt):
-                log_info("Gandalf shutting down")
-                break
-            except (OSError, UnicodeDecodeError, ValueError) as e:
-                log_error(e, "main server loop")
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
                 continue
-    finally:
-        sys.stdout = original_stdout
+
+            try:
+                request = json.loads(line)
+                response = server.handle_request(request)
+
+                if response:
+                    print(json.dumps(response), file=original_stdout)
+                    original_stdout.flush()
+
+            except json.JSONDecodeError as e:
+                error_response = {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32700, "message": f"Parse error: {e}"},
+                    "id": None,
+                }
+                print(json.dumps(error_response), file=original_stdout)
+                original_stdout.flush()
+
+            except Exception as e:
+                log_error(e, "Request handling")
+                error_response = {
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32603,
+                        "message": f"Internal error: {e}",
+                    },
+                    "id": request.get("id") if "request" in locals() else None,
+                }
+                print(json.dumps(error_response), file=original_stdout)
+                original_stdout.flush()
+
+    except KeyboardInterrupt:
+        log_info("Server shutdown requested")
+    except Exception as e:
+        log_error(e, "Server main loop")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

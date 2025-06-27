@@ -25,8 +25,8 @@ if ! command -v pytest &>/dev/null; then
 fi
 
 # Run Python tests, excluding deprecated files
-echo "Running Python tests (excluding deprecated files)..."
+echo "Running Python tests..."
 echo "GANDALF_ROOT: $GANDALF_ROOT"
-python3 -m pytest tests/python/ -v --ignore=tests/python/test_server_core_deprecated.py
+python3 -m pytest tests/python/ -v
 
 echo "All Python tests completed successfully!" 

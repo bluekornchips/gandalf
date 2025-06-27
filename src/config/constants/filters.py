@@ -47,4 +47,4 @@ FIND_EXCLUDE_PATTERNS = [
     "desktop.ini",
     # Lock files
     "*.lock",
-] 
+]
