@@ -1,13 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
-GANDALF_ROOT="$(dirname "$(dirname "$SCRIPT_PATH")")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+GANDALF_ROOT="$(dirname "$SCRIPT_DIR")"
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 
-export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
+export PYTHONPATH="$GANDALF_ROOT/server:${PYTHONPATH:-}"
 
-SERVER_SCRIPT="$GANDALF_ROOT/src/main.py"
+SERVER_SCRIPT="$GANDALF_ROOT/server/src/main.py"
 
 usage() {
     cat <<'EOF'

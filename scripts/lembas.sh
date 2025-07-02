@@ -9,19 +9,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 GANDALF_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Ensure PYTHONPATH is set for server imports, maybe there's a better way
-export PYTHONPATH="$GANDALF_ROOT:${PYTHONPATH:-}"
+export PYTHONPATH="$GANDALF_ROOT/server:${PYTHONPATH:-}"
 
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export MCP_DEBUG="${MCP_DEBUG:-true}"
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
-TESTS_DIR="$GANDALF_ROOT/tests"
+TESTS_DIR="$GANDALF_ROOT/scripts"
 SCRIPTS_DIR="$GANDALF_ROOT/scripts"
 
 # Global variables for step tracking
 CURRENT_STEP=0
 TOTAL_STEPS=8
 SHORT_MODE=false
+CORE_MODE=false
 
 # Tracks and displays step progress with timing
 run_step() {
@@ -51,19 +52,28 @@ run_tests_suite() {
     fi
 
     if [[ "$fast_tests" == "true" ]]; then
-        if ! bash "$TESTS_DIR/test-suite.sh" functional --count >/dev/null 2>&1; then
-            echo "Warning: Functional tests failed. Continuing with full test run..."
+        if ! bash "$TESTS_DIR/test-suite.sh" smoke --count >/dev/null 2>&1; then
+            echo "Warning: Smoke tests failed. Continuing with full test run..."
         else
             echo "Fast validation: All tests passed"
-            if ! bash "$TESTS_DIR/test-suite.sh" functional; then
+            if ! bash "$TESTS_DIR/test-suite.sh" smoke; then
                 show_fast_test_failure
                 return 1
             fi
         fi
     else
-        if ! bash "$TESTS_DIR/test-suite.sh" lembas; then
-            show_test_failure
-            return 1
+        # Run all tests by default, or core tests if --core flag is passed
+        if [[ "$CORE_MODE" == "true" ]]; then
+            if ! bash "$TESTS_DIR/test-suite.sh" lembas; then
+                show_test_failure
+                return 1
+            fi
+        else
+            # Run all tests (shell + python)
+            if ! bash "$TESTS_DIR/test-suite.sh"; then
+                show_test_failure
+                return 1
+            fi
         fi
     fi
 
@@ -130,7 +140,7 @@ verify_conversation_logging() {
         show_conversation_warning
     fi
 
-    echo "Lembas conversation verification complete"
+    echo "Verifying lembas conversation logging complete"
     return 0
 }
 
@@ -155,6 +165,10 @@ lembas() {
             SHORT_MODE=true
             shift
             ;;
+        --core)
+            CORE_MODE=true
+            shift
+            ;;
         *)
             echo "Unknown argument: $1"
             shift
@@ -164,6 +178,12 @@ lembas() {
 
     if [[ "$SHORT_MODE" == "true" ]]; then
         echo "Short mode enabled: Running fast tests and skipping time-consuming operations"
+    fi
+
+    if [[ "$CORE_MODE" == "true" ]]; then
+        echo "Core mode enabled: Running core test suite only (excludes performance and python tests)"
+    else
+        echo "Full mode enabled: Running complete test suite (shell + python tests)"
     fi
 
     echo "Repository path: $repo_path"
@@ -178,12 +198,12 @@ lembas() {
 
     # Execute all steps
     run_step "Checking system dependencies" \
-        "$SCRIPTS_DIR/check-dependencies.sh" --quiet || return 1
+        "$GANDALF_ROOT/gandalf.sh" deps || return 1
 
     run_step "Running initial tests" run_tests_suite || return 1
 
     run_step "Installing MCP server with reset" \
-        "$SCRIPTS_DIR/install.sh" "$repo_path" -r --wait-time 5 ${force_flag:+"$force_flag"} || return 1
+        "$SCRIPTS_DIR/install.sh" "$repo_path" -r --wait-time 15 ${force_flag:+"$force_flag"} || return 1
 
     run_step "Running final tests" run_tests_suite || return 1
 
@@ -196,15 +216,27 @@ lembas() {
 
     local total_time=$(($(date +%s) - start_time))
 
+    local mode_description="Full mode (complete validation)"
+    if [[ "$CORE_MODE" == "true" ]]; then
+        mode_description="Core mode (core tests only)"
+    elif [[ "$SHORT_MODE" == "true" ]]; then
+        mode_description="Short mode (fast validation)"
+    fi
+
     cat <<EOF
-Lembas Complete!
+
+Lembas Complete
 ===============
-All automated tests passed, system is fully validated.
+All automated tests passed; system is fully validated.
+
+Execution Summary
+-----------------
 Total execution time: ${total_time}s
-Execution mode: Full mode (complete validation)
+Execution mode: $mode_description
 MCP conversation system: Real-time access enabled
 
-Next Steps:
+Next Steps
+----------
 1. Verify MCP server integration in Cursor
 2. Test real-time conversation queries via MCP tools
 3. Monitor system performance under normal usage
