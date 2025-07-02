@@ -2,7 +2,7 @@ Gandalf
 Copyright 2025 Tristan Kornacki
 
 This product is developed and maintained by
-Tristan Kornacki (https://github.com/bluekornchips/gandalf).
+Tristan (https://github.com/bluekornchips/gandalf).
 
 This software integrates with and depends on:
 
@@ -15,6 +15,11 @@ This software integrates with and depends on:
    Copyright (c) 2005-2024 Git Project
    Licensed under GNU General Public License version 2.0
    Used for: Version control integration and activity tracking
+
+3. Claude Code (https://claude.ai/)
+   Copyright (c) 2023-2024 Anthropic Inc.
+   Used with permission under Claude Code's terms of service
+   Integration includes: Conversation analysis and logging
 
 This software uses the following open source components:
 

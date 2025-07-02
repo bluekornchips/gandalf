@@ -1,0 +1,139 @@
+enabled: true
+
+# Core scoring weights
+weights:
+  recent_modification: 5.0
+  file_size_optimal: 2.0
+  import_relationship: 4.0
+  conversation_mention: 3.0
+  git_activity: 3.5
+  file_type_priority: 1.5
+  directory_importance: 1.0
+
+# Conversation analysis weights
+conversation:
+  keyword_match: 3.0
+  file_reference: 4.0
+  recency: 2.0
+  technical_content: 1.5
+  problem_solving: 2.5
+  architecture: 3.0
+  debugging: 2.5
+  keyword_weight: 0.3
+  file_ref_score: 0.5
+
+# Context intelligence weights and multipliers
+context:
+  file_size:
+    optimal_min: 100
+    optimal_max: 50000
+    acceptable_max: 512000
+    acceptable_multiplier: 0.8
+    large_multiplier: 0.5
+  recent_modifications:
+    hour_threshold: 1
+    day_threshold: 24
+    week_threshold: 168
+    day_multiplier: 0.8
+    week_multiplier: 0.6
+  activity_score_recency_boost: 1.3
+
+# Processing multipliers
+processing:
+  early_termination_limit_multiplier: 3
+  conversation_early_termination_multiplier: 3
+
+# Recency scoring thresholds
+recency_thresholds:
+  very_recent: 1
+  recent: 7
+  somewhat_recent: 30
+  old: 90
+  days_1: 1.0
+  days_7: 0.8
+  days_30: 0.5
+  days_90: 0.2
+  default: 0.1
+
+# Display configuration
+display:
+  max_high_priority: 5
+  max_medium_priority: 10
+  max_top_files: 10
+
+# Scoring thresholds
+thresholds:
+  high_priority: 5.0
+  medium_priority: 2.0
+  top_files_count: 10
+
+# Scoring configuration
+scoring:
+  min_score: 0.1
+  git_cache_ttl: 300
+  git_lookback_days: 7
+  git_timeout: 10
+
+# File extension weights
+file_extensions:
+  py: 4.0
+  js: 3.8
+  ts: 3.8
+  tsx: 3.5
+  pyi: 3.0
+  tf: 3.5
+  yaml: 3.0
+  yml: 3.0
+  json: 2.8
+  toml: 2.5
+  html: 2.5
+  css: 2.3
+  scss: 2.3
+  less: 2.0
+  md: 2.0
+  mdx: 2.0
+  txt: 1.5
+  sh: 2.2
+  ini: 1.8
+  cfg: 1.8
+  conf: 1.8
+  xml: 1.5
+  svg: 1.3
+  cjs: 3.0
+  mjs: 3.0
+  cts: 3.0
+  mts: 3.0
+
+# Directory priority weights
+directories:
+  src: 4.0
+  lib: 3.8
+  app: 3.5
+  components: 3.3
+  modules: 3.0
+  config: 3.0
+  configs: 3.0
+  terraform: 2.8
+  infrastructure: 2.8
+  docs: 2.5
+  documentation: 2.5
+  readme: 2.0
+  tests: 2.3
+  test: 2.3
+  __tests__: 2.3
+  spec: 2.0
+  scripts: 2.2
+  tools: 2.0
+  bin: 2.0
+  utils: 2.5
+  utilities: 2.5
+  build: 1.5
+  dist: 1.2
+  target: 1.2
+  assets: 1.8
+  static: 1.5
+  public: 1.5
+  images: 1.0
+  img: 1.0
+  ".": 3.2
+  "": 3.2
