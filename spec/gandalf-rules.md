@@ -157,7 +157,7 @@ Before providing solutions:
 ### Version Requirements
 
 - **Current Architecture**: 6 streamlined tools
-- **Expected Version**: 2.0.0+
+- **Expected Version**: 2.0.1+
 - **Reset Command**: `gandalf install -r` to clear cache and reinstall
 
 ## Troubleshooting Quick Reference

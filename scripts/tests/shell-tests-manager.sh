@@ -18,6 +18,7 @@ TESTS_DIR="$GANDALF_ROOT/scripts/tests"
 # See tests/MIGRATION_GAMEPLAN.md for full migration plan
 
 declare -A SHELL_TEST_SUITES=(
+    ["platform-compatibility"]="Cross-platform compatibility and path detection"
     ["core"]="Core MCP server functionality"
     ["file"]="File operations"
     ["project"]="Project operations"

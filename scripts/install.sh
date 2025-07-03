@@ -17,6 +17,9 @@ set -eo pipefail
 SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
 GANDALF_ROOT="$(dirname "$(dirname "$SCRIPT_PATH")")"
 
+# Load platform utilities
+source "$GANDALF_ROOT/scripts/platform-utils.sh"
+
 export PYTHONPATH="$GANDALF_ROOT/server:${PYTHONPATH:-}"
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export GANDALF_HOME="${GANDALF_HOME:-$HOME/.${MCP_SERVER_NAME}}"
@@ -183,7 +186,8 @@ EOF
 
 detect_agentic_tool_by_database() {
     # Check for Cursor databases (more reliable indicator)
-    local cursor_workspace_storage="$HOME/Library/Application Support/Cursor/workspaceStorage"
+    local cursor_workspace_storage
+    cursor_workspace_storage=$(get_cursor_workspace_storage)
     if [[ -d "$cursor_workspace_storage" ]] && [[ -n "$(find "$cursor_workspace_storage" -name "*.vscdb" -o -name "*.db" 2>/dev/null | head -1)" ]]; then
         echo "cursor"
         return 0

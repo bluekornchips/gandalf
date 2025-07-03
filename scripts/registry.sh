@@ -5,6 +5,10 @@
 
 set -euo pipefail
 
+# Load platform utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/platform-utils.sh"
+
 REGISTRY_FILE="$HOME/.gandalf/registry.json"
 
 detect_agentic_tool() {
@@ -42,7 +46,9 @@ detect_agentic_tool() {
         return 0
     fi
 
-    if [[ -d "$HOME/.cursor" ]]; then
+    local cursor_config_dir
+    cursor_config_dir=$(get_cursor_config_dir)
+    if [[ -d "$cursor_config_dir" ]]; then
         echo "cursor"
         return 0
     fi
@@ -52,13 +58,13 @@ detect_agentic_tool() {
         return 0
     fi
 
-    # Check for application installation
-    if [[ -d "/Applications/Cursor.app" ]]; then
+    # Check for application installation using platform-aware detection
+    if is_application_installed "cursor"; then
         echo "cursor"
         return 0
     fi
 
-    if [[ -d "/Applications/Windsurf.app" ]]; then
+    if is_application_installed "windsurf"; then
         echo "windsurf"
         return 0
     fi
@@ -70,7 +76,8 @@ detect_agentic_tool() {
 auto_register_cursor() {
     echo "Auto-registering Cursor IDE..."
 
-    local cursor_config_dir="$HOME/.cursor"
+    local cursor_config_dir
+    cursor_config_dir=$(get_cursor_config_dir)
 
     if [[ -d "$cursor_config_dir" ]]; then
         register_agentic_tool "cursor" "$cursor_config_dir"

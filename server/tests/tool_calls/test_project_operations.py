@@ -41,18 +41,18 @@ class TestGetServerVersion:
         mock_project_root = Path("/path/to/project")
         arguments = {}
 
-        with patch.dict(os.environ, {"GANDALF_SERVER_VERSION": "2.0.0"}):
+        with patch.dict(os.environ, {"GANDALF_SERVER_VERSION": "2.0.1"}):
             # Need to reload the module to pick up the new env var
             with patch(
                 "src.tool_calls.project_operations.GANDALF_SERVER_VERSION",
-                "2.0.0",
+                "2.0.1",
             ):
                 with patch("time.time", return_value=1234567890.0):
                     result = handle_get_server_version(arguments, mock_project_root)
 
         assert "content" in result
         content = json.loads(result["content"][0]["text"])
-        assert content["server_version"] == "2.0.0"
+        assert content["server_version"] == "2.0.1"
 
     def test_handle_get_server_version_exception_handling(self):
         """Test error handling in get_server_version."""

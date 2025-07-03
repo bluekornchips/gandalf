@@ -14,7 +14,7 @@ from pathlib import Path
 # Project identity
 MCP_SERVER_NAME = os.getenv("MCP_SERVER_NAME", "gandalf")
 GANDALF_HOME = Path(os.getenv("GANDALF_HOME", str(Path.home() / f".{MCP_SERVER_NAME}")))
-GANDALF_SERVER_VERSION = os.getenv("GANDALF_SERVER_VERSION", "2.0.0")
+GANDALF_SERVER_VERSION = os.getenv("GANDALF_SERVER_VERSION", "2.0.1")
 
 # MCP Protocol
 MCP_PROTOCOL_VERSION = "2024-11-05"
