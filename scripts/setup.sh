@@ -14,12 +14,32 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GANDALF_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Load platform utilities
+source "$SCRIPT_DIR/platform-utils.sh"
+
 # Default configurations
 MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
-GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-2.0.0}"
+GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-2.0.1}"
 ENV_FILE="$GANDALF_ROOT/.env"
 
-# Load common utilities
+# Load common utilities - create a minimal shared.sh if it doesn't exist
+if [[ ! -f "$SCRIPT_DIR/shared.sh" ]]; then
+    # Create minimal shared utilities
+    cat >"$SCRIPT_DIR/shared.sh" <<'EOF'
+#!/bin/bash
+# Minimal shared utilities for Gandalf scripts
+
+export GANDALF_HOME="${GANDALF_HOME:-$HOME/.gandalf}"
+
+load_env_variables() {
+    local env_file="${1:-$GANDALF_ROOT/.env}"
+    if [[ -f "$env_file" ]]; then
+        source "$env_file"
+    fi
+}
+EOF
+fi
+
 source "$SCRIPT_DIR/shared.sh"
 
 load_env_variables() {
@@ -202,10 +222,15 @@ EOF
 
 # Function to detect agentic tool availability
 detect_agentic_tool_availability() {
-    # Check for Cursor agentic tool
-    if [[ -d "$HOME/.cursor" ]] || [[ -d "$HOME/Library/Application Support/Cursor" ]]; then
+    # Check for Cursor agentic tool using platform-aware detection
+    local cursor_config_dir
+    cursor_config_dir=$(get_cursor_config_dir)
+    local cursor_app_support_dir
+    cursor_app_support_dir=$(get_cursor_app_support_dir)
+
+    if [[ -d "$cursor_config_dir" ]] || [[ -d "$cursor_app_support_dir" ]]; then
         CURSOR_AVAILABLE=true
-        echo "Cursor IDE detected"
+        echo "Cursor IDE detected (config: $cursor_config_dir)"
     else
         echo "Cursor IDE not detected"
         CURSOR_AVAILABLE=false
