@@ -41,29 +41,32 @@ class TestGetServerVersion:
         mock_project_root = Path("/path/to/project")
         arguments = {}
 
-        with patch.dict(os.environ, {"GANDALF_SERVER_VERSION": "2.0.1"}):
+        with patch.dict(os.environ, {"GANDALF_SERVER_VERSION": "2.1.0"}):
             # Need to reload the module to pick up the new env var
             with patch(
                 "src.tool_calls.project_operations.GANDALF_SERVER_VERSION",
-                "2.0.1",
+                "2.1.0",
             ):
                 with patch("time.time", return_value=1234567890.0):
                     result = handle_get_server_version(arguments, mock_project_root)
 
         assert "content" in result
         content = json.loads(result["content"][0]["text"])
-        assert content["server_version"] == "2.0.1"
+        assert content["server_version"] == "2.1.0"
 
-    def test_handle_get_server_version_exception_handling(self):
-        """Test error handling in get_server_version."""
+    @patch("src.tool_calls.project_operations.GANDALF_SERVER_VERSION", "test_version")
+    def test_handle_get_server_version_exception(self):
+        """Test server version handler with exception."""
         mock_project_root = Path("/path/to/project")
-        arguments = {}
-
-        with patch("time.time", side_effect=Exception("Time error")):
+        with patch(
+            "src.tool_calls.project_operations.time.time",
+            side_effect=OSError("Test error"),
+        ):
+            arguments = {}
             result = handle_get_server_version(arguments, mock_project_root)
 
-        assert result["isError"] is True
-        assert "Error retrieving server version" in result["error"]
+            assert result["isError"] is True
+            assert "Error retrieving server version" in result["error"]
 
     def test_get_server_version_returns_expected_fields(self):
         """Test that get_server_version returns all expected fields."""
@@ -204,19 +207,21 @@ class TestProjectOperationsErrorHandling:
             assert result["isError"] is True
             assert "Project root does not exist or is not accessible" in result["error"]
 
-    def test_handle_get_project_info_general_exception(self):
-        """Test get_project_info with general exception."""
+    @patch("src.tool_calls.project_operations.get_project_info")
+    @patch("src.tool_calls.project_operations.validate_project_root")
+    def test_handle_get_project_info_exception(
+        self, mock_validate, mock_get_project_info
+    ):
+        """Test project info handler with exception."""
+        mock_validate.return_value = True
+        mock_get_project_info.side_effect = OSError("Test error")
         mock_project_root = Path("/path/to/project")
+
         arguments = {"include_stats": True}
+        result = handle_get_project_info(arguments, mock_project_root)
 
-        with patch(
-            "src.tool_calls.project_operations.validate_project_root",
-            side_effect=Exception("General error"),
-        ):
-            result = handle_get_project_info(arguments, mock_project_root)
-
-            assert result["isError"] is True
-            assert "Error retrieving project info" in result["error"]
+        assert result["isError"] is True
+        assert "Error retrieving project info" in result["error"]
 
 
 class TestVersionEnvironmentIntegration:

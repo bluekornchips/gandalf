@@ -583,7 +583,7 @@ class TestClaudeCodeRecallHandlers:
         # Mock the query tool to raise an exception when called
         mock_query = Mock()
         mock_query_class.return_value = mock_query
-        mock_query.query_conversations.side_effect = Exception("Test error")
+        mock_query.query_conversations.side_effect = OSError("Test error")
 
         arguments = {"fast_mode": True}
         result = handle_recall_claude_conversations(arguments, self.project_root)
@@ -602,7 +602,7 @@ class TestClaudeCodeRecallHandlers:
         # Mock the query tool to raise an exception when called
         mock_query = Mock()
         mock_query_class.return_value = mock_query
-        mock_query.search_conversations.side_effect = Exception("Test error")
+        mock_query.search_conversations.side_effect = OSError("Test error")
 
         arguments = {"query": "test"}
         result = handle_search_claude_conversations_enhanced(

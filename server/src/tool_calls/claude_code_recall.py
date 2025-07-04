@@ -187,7 +187,7 @@ def handle_recall_claude_conversations(
         )
         return AccessValidator.create_success_response(json.dumps(result, indent=2))
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "recall_claude_conversations")
         return AccessValidator.create_error_response(
             f"Error recalling Claude Code conversations: {str(e)}"
@@ -310,7 +310,7 @@ def handle_search_claude_conversations_enhanced(
             json.dumps(response_data, indent=2)
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "search_claude_conversations_enhanced")
         return AccessValidator.create_error_response(
             f"Error searching Claude Code conversations: {str(e)}"

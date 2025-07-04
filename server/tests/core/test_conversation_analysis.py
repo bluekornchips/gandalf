@@ -966,7 +966,3 @@ class TestCacheManagement(unittest.TestCase):
             # Should use cache on second call
             self.assertEqual(keywords1, keywords2)
             self.assertEqual(len(_context_keywords_cache), 1)
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -9,7 +9,7 @@ export PYTHONPATH="$GANDALF_ROOT/server:${PYTHONPATH:-}"
 
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export MCP_DEBUG="${MCP_DEBUG:-true}"
-export GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-2.0.1}"
+export GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-2.1.0}"
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
 SERVER_DIR="$GANDALF_ROOT/server/src"
@@ -35,8 +35,9 @@ COMMANDS:
 
 LEMBAS OPTIONS:
     -f, --force                 Force installation even if server exists
-    -s, --short                 Run in short mode (fast tests only)
-    --core                      Run core tests only (excludes performance and python tests)
+    --core                      Run core tests only (quick tests) - this is the default
+    --e2e                       Run end-to-end tests (integration workflows and performance)
+    --all                       Run all tests (shell + python)
 
 UNINSTALL OPTIONS:
     -f, --force                 Skip confirmation prompts
@@ -56,8 +57,10 @@ EXAMPLES:
     gandalf.sh test --shell                     # Run shell tests only
     gandalf.sh test --python                    # Run Python tests only
     gandalf.sh test core                        # Run core tests only
-    gandalf.sh lembas                           # Full test cycle with all tests
-    gandalf.sh lembas --core                    # Full test cycle with core tests only
+    gandalf.sh lembas                           # Full test cycle with core tests (default)
+    gandalf.sh lembas --core                    # Full test cycle with core tests only (quick)
+    gandalf.sh lembas --e2e                     # Full test cycle with end-to-end tests
+    gandalf.sh lembas --all                     # Full test cycle with all tests
 
 NOTES:
     - 'deps' verifies Python, Git, and other system requirements
@@ -66,7 +69,7 @@ NOTES:
     - 'install' updates agentic tool configs globally and works for all agentic tools (Cursor, Claude Code, Windsurf)
     - 'uninstall' removes all global configurations but preserves conversation history
     - 'test' runs all tests by default; use --shell or --python for specific types
-    - 'lembas' runs all tests by default; use --core for faster core-only tests
+    - 'lembas' runs core tests by default; use --core for quick tests, --e2e for end-to-end tests
     - Gandalf works globally across all projects once installed
 
 EOF

@@ -360,7 +360,3 @@ class TestRegistry(unittest.TestCase):
             AGENTIC_TOOL_CLAUDE_CODE: ["/path/to/bag_end/ring_bearer_logs.json"],
         }
         self.assertEqual(result, expected)
-
-
-if __name__ == "__main__":
-    unittest.main()

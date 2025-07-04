@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from config.cache import (
+from config.constants import (
     CONVERSATION_CACHE_DIR,
     CONVERSATION_CACHE_FILE,
     CONVERSATION_CACHE_MAX_SIZE_MB,

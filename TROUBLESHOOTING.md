@@ -1,7 +1,5 @@
 # Troubleshooting Guide
 
-Comprehensive troubleshooting guide for Gandalf, a conversation aggregator and MCP Server, with support for Cursor IDE, Claude Code, and Windsurf.
-
 ## Quick Diagnosis
 
 Run these commands to quickly identify issues:
@@ -24,9 +22,9 @@ cat ~/.gandalf/installation-state
 
 ### 1. MCP Tools Not Appearing
 
-**Symptoms**: Development tool doesn't show Gandalf tools or capabilities
+Symptoms: Development tool doesn't show Gandalf tools or capabilities
 
-**Diagnosis**:
+Diagnosis:
 
 ```bash
 # Check if server is configured
@@ -38,31 +36,31 @@ cat ~/.claude/mcp.json    # For Claude Code
 cat ~/.windsurf/mcp.json  # For Windsurf
 ```
 
-**Problem**:
+Solutions:
 
-1. **Restart development tool completely**:
+1. Restart development tool completely:
 
    - Exit completely (⌘/Ctrl + Q)
    - Wait 5 seconds
    - Reopen development tool
 
-2. **Verify configuration**:
+2. Verify configuration:
 
    ```bash
    # Reset and reinstall
    ./gandalf.sh install -r
    ```
 
-3. **Check MCP logs** (tool specific):
-   - **Cursor**: View > Output > MCP Logs
-   - **Claude Code**: Check terminal output or logs
-   - **Windsurf**: View > Output > MCP Logs
+3. Check MCP logs (tool specific):
+   - Cursor: View > Output > MCP Logs
+   - Claude Code: Check terminal output or logs
+   - Windsurf: View > Output > MCP Logs
 
 ### 2. "Server Not Responding" Errors
 
-**Symptoms**: Error messages about server connectivity or timeouts
+Symptoms: Error messages about server connectivity or timeouts
 
-**Diagnosis**:
+Diagnosis:
 
 ```bash
 # Test server directly
@@ -73,22 +71,22 @@ cd gandalf
 python3 -c "import yaml; print('Dependencies OK')"
 ```
 
-**Problem**:
+Solutions:
 
-1. **Install missing dependencies**:
+1. Install missing dependencies:
 
    ```bash
    cd gandalf/server
    pip install -r requirements.txt
    ```
 
-2. **Check Python version**:
+2. Check Python version:
 
    ```bash
    python3 --version  # Should be 3.10+
    ```
 
-3. **Verify permissions**:
+3. Verify permissions:
    ```bash
    ls -la gandalf/server/src/main.py
    chmod +x gandalf/server/src/main.py
@@ -96,18 +94,18 @@ python3 -c "import yaml; print('Dependencies OK')"
 
 ### 3. Conversation History Not Available
 
-**Symptoms**: Can't recall conversations or get empty results
+Symptoms: Can't recall conversations or get empty results
 
-**Diagnosis**:
+Diagnosis:
 
 ```bash
 # Test conversation tools
 ./gandalf.sh test
 ```
 
-**Problem**:
+Solutions:
 
-1. **Check conversation database permissions**:
+1. Check conversation database permissions:
 
    ```bash
    # For Cursor
@@ -123,36 +121,36 @@ python3 -c "import yaml; print('Dependencies OK')"
 
 2. Restart development tool to reinitialize database connections
 
-**Note**: Windsurf conversations may appear empty by design due to its flow-based Cascade AI architecture. This is normal behavior.
+Note: Windsurf conversations may appear empty by design due to its flow-based Cascade AI architecture. This is normal behavior.
 
 ### 4. Import Errors
 
-**Symptoms**: Python import errors when starting server
+Symptoms: Python import errors when starting server
 
-**Diagnosis**:
+Diagnosis:
 
 ```bash
 cd gandalf
 ./gandalf.sh run --help
 ```
 
-**Problem**:
+Solutions:
 
-1. **Install server dependencies**:
+1. Install server dependencies:
 
    ```bash
    cd gandalf/server
    pip install -r requirements.txt
    ```
 
-2. **Check PYTHONPATH**:
+2. Check PYTHONPATH:
 
    ```bash
    cd gandalf
    ./gandalf.sh run --help
    ```
 
-3. **Use virtual environment**:
+3. Use virtual environment:
    ```bash
    python3 -m venv ~/.gandalf/venv
    source ~/.gandalf/venv/bin/activate
@@ -165,9 +163,9 @@ cd gandalf
 
 #### Cursor Can't Find MCP Configuration
 
-**Symptoms**: Cursor doesn't load Gandalf tools
+Symptoms: Cursor doesn't load Gandalf tools
 
-**Check**:
+Check:
 
 ```bash
 # Verify configuration file exists and is valid
@@ -175,7 +173,7 @@ cat ~/.cursor/mcp.json
 jq . ~/.cursor/mcp.json  # Should validate JSON
 ```
 
-**Fix**:
+Fix:
 
 ```bash
 # Reset Cursor configuration
@@ -184,9 +182,9 @@ jq . ~/.cursor/mcp.json  # Should validate JSON
 
 #### Cursor MCP Logs Show Errors
 
-**Check logs**: View > Output > MCP Logs (set to DEBUG level)
+Check logs: View > Output > MCP Logs (set to DEBUG level)
 
-**Common errors**:
+Common errors:
 
 - "Command not found": Check absolute paths in configuration
 - "Permission denied": Check file permissions with `chmod +x`
@@ -196,9 +194,9 @@ jq . ~/.cursor/mcp.json  # Should validate JSON
 
 #### Claude Code Can't Connect to MCP
 
-**Symptoms**: `/mcp` command shows no servers or connection errors
+Symptoms: `/mcp` command shows no servers or connection errors
 
-**Check**:
+Check:
 
 ```bash
 # Verify Claude Code MCP configuration
@@ -206,7 +204,7 @@ claude mcp list
 claude mcp get gandalf
 ```
 
-**Fix**:
+Fix:
 
 ```bash
 # Reset Claude Code configuration
@@ -215,7 +213,7 @@ claude mcp get gandalf
 
 #### Claude Code MCP Commands Fail
 
-**Check status**:
+Check status:
 
 ```bash
 # Check MCP server status
@@ -230,11 +228,11 @@ cd gandalf
 
 #### Windsurf Shows Empty Conversations
 
-**Symptoms**: Windsurf conversations appear empty in Gandalf results
+Symptoms: Windsurf conversations appear empty in Gandalf results
 
-**This is expected behavior**: Windsurf uses Cascade AI with flow-based interactions rather than traditional chat conversations.
+This is expected behavior: Windsurf uses Cascade AI with flow-based interactions rather than traditional chat conversations.
 
-**For Windsurf context, check instead**:
+For Windsurf context, check instead:
 
 ```bash
 # Check Cascade Memories and Rules
@@ -245,9 +243,9 @@ ls -la .windsurf/workflows/
 
 #### Windsurf Can't Find MCP Configuration
 
-**Symptoms**: Windsurf doesn't load Gandalf tools
+Symptoms: Windsurf doesn't load Gandalf tools
 
-**Check**:
+Check:
 
 ```bash
 # Verify configuration file exists and is valid
@@ -255,7 +253,7 @@ cat ~/.windsurf/mcp.json
 jq . ~/.windsurf/mcp.json  # Should validate JSON
 ```
 
-**Fix**:
+Fix:
 
 ```bash
 # Reset Windsurf configuration
@@ -266,25 +264,25 @@ jq . ~/.windsurf/mcp.json  # Should validate JSON
 
 ### Slow Response Times
 
-**Symptoms**: Tools take a long time to respond
+Symptoms: Tools take a long time to respond
 
-**Problem**:
+Solutions:
 
-1. **Enable fast mode**:
+1. Enable fast mode:
 
    ```bash
    # Use fast_mode=true for recall_conversations
    recall_conversations(fast_mode=true)
    ```
 
-2. **Limit file analysis**:
+2. Limit file analysis:
 
    ```bash
    # Reduce max_files for large projects
    list_project_files(max_files=50, file_types=["py", "js"])
    ```
 
-3. **Tune cache settings**:
+3. Tune cache settings:
    ```bash
    # Add to MCP configuration
    "env": {
@@ -295,23 +293,23 @@ jq . ~/.windsurf/mcp.json  # Should validate JSON
 
 ### High Memory Usage
 
-**Symptoms**: System becomes slow when using Gandalf
+Symptoms: System becomes slow when using Gandalf
 
-**Problem**:
+Solutions:
 
-1. **Reduce conversation lookback**:
+1. Reduce conversation lookback:
 
    ```bash
    recall_conversations(days_lookback=7, limit=10)
    ```
 
-2. **Use specific file types**:
+2. Use specific file types:
 
    ```bash
    list_project_files(file_types=["py"], max_files=100)
    ```
 
-3. **Clear cache**:
+3. Clear cache:
    ```bash
    rm -rf ~/.gandalf/cache/*
    ```
@@ -384,15 +382,15 @@ except ImportError as e:
 
 If you're still having issues:
 
-1. **Run full diagnostics**:
+1. Run full diagnostics:
 
    ```bash
    ./gandalf.sh lembas
    ```
 
-2. **Check the logs** in your IDE's MCP output, if available
+2. Check the logs in your IDE's MCP output, if available
 
-3. **Create an issue** with:
+3. Create an issue with:
 
    - Your operating system
    - Python version (`python3 --version`)
@@ -400,7 +398,7 @@ If you're still having issues:
    - Error messages from logs
    - Output of `./gandalf.sh test`
 
-4. **Include your configuration** (remove sensitive paths):
+4. Include your configuration (remove sensitive paths):
    ```bash
    # Sanitize and include your MCP config
    cat ~/.cursor/mcp.json | jq 'del(.mcpServers.gandalf.cwd)'

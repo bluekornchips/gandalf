@@ -9,7 +9,7 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 
 from config.constants import WINDSURF_WORKSPACE_STORAGE, WINDSURF_GLOBAL_STORAGE
 from utils.access_control import AccessValidator
@@ -303,7 +303,7 @@ class ConversationExtractor:
                 conversations.extend(self._extract_from_dict(key, data, db_path))
             elif isinstance(data, list):
                 conversations.extend(self._extract_from_list(key, data, db_path))
-        except Exception:
+        except (KeyError, AttributeError, TypeError, ValueError):
             # Silently ignore extraction errors
             pass
 
@@ -432,7 +432,12 @@ class WindsurfQuery:
 
     def get_data_from_db(self, db_path: Path, key: str) -> Optional[Any]:
         """Extract data from database using a specific key."""
-        return self.db_reader.get_data(db_path, key)
+        try:
+            return self.db_reader.get_data(db_path, key)
+        except (sqlite3.Error, json.JSONDecodeError, OSError) as e:
+            if not self.silent:
+                log_error(e, f"querying database {db_path}")
+            return None
 
     def find_workspace_databases(self) -> List[Path]:
         """Find all workspace and global database files."""
@@ -458,8 +463,8 @@ class WindsurfQuery:
             try:
                 db_data = self.query_conversations_from_db(db_path)
                 all_conversations.extend(db_data.get("conversations", []))
-            except Exception as e:
-                if not self.db_reader.silent:
+            except (sqlite3.Error, json.JSONDecodeError, OSError) as e:
+                if not self.silent:
                     log_error(e, f"querying database {db_path}")
 
         return {
@@ -492,7 +497,7 @@ class WindsurfQuery:
                         if db_file.exists():
                             databases.append(db_file)
             except (OSError, PermissionError) as e:
-                if not self.db_reader.silent:
+                if not self.silent:
                     log_error(
                         e,
                         f"scanning Windsurf workspace storage {self.workspace_storage}",
@@ -505,7 +510,7 @@ class WindsurfQuery:
                 if global_db_file.exists():
                     databases.append(global_db_file)
             except (OSError, PermissionError) as e:
-                if not self.db_reader.silent:
+                if not self.silent:
                     log_error(
                         e, f"scanning Windsurf global storage {self.global_storage}"
                     )
@@ -640,7 +645,7 @@ def handle_query_windsurf_conversations(
         response_data = _format_response(data, format_type)
         return AccessValidator.create_success_response(response_data)
 
-    except Exception as e:
+    except (ValueError, KeyError, TypeError) as e:
         log_error(e, "query_windsurf_conversations")
         return AccessValidator.create_error_response(
             f"Error querying Windsurf conversations: {str(e)}"
@@ -680,7 +685,7 @@ def handle_search_windsurf_conversations(
             json.dumps(response_data, indent=2)
         )
 
-    except Exception as e:
+    except (ValueError, KeyError, TypeError) as e:
         log_error(e, "search_windsurf_conversations")
         return AccessValidator.create_error_response(
             f"Error searching Windsurf conversations: {str(e)}"

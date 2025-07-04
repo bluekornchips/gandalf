@@ -33,7 +33,7 @@ class WeightsConfig:
             if weights_file.exists():
                 with open(weights_file, "r") as f:
                     return yaml.safe_load(f) or {}
-        except Exception:
+        except (OSError, IOError, yaml.YAMLError, PermissionError):
             pass
 
         return {}

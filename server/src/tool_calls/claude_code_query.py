@@ -160,9 +160,11 @@ class ClaudeCodeQuery:
                 "project_root": str(project_root) if project_root else None,
             }
 
-        except Exception as e:
-            log_error(e, "querying Claude Code conversations")
-            return {"error": str(e)}
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            log_error(e, "query_claude_conversations")
+            return AccessValidator.create_error_response(
+                f"Error querying Claude Code conversations: {str(e)}"
+            )
 
     def search_conversations(
         self, query: str, project_root: Optional[Path] = None, limit: int = 20
@@ -205,7 +207,7 @@ class ClaudeCodeQuery:
 
             return matching_conversations
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             log_error(e, f"searching Claude Code conversations for '{query}'")
             return []
 
@@ -335,7 +337,7 @@ def handle_query_claude_conversations(
         )
         return AccessValidator.create_success_response(content)
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "query_claude_conversations")
         return AccessValidator.create_error_response(
             f"Error querying Claude Code conversations: {str(e)}"
@@ -405,7 +407,7 @@ def handle_search_claude_conversations(
             json.dumps(response_data, indent=2)
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "search_claude_conversations")
         return AccessValidator.create_error_response(
             f"Error searching Claude Code conversations: {str(e)}"

@@ -501,7 +501,7 @@ class TestConversationAggregator(unittest.TestCase):
                     "source_tool": AGENTIC_TOOL_CURSOR,
                 }
             elif tool_name == AGENTIC_TOOL_CLAUDE_CODE:
-                raise Exception("Processing failed")
+                raise OSError("Processing failed")
             return {"conversations": [], "total_conversations": 0}
 
         mock_process.side_effect = mock_process_side_effect
@@ -573,9 +573,9 @@ class TestConversationAggregatorEdgeCases(unittest.TestCase):
 
         def mock_process_side_effect(tool_name, handler_name, *args, **kwargs):
             if tool_name == AGENTIC_TOOL_CURSOR:
-                raise Exception("Database corrupted")
+                raise OSError("Database corrupted")
             elif tool_name == AGENTIC_TOOL_CLAUDE_CODE:
-                raise Exception("Access blocked")
+                raise OSError("Access blocked")
             return {"conversations": [], "total_conversations": 0}
 
         mock_process.side_effect = mock_process_side_effect
@@ -616,7 +616,7 @@ class TestConversationAggregatorEdgeCases(unittest.TestCase):
                     "source_tool": AGENTIC_TOOL_CURSOR,
                 }
             elif tool_name == AGENTIC_TOOL_CLAUDE_CODE:
-                raise Exception("Processing failed")
+                raise OSError("Processing failed")
             return {"conversations": [], "total_conversations": 0}
 
         mock_process.side_effect = mock_process_side_effect
@@ -743,7 +743,7 @@ class TestConversationAggregatorEdgeCases(unittest.TestCase):
         """Test recall when registry detection itself fails."""
         mock_keywords.return_value = self.context_keywords
 
-        mock_detect.side_effect = Exception("Registry detection failed")
+        mock_detect.side_effect = OSError("Registry detection failed")
 
         result = handle_recall_conversations(fast_mode=True, limit=10)
         data = extract_data_from_mcp_response(result)
@@ -887,7 +887,3 @@ class TestConversationAggregatorEdgeCases(unittest.TestCase):
                 self.assertIn("available_tools", data)
                 self.assertIn("conversations", data)
                 self.assertEqual(len(data["conversations"]), expected)
-
-
-if __name__ == "__main__":
-    unittest.main()

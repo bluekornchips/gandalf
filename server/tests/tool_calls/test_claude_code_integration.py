@@ -179,7 +179,7 @@ class TestClaudeCodeIntegration:
             assert data["total_conversations"] > 0
             assert len(data["conversations"]) > 0
 
-            # Verify the conversation is from our project
+            # Verify the conversation is from the project
             conversation = data["conversations"][0]
             assert "legolas-archery-session" in conversation.get("session_id", "")
 
@@ -538,7 +538,3 @@ class TestClaudeCodeRegressionTests:
             # REGRESSION: New logic finds files that old logic missed
             assert len(new_files) >= 1
             assert project_conv in new_files
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])

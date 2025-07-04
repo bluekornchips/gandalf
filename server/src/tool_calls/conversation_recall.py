@@ -13,13 +13,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from config.cache import (
+from config.constants import (
     CONVERSATION_CACHE_FILE,
     CONVERSATION_CACHE_METADATA_FILE,
     CONVERSATION_CACHE_MIN_SIZE,
     CONVERSATION_CACHE_TTL_HOURS,
-)
-from config.constants import (
     CONTEXT_KEYWORDS_QUICK_LIMIT,
     CONVERSATION_DEFAULT_RECENT_DAYS,
     CONVERSATION_MAX_LOOKBACK_DAYS,
@@ -27,7 +25,6 @@ from config.constants import (
     CONVERSATION_TEXT_EXTRACTION_LIMIT,
     CONVERSATION_TYPES,
     DATABASE_STRUCTURE_LIMITATION_NOTE,
-    FILE_REFERENCE_PATTERNS,
     KEYWORD_CHECK_LIMIT,
     KEYWORD_MATCHES_LIMIT,
     KEYWORD_MATCHES_TOP_LIMIT,
@@ -392,7 +389,7 @@ def analyze_conversation_relevance_optimized(
 
         return min(total_score, 1.0), analysis
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_debug(f"Error analyzing conversation relevance: {e}")
         return 0.0, {"error": str(e)}
 
@@ -832,7 +829,7 @@ def handle_recall_cursor_conversations(
 
         return AccessValidator.create_success_response(json.dumps(result, indent=2))
 
-    except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "recall_cursor_conversations")
         return AccessValidator.create_error_response(
             f"Error recalling conversations: {str(e)}"

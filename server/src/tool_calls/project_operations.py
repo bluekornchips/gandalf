@@ -297,7 +297,7 @@ def handle_get_project_info(
             json.dumps(project_info, indent=2)
         )
 
-    except (OSError, ValueError, TypeError, Exception) as e:
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as e:
         log_error(e, f"get_project_info for {project_root}")
         return AccessValidator.create_error_response(
             f"Error retrieving project info: {str(e)}"
@@ -322,7 +322,7 @@ def handle_get_server_version(
             json.dumps(version_info, indent=2)
         )
 
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         log_error(e, "get_server_version")
         return AccessValidator.create_error_response(
             f"Error retrieving server version: {str(e)}"

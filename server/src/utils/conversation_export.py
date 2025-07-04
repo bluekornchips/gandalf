@@ -5,6 +5,7 @@ Basic conversation export functionality.
 Use the MCP tool 'export_individual_conversations' for the primary export functionality.
 """
 
+import argparse
 from pathlib import Path
 from typing import List, Union
 
@@ -83,8 +84,6 @@ def list_workspaces(silent: bool = False) -> List[str]:
 
 
 if __name__ == "__main__":
-    import argparse
-
     parser = argparse.ArgumentParser(description="Simple conversation export utility")
     parser.add_argument("output_path", help="Output file path")
     parser.add_argument(
