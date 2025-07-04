@@ -13,6 +13,44 @@ In the Lord of the Rings, Gandalf is a powerful wizard, but he is not omnipotent
 
 [**Quick Start**](#quick-start) • [**Installation**](docs/INSTALLATION.md) • [**API Reference**](docs/API.md) • [**Troubleshooting**](docs/TROUBLESHOOTING.md)
 
+## Quick Start
+
+**Prerequisites**
+
+- Python 3.10 or higher
+- Git (required for repository operations)
+- IDE: Cursor IDE, Claude Code, or Windsurf with MCP support
+
+**Installation**
+
+```bash
+# Clone and navigate
+git clone https://github.com/bluekornchips/gandalf.git
+cd gandalf
+
+# Install (auto-detects your IDE)
+./gandalf.sh install
+
+# Verify installation
+./gandalf.sh test
+
+# Extended verification
+./gandalf.sh lembas --all
+```
+
+**First Use**
+
+```bash
+# Core workflow - always start here
+recall_conversations(fast_mode=true, days_lookback=7)
+
+# Get project context for unfamiliar codebases
+get_project_info()
+
+# Discover relevant files for multi-file work
+list_project_files(max_files=50, file_types=['.py', '.js'])
+```
+
 ## Key Features
 
 **Cross-Platform Intelligence**
@@ -54,41 +92,6 @@ In the Lord of the Rings, Gandalf is a powerful wizard, but he is not omnipotent
 
 - `get_server_version`: Server version and protocol information (troubleshooting MCP)
 - `export_individual_conversations`: Export conversations to files (backup/documentation)
-
-## Quick Start
-
-**Prerequisites**
-
-- Python 3.10 or higher
-- Git (required for repository operations)
-- IDE: Cursor IDE, Claude Code, or Windsurf with MCP support
-
-**Installation**
-
-```bash
-# Clone and navigate
-git clone https://github.com/bluekornchips/gandalf.git
-cd gandalf
-
-# Install (auto-detects your IDE)
-./gandalf.sh install
-
-# Verify installation
-./gandalf.sh test
-```
-
-**First Use**
-
-```bash
-# Core workflow - always start here
-recall_conversations(fast_mode=true, days_lookback=7)
-
-# Get project context for unfamiliar codebases
-get_project_info()
-
-# Discover relevant files for multi-file work
-list_project_files(max_files=50, file_types=['.py', '.js'])
-```
 
 ## Supported Development Environments
 
