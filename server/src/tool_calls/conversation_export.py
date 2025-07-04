@@ -13,7 +13,6 @@ from config.constants import GANDALF_HOME
 from config.constants import (
     FILENAME_CONTROL_CHARS_PATTERN,
     FILENAME_INVALID_CHARS_PATTERN,
-    FILENAME_MAX_LENGTH,
     TIMESTAMP_MILLISECOND_THRESHOLD,
 )
 from utils.access_control import AccessValidator
@@ -193,7 +192,7 @@ def handle_export_individual_conversations(
             )
         )
 
-    except Exception as e:
+    except (OSError, IOError, json.JSONDecodeError, KeyError, AttributeError) as e:
         log_debug(f"Error in export_individual_conversations: {e}")
         return AccessValidator.create_error_response(f"Export failed: {str(e)}")
 
@@ -222,7 +221,7 @@ def handle_list_cursor_workspaces(
             )
         )
 
-    except Exception as e:
+    except (OSError, IOError, KeyError, AttributeError) as e:
         log_debug(f"Error in list_cursor_workspaces: {e}")
         return AccessValidator.create_error_response(str(e))
 

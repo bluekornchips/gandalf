@@ -10,7 +10,7 @@ alwaysApply: true
 
 **Context before action.** Always gather relevant context before making changes or providing solutions.
 
-## Essential Workflow
+## Workflow
 
 ### 1. Start with History
 
@@ -157,7 +157,7 @@ Before providing solutions:
 ### Version Requirements
 
 - **Current Architecture**: 6 streamlined tools
-- **Expected Version**: 2.0.1+
+- **Expected Version**: 2.1.0+
 - **Reset Command**: `gandalf install -r` to clear cache and reinstall
 
 ## Troubleshooting Quick Reference

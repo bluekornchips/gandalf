@@ -198,10 +198,12 @@ This is test content for Windsurf rules validation."
     run bash -c "GANDALF_SPEC_OVERRIDE='$TEST_SPEC_DIR' bash '$GANDALF_ROOT/scripts/install.sh' --force --skip-test"
     [ "$status" -eq 0 ]
 
-    # Verify global rules file exists and has expected content
+    # Verify Windsurf global rules file exists
     [ -f "$TEST_HOME/.windsurf/global_rules.md" ]
-    # With the new global approach, it should contain the actual rules content
+
+    # Verify content matches source
     grep -q "Test Rules" "$TEST_HOME/.windsurf/global_rules.md"
+    grep -q "Windsurf rules validation" "$TEST_HOME/.windsurf/global_rules.md"
 }
 
 @test "install backs up existing claude code settings" {
@@ -296,4 +298,40 @@ EOF
     grep -q "CLAUDE_CODE_INSTALLED=" "$TEST_HOME/.gandalf/installation-state"
     grep -q "WIND_SURF_INSTALLED=" "$TEST_HOME/.gandalf/installation-state"
     grep -q "INSTALL_ALL_TOOLS=true" "$TEST_HOME/.gandalf/installation-state"
+}
+
+@test "backup system creates organized backups" {
+    mkdir -p "$TEST_HOME/.cursor"
+    echo '{"mcpServers": {"existing": {}}}' >"$TEST_HOME/.cursor/mcp.json"
+
+    run bash "$GANDALF_ROOT/scripts/install.sh" --force --skip-test
+    [ "$status" -eq 0 ]
+
+    [ -d "$TEST_HOME/.gandalf/backups" ]
+    local backups=($(find "$TEST_HOME/.gandalf/backups" -name "cursor-mcp.json.backup.*" 2>/dev/null))
+    [ ${#backups[@]} -ge 1 ]
+}
+
+@test "backup cleanup removes old backups" {
+    mkdir -p "$TEST_HOME/.gandalf/backups"
+
+    # Create 7 old backups
+    for i in {1..7}; do
+        echo '{}' >"$TEST_HOME/.gandalf/backups/cursor-mcp.json.backup.2024010${i}_120000"
+    done
+
+    # Verify we have 7 files
+    local initial_count=$(find "$TEST_HOME/.gandalf/backups" -name "cursor-mcp.json.backup.*" | wc -l)
+    [ "$initial_count" -eq 7 ]
+
+    # Test that cleanup function exists by running install (which calls cleanup)
+    mkdir -p "$TEST_HOME/.cursor"
+    echo '{"mcpServers": {"test": {}}}' >"$TEST_HOME/.cursor/mcp.json"
+
+    run bash "$GANDALF_ROOT/scripts/install.sh" --force --skip-test
+    [ "$status" -eq 0 ]
+
+    # Should have 5 or fewer backups after cleanup
+    local final_count=$(find "$TEST_HOME/.gandalf/backups" -name "cursor-mcp.json.backup.*" | wc -l)
+    [ "$final_count" -le 5 ]
 }

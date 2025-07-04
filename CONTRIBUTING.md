@@ -1,35 +1,49 @@
 # Contributing to Gandalf
 
-I am open to your input and want to make contributing to Gandalf easy and transparent. Please feel free to:
+Development guidelines for Gandalf MCP Server.
 
-- Report a bug
-- Discuss the current state of the code
-- Submit a fix
-- Propose new features
+## Requirements
 
-## Development with Github
+- Python 3.10+
+- Git
+- pytest, bats, shellcheck, black
 
-I use GitHub to host code, track issues, and review pull requests.
+## Workflow
 
-## Using [Github Flow](https://guides.github.com/introduction/flow/index.html)
+1. Check existing issues
+2. Create new descriptive issue
+3. Branch from main
+4. Write tests (90% coverage required)
+5. Update docs
+6. Run `./gandalf.sh lembas`, confirm tests pass
+7. Submit PR
 
-Pull requests are the best way to propose changes to Gandalf.
+## Areas to Contribute
 
-1. Fork the repo, create your branch from `main`.
-2. If you've added code that should be tested, add tests.
-3. If you've changed APIs, update the documentation.
-4. Ensure the test suite passes.
-5. Make sure your code lints.
-6. Issue that pull request!
+- Performance optimization
+- IDE integration
+- Documentation
+- Testing
+- Bug fixes
 
-## Any contributions you make will be under the Apache License 2.0
+## Testing
 
-Your submissions are understood to be under the same [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) that covers the project.
+Must maintain 90% test coverage.
 
-## Report bugs using Github's [issue tracker](https://github.com/bluekornchips/gandalf/issues)
+```bash
+# Python tests
+pytest --cov=src --cov-report=html
 
-Report a bug by [opening a new issue](https://github.com/bluekornchips/gandalf/issues/new); it's that easy!
+# Shell tests
+bats tests/
 
-## License
+# Full validation
+./gandalf.sh lembas
+```
 
-By contributing, you agree that your contributions will be licensed under the Apache License 2.0.
+## Getting Help
+
+- [GitHub Discussions](https://github.com/bluekornchips/gandalf/discussions)
+- [GitHub Issues](https://github.com/bluekornchips/gandalf/issues)
+
+Before asking: check docs, search existing issues, provide context.

@@ -593,7 +593,3 @@ def list_cursor_workspaces() -> Dict[str, Any]:
 
     except (OSError, IOError, ValueError, TypeError, AttributeError) as e:
         raise ValueError(f"Error listing workspace databases: {str(e)}")
-
-
-if __name__ == "__main__":
-    exit(main())

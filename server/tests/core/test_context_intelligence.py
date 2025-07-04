@@ -670,7 +670,3 @@ class TestConstants(unittest.TestCase):
             CONTEXT_RECENT_DAY_THRESHOLD, CONTEXT_RECENT_HOUR_THRESHOLD
         )
         self.assertGreater(CONTEXT_RECENT_WEEK_THRESHOLD, CONTEXT_RECENT_DAY_THRESHOLD)
-
-
-if __name__ == "__main__":
-    unittest.main()

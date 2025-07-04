@@ -165,7 +165,7 @@ execute_rpc() {
         if [[ -n "$line" ]]; then
             # First check if this line contains an ID field
             if echo "$line" | jq -e '.id != null' >/dev/null 2>&1; then
-                # Then check if the ID matches our test ID
+                # Then check if the ID matches the test ID
                 local line_id
                 line_id=$(echo "$line" | jq -r '.id' 2>/dev/null)
                 if [[ "$line_id" == "$test_id" ]]; then

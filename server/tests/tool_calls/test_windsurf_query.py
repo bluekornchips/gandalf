@@ -547,30 +547,34 @@ class TestWindsurfQueryHandlers:
             assert parsed_data["total_results"] == 0
             assert len(parsed_data["conversations"]) == 0
 
-    def test_handle_query_windsurf_conversations_error_handling(self):
-        """Test error handling in query conversations."""
+    @patch("src.tool_calls.windsurf_query.WindsurfQuery")
+    def test_handle_query_windsurf_conversations_exception(self, mock_query_class):
+        """Test conversation querying handler with exception."""
+        mock_instance = Mock()
+        mock_query_class.return_value = mock_instance
+        mock_instance.query_all_conversations.side_effect = ValueError("Test error")
+        project_root = Path("/test/project")
+
         arguments = {"format": "json"}
-        project_root = Path("/test/moria")
+        result = handle_query_windsurf_conversations(arguments, project_root)
 
-        with patch("src.tool_calls.windsurf_query.WindsurfQuery") as mock_query_class:
-            mock_query_class.side_effect = Exception("Database connection failed")
+        assert result["isError"] is True
+        assert "Error querying Windsurf conversations" in result["error"]
 
-            result = handle_query_windsurf_conversations(arguments, project_root)
-
-            assert "content" in result or "isError" in result
-
-    def test_handle_search_windsurf_conversations_error_handling(self):
+    @patch("src.tool_calls.windsurf_query.WindsurfQuery")
+    def test_handle_search_windsurf_conversations_error_handling(
+        self, mock_query_class
+    ):
         """Test error handling in search conversations."""
-        arguments = {"query": "precious"}
-        project_root = Path("/test/mount_doom")
+        mock_instance = Mock()
+        mock_query_class.return_value = mock_instance
+        mock_instance.search_conversations.side_effect = ValueError(
+            "Database connection failed"
+        )
+        project_root = Path("/test/project")
 
-        with patch("src.tool_calls.windsurf_query.WindsurfQuery") as mock_query_class:
-            mock_query_class.side_effect = Exception("Search failed")
+        arguments = {"query": "balrog"}
+        result = handle_search_windsurf_conversations(arguments, project_root)
 
-            result = handle_search_windsurf_conversations(arguments, project_root)
-
-            assert "content" in result or "isError" in result
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])
+        assert result["isError"] is True
+        assert "Error searching Windsurf conversations" in result["error"]

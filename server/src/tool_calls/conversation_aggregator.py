@@ -159,7 +159,7 @@ def _standardize_conversation_format(
 
         return standardized
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, f"standardizing conversation from {source_tool}")
         return {}
 
@@ -197,14 +197,20 @@ def _detect_available_agentic_tools() -> List[str]:
         log_info(f"Fallback to registered tools: {registered_tools}")
         return registered_tools
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "detecting available tools")
         # Final fallback to registry
         try:
             registered_tools = get_registered_agentic_tools()
             log_info(f"Final fallback to registered tools: {registered_tools}")
             return registered_tools
-        except Exception as registry_error:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+        ) as registry_error:
             log_error(registry_error, "detecting tools from registry")
             return []
 
@@ -294,7 +300,7 @@ def _process_agentic_tool_conversations(
     except json.JSONDecodeError as e:
         log_error(e, f"parsing {tool_name} conversation data")
         return {"error": f"JSON parsing error: {str(e)}"}
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, f"processing conversations from {tool_name}")
         return {"error": str(e)}
 
@@ -550,7 +556,7 @@ def handle_recall_conversations(
 
                 tool_results[tool_name] = result
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 log_error(e, f"retrieving conversations from {tool_name}")
                 tool_results[tool_name] = {"error": str(e)}
 
@@ -586,7 +592,14 @@ def handle_recall_conversations(
             json.dumps(_convert_paths_for_json(response), indent=2)
         )
 
-    except Exception as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        json.JSONDecodeError,
+    ) as e:
         processing_time = time.time() - start_time
         log_error(e, "handling recall conversations")
         response = _create_no_tools_response(
@@ -694,7 +707,7 @@ def handle_search_conversations(
 
                 tool_results[tool_name] = result
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 log_error(e, f"searching conversations in {tool_name}")
                 tool_results[tool_name] = {"error": str(e)}
 
@@ -728,7 +741,14 @@ def handle_search_conversations(
             json.dumps(_convert_paths_for_json(response), indent=2)
         )
 
-    except Exception as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        json.JSONDecodeError,
+    ) as e:
         processing_time = time.time() - start_time
         log_error(e, "handling search conversations")
         response = _create_no_tools_response(

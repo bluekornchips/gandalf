@@ -19,7 +19,7 @@ source "$SCRIPT_DIR/platform-utils.sh"
 
 # Default configurations
 MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
-GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-2.0.1}"
+GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-2.1.0}"
 ENV_FILE="$GANDALF_ROOT/.env"
 
 # Load common utilities - create a minimal shared.sh if it doesn't exist

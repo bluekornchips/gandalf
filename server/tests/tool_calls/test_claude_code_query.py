@@ -490,7 +490,7 @@ class TestClaudeCodeQueryHandlers:
     @patch("src.tool_calls.claude_code_query.ClaudeCodeQuery")
     def test_handle_query_claude_conversations_exception(self, mock_query_class):
         """Test conversation querying handler with exception."""
-        mock_query_class.side_effect = Exception("Test error")
+        mock_query_class.side_effect = OSError("Test error")
 
         arguments = {"format": "json"}
         result = handle_query_claude_conversations(arguments, self.project_root)
@@ -502,7 +502,7 @@ class TestClaudeCodeQueryHandlers:
     @patch("src.tool_calls.claude_code_query.ClaudeCodeQuery")
     def test_handle_search_claude_conversations_exception(self, mock_query_class):
         """Test conversation searching handler with exception."""
-        mock_query_class.side_effect = Exception("Test error")
+        mock_query_class.side_effect = OSError("Test error")
 
         arguments = {"query": "test"}
         result = handle_search_claude_conversations(arguments, self.project_root)

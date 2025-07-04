@@ -110,7 +110,7 @@ def handle_list_cursor_workspaces(
         log_info(f"Found {result['total_workspaces']} workspace databases")
         return AccessValidator.create_success_response(json.dumps(result, indent=2))
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
         log_error(e, "list_cursor_workspaces")
         return AccessValidator.create_error_response(str(e))
 

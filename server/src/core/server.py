@@ -1,6 +1,6 @@
 """
-MCP server implementation for Gandalf with essential tool set.
-Focuses on core conversation aggregation with essential project context.
+MCP server implementation for Gandalf.
+Focuses on core conversation aggregation and project context.
 """
 
 import os
@@ -40,7 +40,7 @@ from utils.performance import log_operation_time, start_timer
 TOOL_DEFINITIONS = [
     # Core conversation aggregation
     *CONVERSATION_AGGREGATOR_TOOL_DEFINITIONS,
-    # Essential project context
+    # Project context
     {
         "name": "get_project_info",
         "description": "Get comprehensive project information and metadata",
@@ -84,9 +84,9 @@ TOOL_DEFINITIONS = [
             "openWorldHint": False,
         },
     },
-    # Essential file operations
+    # File operations
     TOOL_LIST_PROJECT_FILES,
-    # Essential export functionality
+    # Export functionality
     *CONVERSATION_EXPORT_TOOL_DEFINITIONS,
 ]
 

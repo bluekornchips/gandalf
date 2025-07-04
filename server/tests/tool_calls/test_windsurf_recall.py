@@ -451,7 +451,7 @@ class TestWindsurfRecall:
             def mock_analyze_side_effect(conv, keywords, project_root, fast_mode=True):
                 conv_id = conv.get("id", "unknown")
                 if conv_id == "gandalf_balrog_encounter":
-                    raise Exception("Analysis failed")
+                    raise OSError("Analysis failed")
                 return {
                     "relevance_score": 5.0,
                     "snippet": f"Snippet for {conv_id}",
@@ -474,7 +474,7 @@ class TestWindsurfRecall:
         arguments = {"fast_mode": True, "limit": 10}
 
         with patch("src.tool_calls.windsurf_recall.WindsurfQuery") as mock_query_class:
-            mock_query_class.side_effect = Exception("Database connection failed")
+            mock_query_class.side_effect = OSError("Database connection failed")
 
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
@@ -616,3 +616,18 @@ class TestWindsurfRecall:
             scores = [conv["relevance_score"] for conv in data["conversations"]]
             assert scores == sorted(scores, reverse=True)
             assert scores[0] == 5.0  # gandalf_balrog_encounter should be first
+
+    @patch("src.tool_calls.windsurf_recall.WindsurfQuery")
+    @patch("src.core.conversation_analysis.generate_shared_context_keywords")
+    def test_handle_recall_windsurf_conversations_exception(
+        self, mock_keywords, mock_query_class
+    ):
+        """Test conversation recall handler with exception."""
+        mock_keywords.return_value = ["test-project"]
+        mock_query_class.side_effect = OSError("Test error")
+
+        arguments = {"fast_mode": True}
+        result = handle_recall_windsurf_conversations(arguments, self.project_root)
+
+        assert result["isError"] is True
+        assert "Error recalling Windsurf conversations" in result["error"]

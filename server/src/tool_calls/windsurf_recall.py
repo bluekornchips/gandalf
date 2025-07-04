@@ -158,7 +158,7 @@ def handle_recall_windsurf_conversations(
                 if conv["relevance_score"] >= min_score:
                     analyzed_conversations.append(conv)
 
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 log_error(
                     e, f"analyzing Windsurf conversation {conv.get('id', 'unknown')}"
                 )
@@ -202,7 +202,7 @@ def handle_recall_windsurf_conversations(
             json.dumps(response_data, indent=2, default=str)
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "handle_recall_windsurf_conversations")
         return AccessValidator.create_error_response(
             f"Error recalling Windsurf conversations: {str(e)}"

@@ -69,7 +69,7 @@ teardown() {
     local content
     content=$(echo "$output" | jq -r '.result.content[0].text')
 
-    # Should contain our test files
+    # Should contain the test files
     echo "$content" | grep -q "README.md"
     echo "$content" | grep -q "main.py"
     echo "$content" | grep -q "app.js"
@@ -269,6 +269,6 @@ teardown() {
     local content
     content=$(echo "$output" | jq -r '.result.content[0].text')
     
-    # Should include our README.md file
+    # Should include the README.md file
     echo "$content" | grep -q "README.md"
 }

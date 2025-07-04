@@ -4,8 +4,6 @@
 # Tests cross-platform functionality and path detection to ensure Gandalf works
 # seamlessly across the realms of macOS, Linux, and other platforms.
 #
-# Like the paths through Middle-earth, our scripts must work whether traversing
-# the Shire (macOS) or the lands of Gondor (Linux).
 
 set -eo pipefail
 
@@ -90,7 +88,7 @@ teardown() {
 }
 
 @test "platform utilities avoid Shire paths when not in the Shire like wise hobbits" {
-    # Test that our functions don't return Shire-specific paths in other realms
+    # Test that the functions don't return Shire-specific paths in other realms
     if [[ "$(detect_platform)" != "macos" ]]; then
         local cursor_config
         cursor_config=$(get_cursor_config_dir)

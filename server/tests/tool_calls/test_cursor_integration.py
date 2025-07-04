@@ -79,7 +79,7 @@ class TestCursorIntegration:
         # Create conversation data in Cursor's format
         composer_data = {"allComposers": []}
 
-        # Convert our test conversations to Cursor's format
+        # Convert the test conversations to Cursor's format
         for i, conv in enumerate(conversations):
             cursor_conv = {
                 "composerId": conv.get("id", f"fellowship_{i}"),
@@ -160,7 +160,7 @@ class TestCursorIntegration:
             ],
         )
 
-        # Mock the database discovery to return our test databases
+        # Mock the database discovery to return the test databases
         with patch.object(CursorQuery, "find_workspace_databases") as mock_find_dbs:
             mock_find_dbs.return_value = [db1, db2]
 
@@ -204,19 +204,19 @@ class TestCursorIntegration:
             ],
         )
 
-        # Mock the cursor path discovery to use our test directory
+        # Mock the cursor path discovery to use the test directory
         with patch(
             "src.utils.cursor_chat_query.find_all_cursor_paths"
         ) as mock_find_paths:
             mock_find_paths.return_value = [self.cursor_home / "User"]
 
-            # Mock the workspace database discovery to return our test databases
+            # Mock the workspace database discovery to return the test databases
             with patch.object(CursorQuery, "find_workspace_databases") as mock_find_dbs:
                 mock_find_dbs.return_value = [db1, db2]
 
                 query = CursorQuery()
 
-                # Test filtering - should find our mocked databases
+                # Test filtering - should find the mocked databases
                 result = query.query_all_conversations()
 
                 assert "workspaces" in result
@@ -369,7 +369,7 @@ class TestCursorIntegration:
             self.workspace1_dir, self.workspace1_hash, []
         )
 
-        # Mock the cursor path discovery to use our test directory
+        # Mock the cursor path discovery to use the test directory
         with patch.object(CursorQuery, "find_workspace_databases") as mock_find_dbs:
             mock_find_dbs.return_value = [empty_db]
 
@@ -386,7 +386,7 @@ class TestCursorIntegration:
         corrupted_db = self.workspace1_dir / "state.vscdb"
         corrupted_db.write_text("Sauron's corruption has tainted this database")
 
-        # Mock the cursor path discovery to use our test directory
+        # Mock the cursor path discovery to use the test directory
         with patch.object(CursorQuery, "find_workspace_databases") as mock_find_dbs:
             mock_find_dbs.return_value = [corrupted_db]
 
@@ -423,7 +423,7 @@ class TestCursorIntegration:
             ],
         )
 
-        # Mock the database discovery to return our test databases
+        # Mock the database discovery to return the test databases
         with patch.object(CursorQuery, "find_workspace_databases") as mock_find_dbs:
             mock_find_dbs.return_value = [db1, db2]
 
@@ -462,7 +462,7 @@ class TestCursorIntegration:
             self.workspace1_dir, self.workspace1_hash, conversations
         )
 
-        # Mock the cursor path discovery to use our test directory
+        # Mock the cursor path discovery to use the test directory
         with patch(
             "src.utils.cursor_chat_query.find_all_cursor_paths"
         ) as mock_find_paths:
@@ -552,7 +552,7 @@ class TestCursorRegressionTests:
         # Create conversation data in Cursor's format
         composer_data = {"allComposers": []}
 
-        # Convert our test conversations to Cursor's format
+        # Convert the test conversations to Cursor's format
         for i, conv in enumerate(conversations):
             cursor_conv = {
                 "composerId": conv.get("id", f"fellowship_{i}"),
@@ -618,7 +618,7 @@ class TestCursorRegressionTests:
             ],
         )
 
-        # Mock the database discovery to return our test database
+        # Mock the database discovery to return the test database
         with patch.object(CursorQuery, "find_workspace_databases") as mock_find_dbs:
             mock_find_dbs.return_value = [db_file]
 
@@ -708,7 +708,7 @@ class TestCursorRegressionTests:
             self.workspace_dir, self.workspace_hash, dangerous_conversations
         )
 
-        # Mock the cursor path discovery to use our test directory
+        # Mock the cursor path discovery to use the test directory
         with patch(
             "src.utils.cursor_chat_query.find_all_cursor_paths"
         ) as mock_find_paths:
@@ -747,7 +747,7 @@ class TestCursorRegressionTests:
             ],
         )
 
-        # Mock the cursor path discovery to use our test directory
+        # Mock the cursor path discovery to use the test directory
         with patch(
             "src.utils.cursor_chat_query.find_all_cursor_paths"
         ) as mock_find_paths:
@@ -768,7 +768,3 @@ class TestCursorRegressionTests:
             conn.close()
 
             assert count >= 3  # Should have composer, prompts, and generations data
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])

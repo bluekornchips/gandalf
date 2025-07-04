@@ -71,11 +71,11 @@ EOFMCP
         return 1
     fi
 
-    # Filter and process each JSON line separately, looking for our response
+    # Filter and process each JSON line separately, looking for the response
     local content=""
     while IFS= read -r line; do
         if [[ -n "$line" ]]; then
-            # Try to parse each line as JSON and look for our result
+            # Try to parse each line as JSON and look for the result
             local parsed_line=$(echo "$line" | jq 'select(.id == 2 and has("result")) | .result.content[0].text' -r 2>/dev/null)
             if [[ -n "$parsed_line" && "$parsed_line" != "null" ]]; then
                 content="$parsed_line"

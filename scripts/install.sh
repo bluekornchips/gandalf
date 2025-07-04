@@ -311,9 +311,15 @@ perform_comprehensive_reset() {
     if [[ -f "$cursor_config_file" ]]; then
         echo "Resetting Cursor configuration..."
         if [[ -f "$cursor_config_file" ]]; then
-            local backup_file="${cursor_config_file}.backup.$(date +%Y%m%d_%H%M%S)"
+            # Use organized backup directory
+            local backup_dir="$HOME/.gandalf/backups"
+            mkdir -p "$backup_dir"
+            local backup_file="$backup_dir/cursor-mcp.json.backup.$(date +%Y%m%d_%H%M%S)"
             cp "$cursor_config_file" "$backup_file"
             echo "Cursor backup created: $backup_file"
+
+            # Clean up old backups
+            cleanup_old_backups "$backup_dir" "cursor-mcp.json" 5
         fi
         remove_server "$cursor_config_file" "$server_name" "cursor"
         cat <<EOF
@@ -331,9 +337,15 @@ EOF
     if [[ -f "$claude_config_file" ]]; then
         echo "Resetting Claude Code configuration..."
         if [[ -f "$claude_config_file" ]]; then
-            local backup_file="${claude_config_file}.backup.$(date +%Y%m%d_%H%M%S)"
+            # Use organized backup directory
+            local backup_dir="$HOME/.gandalf/backups"
+            mkdir -p "$backup_dir"
+            local backup_file="$backup_dir/claude-mcp.json.backup.$(date +%Y%m%d_%H%M%S)"
             cp "$claude_config_file" "$backup_file"
             echo "Claude Code backup created: $backup_file"
+
+            # Clean up old backups
+            cleanup_old_backups "$backup_dir" "claude-mcp.json" 5
         fi
         remove_server "$claude_config_file" "$server_name" "claude-code"
         cat <<EOF
@@ -356,11 +368,41 @@ EOF
 Comprehensive reset completed successfully!
 - All agentic tool configurations have been reset
 - All MCP server processes have been stopped
-- Configuration backups have been created
+- Configuration backups have been created in ~/.gandalf/backups/
 
 Proceeding with fresh installation for $detected_tool...
 
 EOF
+}
+
+# Add cleanup function for old backups
+cleanup_old_backups() {
+    local backup_dir="$1"
+    local file_prefix="$2"
+    local max_backups="${3:-5}"
+
+    if [[ ! -d "$backup_dir" ]]; then
+        return 0
+    fi
+
+    # Find backups for this specific file and sort by timestamp (newest first)
+    local backups=($(find "$backup_dir" -name "${file_prefix}.backup.*" 2>/dev/null | sort -r))
+
+    if [[ ${#backups[@]} -le $max_backups ]]; then
+        return 0
+    fi
+
+    # Remove excess backups (keep only the most recent ones)
+    local keep_count=0
+    for backup in "${backups[@]}"; do
+        if [[ $keep_count -lt $max_backups ]]; then
+            keep_count=$((keep_count + 1))
+            continue
+        fi
+
+        rm -f "$backup"
+        echo "Removed old backup: $(basename "$backup")"
+    done
 }
 
 get_python_executable() {
@@ -560,7 +602,7 @@ EOF
     python_exec=$(get_python_executable)
     echo "Testing MCP server with Python: $python_exec"
 
-    if ! "$python_exec" "$SERVER_SCRIPT" --help >/dev/null 2>&1; then
+    if ! bash -c "cd '$GANDALF_ROOT/server' && PYTHONPATH=. '$python_exec' src/main.py --help" >/dev/null 2>&1; then
         cat <<EOF
 Error: MCP server test failed
 This may be due to missing Python dependencies.
@@ -591,7 +633,15 @@ update_cursor_config() {
     mkdir -p "$(dirname "$config_file")"
 
     if [[ -f "$config_file" ]]; then
-        cp "$config_file" "$config_file.backup.$(date +%s)"
+        local backup_dir="$HOME/.gandalf/backups"
+        mkdir -p "$backup_dir"
+        local backup_file="$backup_dir/cursor-mcp.json.backup.$(date +%Y%m%d_%H%M%S)"
+        cp "$config_file" "$backup_file"
+        echo "Cursor backup created: $backup_file"
+
+        # Clean up old backups (keep only 5 most recent)
+        cleanup_old_backups "$backup_dir" "cursor-mcp.json" 5
+
         temp_file=$(mktemp)
 
         if command -v jq &>/dev/null; then
@@ -991,7 +1041,7 @@ test_server_connectivity() {
             echo "Found $mcp_process_count MCP server process(es) running"
         fi
 
-        if timeout 3 "$python_exec" "$SERVER_SCRIPT" --help >/dev/null 2>&1; then
+        if timeout 3 bash -c "cd '$GANDALF_ROOT/server' && PYTHONPATH=. '$python_exec' src/main.py --help" >/dev/null 2>&1; then
             script_test=true
         fi
 
@@ -1002,13 +1052,13 @@ test_server_connectivity() {
             export CLAUDE_CODE_ENTRYPOINT=cli
         fi
 
-        if init_response=$(echo '{"jsonrpc": "2.0", "method": "initialize", "id": 1}' | timeout 5 "$python_exec" "$SERVER_SCRIPT" 2>/dev/null); then
+        if init_response=$(echo '{"jsonrpc": "2.0", "method": "initialize", "id": 1}' | timeout 5 bash -c "cd '$GANDALF_ROOT/server' && PYTHONPATH=. '$python_exec' src/main.py" 2>/dev/null); then
             if echo "$init_response" | grep -q '"protocolVersion"'; then
                 init_test=true
             fi
         fi
 
-        if tools_response=$(echo '{"jsonrpc": "2.0", "method": "tools/list", "id": 2}' | timeout 5 "$python_exec" "$SERVER_SCRIPT" 2>/dev/null); then
+        if tools_response=$(echo '{"jsonrpc": "2.0", "method": "tools/list", "id": 2}' | timeout 5 bash -c "cd '$GANDALF_ROOT/server' && PYTHONPATH=. '$python_exec' src/main.py" 2>/dev/null); then
             if echo "$tools_response" | grep -q '"tools"'; then
                 tools_test=true
             fi

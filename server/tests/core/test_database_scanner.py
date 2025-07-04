@@ -578,7 +578,3 @@ class TestGetAvailableAgenticTools(unittest.TestCase):
 
         # Should only return "cursor" once, even though there are two databases
         self.assertEqual(result, ["cursor"])
-
-
-if __name__ == "__main__":
-    unittest.main()

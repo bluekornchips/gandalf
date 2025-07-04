@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Lembas
 # Lembas bread could not fulfill the hunger of a hobbit, but it could fulfill the hunger of a developer.
 
 set -euo pipefail
@@ -21,8 +20,7 @@ SCRIPTS_DIR="$GANDALF_ROOT/scripts"
 # Global variables for step tracking
 CURRENT_STEP=0
 TOTAL_STEPS=8
-SHORT_MODE=false
-CORE_MODE=false
+TEST_MODE="core" # Default to core tests, quick validation
 
 # Tracks and displays step progress with timing
 run_step() {
@@ -46,39 +44,30 @@ run_step() {
 run_tests_suite() {
     echo "Running test suite for validation..."
 
-    local fast_tests=false
-    if [[ "$SHORT_MODE" == "true" ]]; then
-        fast_tests=true
-    fi
-
-    if [[ "$fast_tests" == "true" ]]; then
-        if ! bash "$TESTS_DIR/test-suite.sh" smoke --count >/dev/null 2>&1; then
-            echo "Warning: Smoke tests failed. Continuing with full test run..."
-        else
-            echo "Fast validation: All tests passed"
-            if ! bash "$TESTS_DIR/test-suite.sh" smoke; then
-                show_fast_test_failure
-                return 1
-            fi
+    case "$TEST_MODE" in
+    "core")
+        echo "Running core tests (quick validation)..."
+        if ! bash "$SCRIPTS_DIR/test-suite.sh" core; then
+            return 1
         fi
-    else
-        # Run all tests by default, or core tests if --core flag is passed
-        if [[ "$CORE_MODE" == "true" ]]; then
-            if ! bash "$TESTS_DIR/test-suite.sh" lembas; then
-                show_test_failure
-                return 1
-            fi
-        else
-            # Run all tests (shell + python)
-            if ! bash "$TESTS_DIR/test-suite.sh"; then
-                show_test_failure
-                return 1
-            fi
+        ;;
+    "e2e")
+        echo "Running end-to-end tests (integration workflows and performance)..."
+        if ! bash "$SCRIPTS_DIR/test-suite.sh" e2e; then
+            return 1
         fi
-    fi
-
-    echo "All tests passed"
-    return 0
+        ;;
+    "all")
+        echo "Running all tests (shell + python)..."
+        if ! bash "$SCRIPTS_DIR/test-suite.sh" all; then
+            return 1
+        fi
+        ;;
+    *)
+        echo "Unknown test mode: $TEST_MODE"
+        return 1
+        ;;
+    esac
 }
 
 check_conversation_system() {
@@ -161,12 +150,16 @@ lembas() {
             force_flag="-f"
             shift
             ;;
-        -s | --short)
-            SHORT_MODE=true
+        --core)
+            TEST_MODE="core"
             shift
             ;;
-        --core)
-            CORE_MODE=true
+        --e2e)
+            TEST_MODE="e2e"
+            shift
+            ;;
+        --all)
+            TEST_MODE="all"
             shift
             ;;
         *)
@@ -176,15 +169,21 @@ lembas() {
         esac
     done
 
-    if [[ "$SHORT_MODE" == "true" ]]; then
-        echo "Short mode enabled: Running fast tests and skipping time-consuming operations"
-    fi
-
-    if [[ "$CORE_MODE" == "true" ]]; then
-        echo "Core mode enabled: Running core test suite only (excludes performance and python tests)"
-    else
+    case "$TEST_MODE" in
+    "core")
+        echo "Core mode enabled: Running core test suite only (quick tests)"
+        ;;
+    "e2e")
+        echo "End-to-end mode enabled: Running end-to-end test suite (integration workflows and performance)"
+        ;;
+    "all")
+        echo "All mode enabled: Running complete test suite (shell + python tests)"
+        ;;
+    *)
         echo "Full mode enabled: Running complete test suite (shell + python tests)"
-    fi
+        TEST_MODE="all"
+        ;;
+    esac
 
     echo "Repository path: $repo_path"
 
@@ -217,11 +216,20 @@ lembas() {
     local total_time=$(($(date +%s) - start_time))
 
     local mode_description="Full mode (complete validation)"
-    if [[ "$CORE_MODE" == "true" ]]; then
+    case "$TEST_MODE" in
+    "core")
         mode_description="Core mode (core tests only)"
-    elif [[ "$SHORT_MODE" == "true" ]]; then
-        mode_description="Short mode (fast validation)"
-    fi
+        ;;
+    "e2e")
+        mode_description="End-to-end mode (integration workflows and performance)"
+        ;;
+    "all")
+        mode_description="All mode (complete validation)"
+        ;;
+    *)
+        mode_description="Full mode (complete validation)"
+        ;;
+    esac
 
     cat <<EOF
 
@@ -240,14 +248,6 @@ Next Steps
 1. Verify MCP server integration in Cursor
 2. Test real-time conversation queries via MCP tools
 3. Monitor system performance under normal usage
-EOF
-}
-
-# Show fast test failure message
-show_fast_test_failure() {
-    cat <<EOF
-Fast tests failed. Aborting lembas.
-Fix the failing tests above and run lembas again.
 EOF
 }
 
