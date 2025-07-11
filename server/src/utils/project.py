@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
-from utils.access_control import AccessValidator
+from src.utils.access_control import AccessValidator
 
 
 @dataclass

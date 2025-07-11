@@ -4,10 +4,9 @@
 
 set -euo pipefail
 
-# Get the script directory and set up paths
-SHELL_MANAGER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-GANDALF_ROOT="$(cd "$SHELL_MANAGER_DIR/../.." && pwd -P)"
-TESTS_DIR="$GANDALF_ROOT/scripts/tests"
+readonly SHELL_MANAGER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd -P)"
+readonly GANDALF_ROOT="$(cd "$SHELL_MANAGER_DIR/../.." && pwd -P)"
+readonly TESTS_DIR="$GANDALF_ROOT/scripts/tests"
 
 # Several test suites have been temporarily disabled during migration to Python tests
 # The following suites are being migrated from shell/bats to Python/pytest for better maintainability:
@@ -49,6 +48,7 @@ shell_is_valid_suite() {
 }
 
 shell_list_suites() {
+    local suite
     for suite in "${!SHELL_TEST_SUITES[@]}"; do
         echo "$suite ${SHELL_TEST_SUITES[$suite]}"
     done
@@ -85,6 +85,7 @@ shell_count_suite_tests() {
 
 shell_count_all_tests() {
     local total=0
+    local suite
 
     for suite in "${!SHELL_TEST_SUITES[@]}"; do
         if shell_suite_exists "$suite"; then
@@ -171,6 +172,7 @@ shell_run_all_tests() {
     local total_passed=0
     local total_failed=0
     local failed_suites=()
+    local suite
 
     for suite in "${!SHELL_TEST_SUITES[@]}"; do
         if ! shell_suite_exists "$suite"; then
@@ -220,6 +222,7 @@ shell_show_test_counts() {
 Shell tests (bats):
 EOF
 
+    local suite
     for suite in $(printf '%s\n' "${!SHELL_TEST_SUITES[@]}" | sort); do
         if shell_suite_exists "$suite"; then
             printf "%-15s %s\n" "$suite:" "$(shell_count_suite_tests "$suite")"

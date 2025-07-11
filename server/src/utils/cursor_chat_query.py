@@ -26,7 +26,7 @@ CURSOR_DATABASE_FILES = [
 def is_running_in_wsl() -> bool:
     """Check if we're running in Windows Subsystem for Linux."""
     try:
-        with open("/proc/version", "r") as f:
+        with open("/proc/version", "r", encoding="utf-8") as f:
             return "microsoft" in f.read().lower()
     except (OSError, IOError):
         return False
@@ -246,7 +246,12 @@ class CursorQuery:
                 cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
                 result = cursor.fetchone()
                 if result:
-                    return json.loads(result[0])
+                    data = json.loads(result[0])
+                    # Explicitly close to ensure cleanup
+                    cursor.close()
+                    return data
+                # Explicitly close to ensure cleanup
+                cursor.close()
                 return None
         except (sqlite3.Error, json.JSONDecodeError, OSError) as e:
             if not self.silent:

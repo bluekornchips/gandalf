@@ -1,0 +1,88 @@
+#!/bin/bash
+# Claude Code uninstall logic for Gandalf MCP
+
+uninstall_claude_code_global() {
+    local server_name="$1"
+    local backup_path="$2"
+    local dry_run="$3"
+
+    echo "Removing Claude Code configuration..."
+    
+    local claude_config="$HOME/.claude/mcp.json"
+    local claude_settings="$HOME/.claude/settings.json"
+    local claude_global_settings="$HOME/.claude/global_settings.json"
+
+    if command -v claude >/dev/null 2>&1; then
+        if [[ "$dry_run" == "false" ]]; then
+            claude mcp remove "$server_name" -s user 2>/dev/null || true
+            claude mcp remove "$server_name" -s local 2>/dev/null || true
+        else
+            echo "[DRY RUN] Would remove Claude Code MCP configuration via CLI"
+        fi
+    else
+        if [[ -f "$claude_config" ]]; then
+            if [[ "$dry_run" == "false" ]]; then
+                cp "$claude_config" "$backup_path/" 2>/dev/null || true
+                if command -v jq &>/dev/null; then
+                    local temp_file
+                    temp_file=$(mktemp)
+                    jq --arg name "$server_name" 'del(.mcpServers[$name])' "$claude_config" >"$temp_file" && mv "$temp_file" "$claude_config"
+                else
+                    rm -f "$claude_config"
+                fi
+            else
+                echo "[DRY RUN] Would remove Claude Code MCP configuration"
+            fi
+        fi
+    fi
+
+    if [[ -f "$claude_global_settings" ]]; then
+        if [[ "$dry_run" == "false" ]]; then
+            cp "$claude_global_settings" "$backup_path/" 2>/dev/null || true
+            if command -v jq &>/dev/null; then
+                local temp_file
+                temp_file=$(mktemp)
+                jq 'del(.gandalfRules)' "$claude_global_settings" >"$temp_file" && mv "$temp_file" "$claude_global_settings"
+            fi
+        else
+            echo "[DRY RUN] Would remove Gandalf rules from Claude Code global settings"
+        fi
+    fi
+
+    if [[ -f "$claude_settings" ]]; then
+        if [[ "$dry_run" == "false" ]]; then
+            cp "$claude_settings" "$backup_path/" 2>/dev/null || true
+            if command -v jq &>/dev/null; then
+                local temp_file
+                temp_file=$(mktemp)
+                jq 'del(.gandalfRules)' "$claude_settings" >"$temp_file" && mv "$temp_file" "$claude_settings"
+            fi
+        else
+            echo "[DRY RUN] Would remove Gandalf rules from Claude Code settings"
+        fi
+    fi
+}
+
+uninstall_claude_code_local() {
+    local target_dir="$1"
+    local backup_path="$2"
+    local dry_run="$3"
+
+    local claude_config="$target_dir/.claude/local_settings.json"
+    
+    if [[ -f "$claude_config" ]]; then
+        echo "Removing local Claude Code configuration..."
+        if [[ "$dry_run" == "false" ]]; then
+            mkdir -p "$backup_path/claude/"
+            cp "$claude_config" "$backup_path/claude/" 2>/dev/null || true
+            rm -f "$claude_config"
+            echo "Removed local Claude Code configuration"
+        else
+            echo "[DRY RUN] Would remove local Claude Code configuration"
+        fi
+    fi
+
+    if [[ -d "$target_dir/.claude" ]] && [[ -z "$(ls -A "$target_dir/.claude" 2>/dev/null)" ]]; then
+        [[ "$dry_run" == "false" ]] && rmdir "$target_dir/.claude" 2>/dev/null || true
+    fi
+} 

@@ -1,8 +1,7 @@
-"""Test JSON-RPC constants."""
+"""Test JSONRPC constants and enums."""
 
-import pytest
-
-from src.config.constants import ErrorCodes, JSONRPC_VERSION
+from src.config.constants.server import JSONRPC_VERSION
+from src.config.enums import ErrorCodes
 
 
 class TestJsonRpcConstants:
@@ -29,6 +28,9 @@ class TestJsonRpcConstants:
     def test_error_codes_iteration(self):
         """Test that ErrorCodes can be iterated over."""
         error_codes = list(ErrorCodes)
-        assert len(error_codes) == 5
+        assert len(error_codes) >= 5  # We have at least the JSON-RPC error codes
         assert ErrorCodes.PARSE_ERROR in error_codes
         assert ErrorCodes.INTERNAL_ERROR in error_codes
+        assert ErrorCodes.METHOD_NOT_FOUND in error_codes
+        assert ErrorCodes.INVALID_REQUEST in error_codes
+        assert ErrorCodes.INVALID_PARAMS in error_codes

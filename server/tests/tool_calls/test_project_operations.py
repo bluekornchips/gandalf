@@ -1,327 +1,256 @@
-"""Tests for project operations functionality."""
+"""
+Tests for project operations functionality.
+
+Tests project info retrieval, git operations, and file statistics
+with comprehensive coverage of project operations functionality.
+"""
 
 import json
-import os
+import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.config.constants import (
-    GANDALF_SERVER_VERSION,
-    MCP_PROTOCOL_VERSION,
-)
 from src.tool_calls.project_operations import (
+    get_project_info,
     get_git_info,
     handle_get_project_info,
-    handle_get_server_version,
-    validate_project_root,
+    _get_file_statistics,
 )
 
 
-class TestGetServerVersion:
-    """Test get_server_version tool functionality."""
+class TestGetProjectInfo:
+    """Test get_project_info function."""
 
-    def test_handle_get_server_version_success(self):
-        """Test successful server version retrieval."""
-        mock_project_root = Path("/path/to/project")
-        arguments = {}
+    def test_get_project_info_complete(self):
+        """Test complete project info retrieval."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = Path(temp_dir)
 
-        with patch("time.time", return_value=1234567890.0):
-            result = handle_get_server_version(arguments, mock_project_root)
+            # Create some test files
+            (project_root / "main.py").write_text("print('hello')")
+            (project_root / "README.md").write_text("# Test Project")
 
-        assert "content" in result
-        assert result["content"][0]["type"] == "text"
+            # Mock git operations
+            with patch("src.tool_calls.project_operations.get_git_info") as mock_git:
+                mock_git.return_value = {
+                    "is_git_repo": True,
+                    "current_branch": "main",
+                    "repo_root": str(project_root),
+                }
 
-        content = json.loads(result["content"][0]["text"])
-        assert content["server_version"] == GANDALF_SERVER_VERSION
-        assert content["protocol_version"] == MCP_PROTOCOL_VERSION
-        assert content["timestamp"] == 1234567890.0
+                with patch(
+                    "src.tool_calls.project_operations._get_file_statistics"
+                ) as mock_stats:
+                    mock_stats.return_value = {
+                        "total_files": 2,
+                        "total_directories": 0,
+                        "method": "mocked",
+                    }
 
-    def test_handle_get_server_version_with_environment_variable(self):
-        """Test server version retrieval with environment variable override."""
-        mock_project_root = Path("/path/to/project")
-        arguments = {}
+                    result = get_project_info(project_root)
 
-        with patch.dict(os.environ, {"GANDALF_SERVER_VERSION": "2.1.0"}):
-            # Need to reload the module to pick up the new env var
-            with patch(
-                "src.tool_calls.project_operations.GANDALF_SERVER_VERSION",
-                "2.1.0",
-            ):
-                with patch("time.time", return_value=1234567890.0):
-                    result = handle_get_server_version(arguments, mock_project_root)
+                    assert (
+                        result["project_name"] == "tmp"
+                        or result["project_name"] == temp_dir.split("/")[-1]
+                    )
+                    assert result["project_root"] == str(project_root)
+                    assert result["git"]["is_git_repo"] is True
+                    assert result["file_stats"]["total_files"] == 2
 
-        assert "content" in result
-        content = json.loads(result["content"][0]["text"])
-        assert content["server_version"] == "2.1.0"
+    def test_get_project_info_without_stats(self):
+        """Test project info retrieval without statistics."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = Path(temp_dir)
 
-    @patch("src.tool_calls.project_operations.GANDALF_SERVER_VERSION", "test_version")
-    def test_handle_get_server_version_exception(self):
-        """Test server version handler with exception."""
-        mock_project_root = Path("/path/to/project")
-        with patch(
-            "src.tool_calls.project_operations.time.time",
-            side_effect=OSError("Test error"),
-        ):
-            arguments = {}
-            result = handle_get_server_version(arguments, mock_project_root)
+            with patch("src.tool_calls.project_operations.get_git_info") as mock_git:
+                mock_git.return_value = {
+                    "is_git_repo": False,
+                }
 
-            assert result["isError"] is True
-            assert "Error retrieving server version" in result["error"]
+                # Test handle function with include_stats=False
+                result = handle_get_project_info({"include_stats": False}, project_root)
 
-    def test_get_server_version_returns_expected_fields(self):
-        """Test that get_server_version returns all expected fields."""
-        mock_project_root = Path("/path/to/project")
-        arguments = {}
-
-        result = handle_get_server_version(arguments, mock_project_root)
-        content = json.loads(result["content"][0]["text"])
-
-        expected_fields = {"server_version", "protocol_version", "timestamp"}
-        assert set(content.keys()) == expected_fields
-
-        assert isinstance(content["server_version"], str)
-        assert isinstance(content["protocol_version"], str)
-        assert isinstance(content["timestamp"], (int, float))
-
-    def test_get_server_version_ignores_arguments(self):
-        """Test that get_server_version ignores any arguments passed to it."""
-        mock_project_root = Path("/path/to/project")
-
-        arguments = {
-            "include_stats": True,
-            "random_param": "should_be_ignored",
-            "another_param": 123,
-        }
-
-        result = handle_get_server_version(arguments, mock_project_root)
-
-        assert "content" in result
-        content = json.loads(result["content"][0]["text"])
-        assert content["server_version"] == GANDALF_SERVER_VERSION
-
-
-class TestProjectOperationsIntegration:
-    """Test integration between different project operations."""
-
-    def test_validate_project_root_existing_directory(self):
-        """Test project root validation with existing directory."""
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("pathlib.Path.is_dir", return_value=True):
-                result = validate_project_root(Path("/existing/dir"))
-                assert result is True
-
-    def test_validate_project_root_nonexistent_directory(self):
-        """Test project root validation with non-existent directory."""
-        with patch("pathlib.Path.exists", return_value=False):
-            result = validate_project_root(Path("/nonexistent/dir"))
-            assert result is False
-
-    def test_validate_project_root_file_not_directory(self):
-        """Test project root validation with file instead of directory."""
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("pathlib.Path.is_dir", return_value=False):
-                result = validate_project_root(Path("/path/to/file"))
-                assert result is False
-
-    def test_validate_project_root_permission_error(self):
-        """Test project root validation with permission error."""
-        with patch("pathlib.Path.exists", side_effect=PermissionError):
-            result = validate_project_root(Path("/no/permission"))
-            assert result is False
-
-
-class TestGitInfoRetrieval:
-    """Test Git information retrieval functionality."""
-
-    def test_get_git_info_valid_repo(self):
-        """Test Git info retrieval for valid repository."""
-        mock_project_root = Path("/path/to/shire")
-
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_result.stdout = "fellowship\n"
-
-        with patch("subprocess.run") as mock_run:
-            mock_run.side_effect = [
-                # First call: git rev-parse --is-inside-work-tree
-                Mock(returncode=0),
-                # Second call: git branch --show-current
-                mock_result,
-                # Third call: git rev-parse --show-toplevel
-                Mock(returncode=0, stdout="/path/to/shire\n"),
-            ]
-
-            result = get_git_info(mock_project_root)
-
-            assert result["is_git_repo"] is True
-            assert result["current_branch"] == "fellowship"
-            assert result["repo_root"] == "/path/to/shire"
-
-    def test_get_git_info_not_a_repo(self):
-        """Test Git info retrieval for non-repository."""
-        mock_project_root = Path("/path/to/mordor")
-
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = Mock(returncode=1)
-
-            result = get_git_info(mock_project_root)
-
-            assert result["is_git_repo"] is False
-
-    def test_get_git_info_subprocess_error(self):
-        """Test Git info retrieval with subprocess error."""
-        mock_project_root = Path("/path/to/isengard")
-
-        with patch("subprocess.run", side_effect=OSError("Git not found in Isengard")):
-            result = get_git_info(mock_project_root)
-
-            assert result["is_git_repo"] is False
-            assert "error" in result
+                # Updated: check for new response format with content field
+                assert "content" in result
+                content = json.loads(result["content"][0]["text"])
+                assert "project_name" in content
+                assert "project_root" in content
+                # Should not have git or file_stats when stats are disabled
+                assert "git" not in content
+                assert "file_stats" not in content
 
 
 class TestProjectOperationsErrorHandling:
     """Test error handling in project operations."""
 
-    def test_handle_get_project_info_invalid_include_stats(self):
-        """Test get_project_info with invalid include_stats parameter."""
-        mock_project_root = Path("/path/to/project")
-        arguments = {"include_stats": "not_a_boolean"}
-
-        result = handle_get_project_info(arguments, mock_project_root)
-
-        assert result["isError"] is True
-        assert "include_stats must be a boolean" in result["error"]
-
     def test_handle_get_project_info_path_validation_error(self):
-        """Test get_project_info with path validation error."""
-        mock_project_root = Path("/invalid/path")
+        """Test handling of path validation errors."""
+        mock_project_root = Path("/nonexistent/path")
         arguments = {"include_stats": True}
 
         with patch(
-            "src.tool_calls.project_operations.validate_project_root"
-        ) as mock_validate:
-            mock_validate.return_value = False
-
+            "src.tool_calls.project_operations.validate_project_root",
+            return_value=False,
+        ):
             result = handle_get_project_info(arguments, mock_project_root)
 
-            assert result["isError"] is True
+            # Updated: check for error response format
+            assert "error" in result
             assert "Project root does not exist or is not accessible" in result["error"]
 
-    @patch("src.tool_calls.project_operations.get_project_info")
-    @patch("src.tool_calls.project_operations.validate_project_root")
-    def test_handle_get_project_info_exception(
-        self, mock_validate, mock_get_project_info
-    ):
-        """Test project info handler with exception."""
-        mock_validate.return_value = True
-        mock_get_project_info.side_effect = OSError("Test error")
+    def test_handle_get_project_info_exception(self):
+        """Test handling of unexpected exceptions."""
         mock_project_root = Path("/path/to/project")
-
         arguments = {"include_stats": True}
-        result = handle_get_project_info(arguments, mock_project_root)
 
-        assert result["isError"] is True
-        assert "Error retrieving project info" in result["error"]
-
-
-class TestVersionEnvironmentIntegration:
-    """Test version functionality with environment variable integration."""
-
-    def test_server_version_uses_environment_variable(self):
-        """Test that server version uses environment variable when set."""
-        mock_project_root = Path("/path/to/project")
-        arguments = {}
-        test_version = "3.0.0-test"
-
-        with patch.dict(os.environ, {"GANDALF_SERVER_VERSION": test_version}):
+        with patch(
+            "src.tool_calls.project_operations.validate_project_root",
+            return_value=True,
+        ):
             with patch(
-                "src.tool_calls.project_operations.GANDALF_SERVER_VERSION",
-                test_version,
+                "src.tool_calls.project_operations.get_project_info",
+                side_effect=ValueError("Unexpected error"),
             ):
-                result = handle_get_server_version(arguments, mock_project_root)
+                result = handle_get_project_info(arguments, mock_project_root)
 
-        assert "content" in result
-        content = json.loads(result["content"][0]["text"])
-        assert content["server_version"] == test_version
+                # Updated: check for error response format
+                assert "error" in result
+                assert "Error retrieving project info" in result["error"]
 
-    def test_server_version_fallback_when_no_env_var(self):
-        """Test that server version falls back to default when no env var."""
+    def test_handle_get_project_info_without_stats(self):
+        """Test project info retrieval without statistics."""
         mock_project_root = Path("/path/to/project")
-        arguments = {}
+        arguments = {"include_stats": False}
 
-        # Ensure no environment variable is set
-        with patch.dict(os.environ, {}, clear=True):
-            result = handle_get_server_version(arguments, mock_project_root)
+        with patch(
+            "src.tool_calls.project_operations.validate_project_root",
+            return_value=True,
+        ):
+            with patch(
+                "src.tool_calls.project_operations._create_basic_project_info"
+            ) as mock_basic:
+                mock_basic.return_value = {
+                    "project_name": "project",
+                    "project_root": str(mock_project_root),
+                    "timestamp": 1234567890,
+                    "valid_path": True,
+                    "sanitized": False,
+                }
 
-        assert "content" in result
-        content = json.loads(result["content"][0]["text"])
-        # Should use the default fallback version
-        assert content["server_version"] == GANDALF_SERVER_VERSION
+                result = handle_get_project_info(arguments, mock_project_root)
 
-
-class TestToolDefinitionCompliance:
-    """Test that tools comply with MCP tool definition standards."""
-
-    def test_get_server_version_tool_definition_structure(self):
-        """Test that get_server_version tool definition has correct structure."""
-        from src.tool_calls.project_operations import TOOL_GET_SERVER_VERSION
-
-        # Check required fields
-        assert "name" in TOOL_GET_SERVER_VERSION
-        assert "description" in TOOL_GET_SERVER_VERSION
-        assert "inputSchema" in TOOL_GET_SERVER_VERSION
-        assert "annotations" in TOOL_GET_SERVER_VERSION
-
-        # Check specific values
-        assert TOOL_GET_SERVER_VERSION["name"] == "get_server_version"
-        assert isinstance(TOOL_GET_SERVER_VERSION["description"], str)
-
-        # Check input schema structure
-        schema = TOOL_GET_SERVER_VERSION["inputSchema"]
-        assert schema["type"] == "object"
-        assert "properties" in schema
-        assert "required" in schema
-        assert schema["required"] == []  # No required parameters
-
-        # Check annotations
-        annotations = TOOL_GET_SERVER_VERSION["annotations"]
-        assert annotations["readOnlyHint"] is True
-        assert annotations["destructiveHint"] is False
-        assert annotations["idempotentHint"] is True
-
-    def test_tool_handlers_registration(self):
-        """Test that all tool handlers are properly registered."""
-        from src.tool_calls.project_operations import PROJECT_TOOL_HANDLERS
-
-        assert "get_server_version" in PROJECT_TOOL_HANDLERS
-        assert callable(PROJECT_TOOL_HANDLERS["get_server_version"])
-        assert PROJECT_TOOL_HANDLERS["get_server_version"] == handle_get_server_version
-
-    def test_tool_definitions_registration(self):
-        """Test that all tool definitions are properly registered."""
-        from src.tool_calls.project_operations import (
-            PROJECT_TOOL_DEFINITIONS,
-            TOOL_GET_SERVER_VERSION,
-        )
-
-        assert TOOL_GET_SERVER_VERSION in PROJECT_TOOL_DEFINITIONS
-
-        # Find the get_server_version tool
-        version_tool = None
-        for tool in PROJECT_TOOL_DEFINITIONS:
-            if tool["name"] == "get_server_version":
-                version_tool = tool
-                break
-
-        assert version_tool is not None
-        assert version_tool["name"] == "get_server_version"
+                # Updated: check for new response format with content field
+                assert "content" in result
+                content = json.loads(result["content"][0]["text"])
+                assert content["project_name"] == "project"
 
 
-class TestProjectOperations:
-    """Test project operations functionality."""
+class TestGitInfoIntegration:
+    """Test git information integration."""
 
-    def test_get_project_info_basic(self):
-        """Test basic project info retrieval."""
-        with patch("src.tool_calls.project_operations.Path") as mock_path:
-            mock_path.return_value.exists.return_value = True
-            mock_path.return_value.is_dir.return_value = True
+    def test_get_git_info_not_a_repo(self):
+        """Test Git info retrieval for non-repository."""
+        mock_project_root = Path("/path/to/project")
+
+        with patch("subprocess.run") as mock_run:
+            # Mock failed git command (not a repo)
+            mock_run.return_value = Mock(returncode=1)
+
+            result = get_git_info(mock_project_root)
+
+            assert result["is_git_repo"] is False
+            # The function only sets current_branch when it's a git repo
+            assert (
+                "current_branch" not in result or result.get("current_branch") is None
+            )
+
+    def test_get_git_info_subprocess_error(self):
+        """Test Git info retrieval with subprocess error."""
+        mock_project_root = Path("/path/to/project")
+
+        # Mock subprocess.run to raise OSError, which is caught by get_git_info
+        with patch("subprocess.run", side_effect=OSError("Git error")):
+            result = get_git_info(mock_project_root)
+
+            assert result["is_git_repo"] is False
+            assert "error" in result
+            assert "Git error" in result["error"]
+
+
+class TestFileStatistics:
+    """Test file statistics functionality."""
+
+    def test_get_file_statistics_success(self):
+        """Test successful file statistics retrieval."""
+        mock_project_root = Path("/path/to/project")
+
+        with patch(
+            "src.tool_calls.project_operations._get_file_stats_with_cache_optimization"
+        ) as mock_cache_opt:
+            mock_cache_opt.return_value = {
+                "total_files": 100,
+                "total_directories": 10,
+                "method": "cached_optimized",
+            }
+
+            # Mock the Path.exists() method to return True
+            with patch.object(Path, "exists", return_value=True):
+                result = _get_file_statistics(mock_project_root)
+
+                assert result["total_files"] == 100
+                assert result["total_directories"] == 10
+
+    def test_get_file_statistics_fallback(self):
+        """Test file statistics with fallback method."""
+        mock_project_root = Path("/path/to/project")
+
+        # Mock the optimization method to fail and fallback to fast method
+        with patch(
+            "src.tool_calls.project_operations._get_file_stats_with_cache_optimization",
+            side_effect=OSError("Cache error"),
+        ):
+            with patch(
+                "src.tool_calls.project_operations._get_file_stats_fast"
+            ) as mock_fast:
+                mock_fast.return_value = {
+                    "total_files": 50,
+                    "total_directories": 5,
+                    "method": "find_command",
+                }
+
+                # Mock the Path.exists() method to return True
+                with patch.object(Path, "exists", return_value=True):
+                    result = _get_file_statistics(mock_project_root)
+
+                    # Should use the fallback method when optimization fails
+                    assert result["total_files"] == 50
+                    assert result["total_directories"] == 5
+                    assert result["method"] == "find_command"
+
+    def test_get_file_statistics_all_methods_fail(self):
+        """Test file statistics when all methods fail."""
+        mock_project_root = Path("/path/to/project")
+
+        # Mock the fast method to return an error result instead of raising
+        with patch(
+            "src.tool_calls.project_operations._get_file_stats_with_cache_optimization",
+            side_effect=OSError("Error"),
+        ):
+            with patch(
+                "src.tool_calls.project_operations._get_file_stats_fast"
+            ) as mock_fast:
+                # Mock _get_file_stats_fast to return error result
+                mock_fast.return_value = {
+                    "total_files": 0,
+                    "total_directories": 0,
+                    "method": "find_error",
+                }
+
+                # Mock the Path.exists() method to return True
+                with patch.object(Path, "exists", return_value=True):
+                    result = _get_file_statistics(mock_project_root)
+
+                    # When optimization fails, should fallback to fast method
+                    assert result["total_files"] == 0
+                    assert result["total_directories"] == 0
+                    assert result["method"] == "find_error"

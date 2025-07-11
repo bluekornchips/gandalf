@@ -12,7 +12,6 @@ from unittest.mock import Mock, mock_open, patch
 
 from src.core.conversation_storage import (
     clear_conversation_storage,
-    generate_context_keywords,
     get_conversation_storage_info,
     get_project_storage_hash,
     get_storage_directory,
@@ -561,7 +560,9 @@ class TestUtilityFunctions:
 
     def test_generate_context_keywords_alias(self):
         """Test that generate_context_keywords is properly aliased."""
-        from src.core.conversation_analysis import generate_shared_context_keywords
+        from src.core.conversation_analysis import (
+            generate_shared_context_keywords,
+        )
         from src.core.conversation_storage import generate_context_keywords
 
         # Check that they point to the same function (same name)
@@ -584,12 +585,15 @@ class TestIntegration:
         storage_file = tmp_path / "conversations.json"
         metadata_file = tmp_path / "metadata.json"
 
-        with patch(
-            "src.core.conversation_storage.get_storage_file_path",
-            return_value=storage_file,
-        ), patch(
-            "src.core.conversation_storage.get_storage_metadata_path",
-            return_value=metadata_file,
+        with (
+            patch(
+                "src.core.conversation_storage.get_storage_file_path",
+                return_value=storage_file,
+            ),
+            patch(
+                "src.core.conversation_storage.get_storage_metadata_path",
+                return_value=metadata_file,
+            ),
         ):
 
             project_root = tmp_path / "project"
@@ -621,12 +625,15 @@ class TestIntegration:
         storage_file.write_text('{"test": "data"}')
         metadata_file.write_text('{"test": "metadata"}')
 
-        with patch(
-            "src.core.conversation_storage.get_storage_file_path",
-            return_value=storage_file,
-        ), patch(
-            "src.core.conversation_storage.get_storage_metadata_path",
-            return_value=metadata_file,
+        with (
+            patch(
+                "src.core.conversation_storage.get_storage_file_path",
+                return_value=storage_file,
+            ),
+            patch(
+                "src.core.conversation_storage.get_storage_metadata_path",
+                return_value=metadata_file,
+            ),
         ):
 
             info = get_conversation_storage_info()

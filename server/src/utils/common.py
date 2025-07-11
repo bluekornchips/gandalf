@@ -5,7 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from config.constants import GANDALF_HOME, MCP_SERVER_NAME
+from src.config.constants.paths import GANDALF_HOME
+from src.config.constants.server import MCP_SERVER_NAME
 
 _log_file_path: Optional[Path] = None
 _session_id: Optional[str] = None

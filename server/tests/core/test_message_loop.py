@@ -1,4 +1,4 @@
-"""Test message loop handler functionality."""
+"""Test message loop functionality."""
 
 import json
 from io import StringIO
@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.config.constants import ErrorCodes
+from src.config.enums import ErrorCodes
 from src.core.message_loop import MessageLoopHandler
 
 
@@ -154,7 +154,11 @@ class TestMessageLoop:
     def test_run_message_loop_single_request(self):
         """Test running message loop with single request."""
         request = {"jsonrpc": "2.0", "method": "initialize", "id": "sam_1"}
-        response = {"jsonrpc": "2.0", "result": {"status": "ready"}, "id": "sam_1"}
+        response = {
+            "jsonrpc": "2.0",
+            "result": {"status": "ready"},
+            "id": "sam_1",
+        }
 
         input_stream = StringIO(json.dumps(request) + "\n")
         self.mock_server.handle_request.return_value = response
@@ -175,7 +179,10 @@ class TestMessageLoop:
         input_lines = [json.dumps(req) for req in requests]
         input_stream = StringIO("\n".join(input_lines) + "\n")
 
-        self.mock_server.handle_request.return_value = {"jsonrpc": "2.0", "result": {}}
+        self.mock_server.handle_request.return_value = {
+            "jsonrpc": "2.0",
+            "result": {},
+        }
 
         self.handler.run_message_loop(input_stream)
 
@@ -251,7 +258,10 @@ class TestMessageLoop:
         ]
 
         input_stream = StringIO("\n".join(input_lines) + "\n")
-        self.mock_server.handle_request.return_value = {"jsonrpc": "2.0", "result": {}}
+        self.mock_server.handle_request.return_value = {
+            "jsonrpc": "2.0",
+            "result": {},
+        }
 
         self.handler.run_message_loop(input_stream)
 
@@ -321,7 +331,10 @@ class TestIntegrationScenarios:
         mock_responses = [
             {
                 "jsonrpc": "2.0",
-                "result": {"protocolVersion": "2024-11-05", "capabilities": {}},
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                },
                 "id": 1,
             },
             None,  # Notification - no response

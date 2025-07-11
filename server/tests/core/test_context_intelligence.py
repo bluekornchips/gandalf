@@ -5,37 +5,22 @@ Tests file relevance scoring, context analysis, ranking, and project intelligenc
 with comprehensive coverage of all scoring methods and edge cases.
 """
 
-import json
 import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
+from src.config.constants.context import (
+    CONTEXT_FILE_SIZE_ACCEPTABLE_MAX,
+    CONTEXT_FILE_SIZE_OPTIMAL_MAX,
+)
+from src.config.constants.limits import CONTEXT_MIN_SCORE
+from src.config.weights import WeightsManager
 from src.core.context_intelligence import (
     ContextIntelligence,
-    get_context_intelligence,
     _context_cache,
-    CONTEXT_MIN_SCORE,
-)
-from src.config.constants import (
-    CONTEXT_FILE_SIZE_ACCEPTABLE_MAX,
-    CONTEXT_KEYWORD_MAX_COUNT,
-    CONTEXT_TOP_FILES_COUNT,
-    MAX_PROJECT_FILES,
-    PRIORITY_NEUTRAL_SCORE,
-)
-from src.config.weights import (
-    CONTEXT_FILE_SIZE_OPTIMAL_MIN,
-    CONTEXT_FILE_SIZE_OPTIMAL_MAX,
-    CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER,
-    CONTEXT_FILE_SIZE_LARGE_MULTIPLIER,
-    CONTEXT_RECENT_HOUR_THRESHOLD,
-    CONTEXT_RECENT_DAY_THRESHOLD,
-    CONTEXT_RECENT_WEEK_THRESHOLD,
-    CONTEXT_RECENT_DAY_MULTIPLIER,
-    CONTEXT_RECENT_WEEK_MULTIPLIER,
-    CONTEXT_WEIGHTS,
+    get_context_intelligence,
 )
 
 
@@ -46,7 +31,8 @@ class TestContextIntelligence(unittest.TestCase):
         """Set up test environment."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.project_root = Path(self.temp_dir.name)
-        self.context_intel = ContextIntelligence(self.project_root)
+        self.weights = WeightsManager.get_default()
+        self.context_intel = ContextIntelligence(self.project_root, self.weights)
 
         _context_cache.clear()
 
@@ -97,7 +83,8 @@ class TestScoreRecentModification(unittest.TestCase):
         """Set up test environment."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.project_root = Path(self.temp_dir.name)
-        self.context_intel = ContextIntelligence(self.project_root)
+        self.weights = WeightsManager.get_default()
+        self.context_intel = ContextIntelligence(self.project_root, self.weights)
 
     def tearDown(self):
         """Clean up test environment."""
@@ -117,7 +104,8 @@ class TestScoreRecentModification(unittest.TestCase):
         test_file.write_text("# Old file")
 
         # Mock an old modification time
-        old_time = time.time() - (CONTEXT_RECENT_WEEK_THRESHOLD + 1) * 3600
+        week_threshold = self.weights.get("context.recent_modifications.week_threshold")
+        old_time = time.time() - (week_threshold + 1) * 3600
         with patch.object(Path, "stat") as mock_stat:
             mock_stat.return_value.st_mtime = old_time
             score = self.context_intel._score_recent_modification(test_file)
@@ -129,17 +117,14 @@ class TestScoreRecentModification(unittest.TestCase):
         test_file.write_text("# Day old file")
 
         # Use a time that falls between day and week thresholds
-        # The actual constants are: HOUR=1, DAY=24, WEEK=168
-        # So a file that's 25 hours old should get the day multiplier
         day_old_time = time.time() - 25 * 3600  # 25 hours ago
         with patch.object(Path, "stat") as mock_stat:
             mock_stat.return_value.st_mtime = day_old_time
             score = self.context_intel._score_recent_modification(test_file)
             # Based on the actual logic, 25 hours falls into week threshold
-            expected = (
-                CONTEXT_WEIGHTS.get("recent_modification", CONTEXT_MIN_SCORE)
-                * CONTEXT_RECENT_WEEK_MULTIPLIER
-            )
+            expected = self.weights.get(
+                "weights.recent_modification", CONTEXT_MIN_SCORE
+            ) * self.weights.get("context.recent_modifications.week_multiplier")
             self.assertAlmostEqual(score, expected, places=2)
 
     def test_score_week_old_file(self):
@@ -148,14 +133,14 @@ class TestScoreRecentModification(unittest.TestCase):
         test_file.write_text("# Week old file")
 
         # Use a time that falls in the "week old" range
-        week_old_time = time.time() - (CONTEXT_RECENT_WEEK_THRESHOLD - 24) * 3600
+        week_threshold = self.weights.get("context.recent_modifications.week_threshold")
+        week_old_time = time.time() - (week_threshold - 24) * 3600
         with patch.object(Path, "stat") as mock_stat:
             mock_stat.return_value.st_mtime = week_old_time
             score = self.context_intel._score_recent_modification(test_file)
-            expected = (
-                CONTEXT_WEIGHTS.get("recent_modification", CONTEXT_MIN_SCORE)
-                * CONTEXT_RECENT_WEEK_MULTIPLIER
-            )
+            expected = self.weights.get(
+                "weights.recent_modification", CONTEXT_MIN_SCORE
+            ) * self.weights.get("context.recent_modifications.week_multiplier")
             self.assertAlmostEqual(score, expected, places=2)
 
     def test_score_file_stat_error(self):
@@ -174,7 +159,8 @@ class TestScoreFileSize(unittest.TestCase):
         """Set up test environment."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.project_root = Path(self.temp_dir.name)
-        self.context_intel = ContextIntelligence(self.project_root)
+        self.weights = WeightsManager.get_default()
+        self.context_intel = ContextIntelligence(self.project_root, self.weights)
 
     def tearDown(self):
         """Clean up test environment."""
@@ -183,25 +169,27 @@ class TestScoreFileSize(unittest.TestCase):
     def test_score_optimal_size_file(self):
         """Test scoring a file with optimal size."""
         test_file = self.project_root / "optimal.py"
-        content = "# " + "x" * (CONTEXT_FILE_SIZE_OPTIMAL_MIN + 100)
+        optimal_min = self.weights.get("context.file_size.optimal_min")
+        content = "# " + "x" * (optimal_min + 100)
         test_file.write_text(content)
 
         score = self.context_intel._score_file_size(test_file)
         self.assertEqual(
-            score, CONTEXT_WEIGHTS.get("file_size_optimal", CONTEXT_MIN_SCORE)
+            score,
+            self.weights.get("weights.file_size_optimal", CONTEXT_MIN_SCORE),
         )
 
     def test_score_acceptable_size_file(self):
         """Test scoring a file with acceptable size."""
         test_file = self.project_root / "acceptable.py"
-        content = "# " + "x" * (CONTEXT_FILE_SIZE_OPTIMAL_MAX + 100)
+        optimal_max = self.weights.get("context.file_size.optimal_max")
+        content = "# " + "x" * (optimal_max + 100)
         test_file.write_text(content)
 
         score = self.context_intel._score_file_size(test_file)
-        expected = (
-            CONTEXT_WEIGHTS.get("file_size_optimal", CONTEXT_MIN_SCORE)
-            * CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER
-        )
+        expected = self.weights.get(
+            "weights.file_size_optimal", CONTEXT_MIN_SCORE
+        ) * self.weights.get("context.file_size.acceptable_multiplier")
         self.assertEqual(score, expected)
 
     def test_score_large_file(self):
@@ -211,10 +199,9 @@ class TestScoreFileSize(unittest.TestCase):
         with patch.object(Path, "stat") as mock_stat:
             mock_stat.return_value.st_size = CONTEXT_FILE_SIZE_ACCEPTABLE_MAX + 1000
             score = self.context_intel._score_file_size(test_file)
-            expected = (
-                CONTEXT_WEIGHTS.get("file_size_optimal", CONTEXT_MIN_SCORE)
-                * CONTEXT_FILE_SIZE_LARGE_MULTIPLIER
-            )
+            expected = self.weights.get(
+                "weights.file_size_optimal", CONTEXT_MIN_SCORE
+            ) * self.weights.get("context.file_size.large_multiplier")
             self.assertEqual(score, expected)
 
     def test_score_tiny_file(self):
@@ -243,7 +230,8 @@ class TestScoreFileType(unittest.TestCase):
         """Set up test environment."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.project_root = Path(self.temp_dir.name)
-        self.context_intel = ContextIntelligence(self.project_root)
+        self.weights = WeightsManager.get_default()
+        self.context_intel = ContextIntelligence(self.project_root, self.weights)
 
     def tearDown(self):
         """Clean up test environment."""
@@ -262,8 +250,8 @@ class TestScoreFileType(unittest.TestCase):
     def test_score_no_extension(self):
         """Test scoring a file with no extension."""
         score = self.context_intel._score_file_type("README")
-        expected = CONTEXT_MIN_SCORE * CONTEXT_WEIGHTS.get(
-            "file_type_priority", CONTEXT_MIN_SCORE
+        expected = CONTEXT_MIN_SCORE * self.weights.get(
+            "weights.file_type_priority", CONTEXT_MIN_SCORE
         )
         self.assertEqual(score, expected)
 
@@ -271,8 +259,8 @@ class TestScoreFileType(unittest.TestCase):
         """Test scoring an unknown file type."""
         score = self.context_intel._score_file_type("file.unknown")
         # Should get minimum score for unknown extension
-        expected = CONTEXT_MIN_SCORE * CONTEXT_WEIGHTS.get(
-            "file_type_priority", CONTEXT_MIN_SCORE
+        expected = CONTEXT_MIN_SCORE * self.weights.get(
+            "weights.file_type_priority", CONTEXT_MIN_SCORE
         )
         self.assertEqual(score, expected)
 
@@ -284,7 +272,8 @@ class TestScoreDirectoryImportance(unittest.TestCase):
         """Set up test environment."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.project_root = Path(self.temp_dir.name)
-        self.context_intel = ContextIntelligence(self.project_root)
+        self.weights = WeightsManager.get_default()
+        self.context_intel = ContextIntelligence(self.project_root, self.weights)
 
     def tearDown(self):
         """Clean up test environment."""
@@ -310,8 +299,8 @@ class TestScoreDirectoryImportance(unittest.TestCase):
     def test_score_unknown_directory(self):
         """Test scoring a file in unknown directory."""
         score = self.context_intel._score_directory_importance("unknown/file.py")
-        expected = CONTEXT_MIN_SCORE * CONTEXT_WEIGHTS.get(
-            "directory_importance", CONTEXT_MIN_SCORE
+        expected = CONTEXT_MIN_SCORE * self.weights.get(
+            "weights.directory_importance", CONTEXT_MIN_SCORE
         )
         self.assertEqual(score, expected)
 
@@ -323,7 +312,8 @@ class TestScoreGitActivity(unittest.TestCase):
         """Set up test environment."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.project_root = Path(self.temp_dir.name)
-        self.context_intel = ContextIntelligence(self.project_root)
+        self.weights = WeightsManager.get_default()
+        self.context_intel = ContextIntelligence(self.project_root, self.weights)
 
     def tearDown(self):
         """Clean up test environment."""
@@ -332,16 +322,20 @@ class TestScoreGitActivity(unittest.TestCase):
     def test_score_git_activity_success(self):
         """Test successful git activity scoring."""
         with patch.object(
-            self.context_intel.git_tracker, "get_activity_score", return_value=0.8
+            self.context_intel.git_tracker,
+            "get_activity_score",
+            return_value=0.8,
         ):
             score = self.context_intel._score_git_activity("main.py")
-            expected = 0.8 * CONTEXT_WEIGHTS.get("git_activity", CONTEXT_MIN_SCORE)
+            expected = 0.8 * self.weights.get("weights.git_activity", CONTEXT_MIN_SCORE)
             self.assertEqual(score, expected)
 
     def test_score_git_activity_no_activity(self):
         """Test git activity scoring with no activity."""
         with patch.object(
-            self.context_intel.git_tracker, "get_activity_score", return_value=0.0
+            self.context_intel.git_tracker,
+            "get_activity_score",
+            return_value=0.0,
         ):
             score = self.context_intel._score_git_activity("main.py")
             self.assertEqual(score, 0.0)
@@ -374,7 +368,8 @@ class TestScoreImportRelationships(unittest.TestCase):
         """Set up test environment."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.project_root = Path(self.temp_dir.name)
-        self.context_intel = ContextIntelligence(self.project_root)
+        self.weights = WeightsManager.get_default()
+        self.context_intel = ContextIntelligence(self.project_root, self.weights)
 
     def tearDown(self):
         """Clean up test environment."""
@@ -512,7 +507,8 @@ class TestGetContextSummary(unittest.TestCase):
             summary["priority_distribution"], expected["priority_distribution"]
         )
         self.assertEqual(
-            summary["file_type_distribution"], expected["file_type_distribution"]
+            summary["file_type_distribution"],
+            expected["file_type_distribution"],
         )
         self.assertEqual(summary["average_score"], expected["average_score"])
         self.assertEqual(summary["top_files"], expected["top_files"])
@@ -569,7 +565,7 @@ class TestGetContextSummary(unittest.TestCase):
         summary = self.context_intel.get_context_summary(files)
 
         top_files = summary["top_files"]
-        self.assertLessEqual(len(top_files), CONTEXT_TOP_FILES_COUNT)
+        self.assertLessEqual(len(top_files), 10)  # CONTEXT_TOP_FILES_COUNT
 
         if top_files:
             # Check format: (path, score_string)
@@ -635,38 +631,13 @@ class TestConstants(unittest.TestCase):
     def test_constants_exist(self):
         """Test that required constants are defined."""
         self.assertIsInstance(CONTEXT_MIN_SCORE, (int, float))
-        self.assertIsInstance(CONTEXT_TOP_FILES_COUNT, int)
-        self.assertIsInstance(CONTEXT_FILE_SIZE_OPTIMAL_MIN, int)
         self.assertIsInstance(CONTEXT_FILE_SIZE_OPTIMAL_MAX, int)
         self.assertIsInstance(CONTEXT_FILE_SIZE_ACCEPTABLE_MAX, int)
 
     def test_constants_values(self):
         """Test that constants have reasonable values."""
         self.assertGreaterEqual(CONTEXT_MIN_SCORE, 0.0)
-        self.assertGreater(CONTEXT_TOP_FILES_COUNT, 0)
-        self.assertGreater(CONTEXT_FILE_SIZE_OPTIMAL_MIN, 0)
-        self.assertGreater(CONTEXT_FILE_SIZE_OPTIMAL_MAX, CONTEXT_FILE_SIZE_OPTIMAL_MIN)
+        self.assertGreater(CONTEXT_FILE_SIZE_OPTIMAL_MAX, 0)
         self.assertGreater(
             CONTEXT_FILE_SIZE_ACCEPTABLE_MAX, CONTEXT_FILE_SIZE_OPTIMAL_MAX
         )
-
-    def test_multiplier_constants(self):
-        """Test multiplier constants are reasonable."""
-        self.assertGreater(CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER, 0.0)
-        self.assertLess(CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER, 1.0)
-        self.assertGreater(CONTEXT_FILE_SIZE_LARGE_MULTIPLIER, 0.0)
-        self.assertLess(CONTEXT_FILE_SIZE_LARGE_MULTIPLIER, 1.0)
-
-        self.assertGreater(CONTEXT_RECENT_DAY_MULTIPLIER, 0.0)
-        self.assertLess(CONTEXT_RECENT_DAY_MULTIPLIER, 1.0)
-        self.assertGreater(CONTEXT_RECENT_WEEK_MULTIPLIER, 0.0)
-        self.assertLess(CONTEXT_RECENT_WEEK_MULTIPLIER, 1.0)
-
-    def test_threshold_constants(self):
-        """Test threshold constants are reasonable."""
-        self.assertGreater(CONTEXT_RECENT_HOUR_THRESHOLD, 0)
-        # Since CONTEXT_RECENT_DAY_THRESHOLD == CONTEXT_RECENT_HOUR_THRESHOLD in the current implementation
-        self.assertGreaterEqual(
-            CONTEXT_RECENT_DAY_THRESHOLD, CONTEXT_RECENT_HOUR_THRESHOLD
-        )
-        self.assertGreater(CONTEXT_RECENT_WEEK_THRESHOLD, CONTEXT_RECENT_DAY_THRESHOLD)

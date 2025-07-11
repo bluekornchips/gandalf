@@ -5,7 +5,7 @@ Contains helper functions for creating standardized JSON-RPC responses.
 
 from typing import Any, Dict, Optional
 
-from config.constants import JSONRPC_VERSION
+from src.config.constants.server import JSONRPC_VERSION
 
 
 def create_error_response(

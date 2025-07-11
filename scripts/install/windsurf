@@ -1,0 +1,105 @@
+#!/bin/bash
+# Windsurf installation logic for Gandalf MCP
+
+install_for_windsurf() {
+    local server_name="$1"
+    local gandalf_root="$2"
+    local scope="$3"
+    local install_dir="$4"
+
+    echo "Installing Gandalf MCP for Windsurf (scope: $scope)..."
+
+    local config_file mcp_script="$gandalf_root/gandalf.sh"
+    
+    if [[ "$scope" == "local" ]]; then
+        config_file="$(get_local_config_path "windsurf" "$install_dir")"
+        if [[ -n "$CUSTOM_PORT" ]] || [[ "$scope" == "local" ]]; then
+            local port="${CUSTOM_PORT:-$(find_available_port)}"
+            mcp_script="$(create_local_gandalf_script "$install_dir" "$port" "$server_name")"
+        fi
+        echo "Creating local Windsurf configuration: $config_file"
+    else
+        config_file="$HOME/.codeium/windsurf/mcp_config.json"
+        echo "Creating global Windsurf configuration: $config_file"
+    fi
+
+    local env_vars=""
+    if [[ "$scope" == "local" ]]; then
+        env_vars='"env": {"GANDALF_LOCAL_DIR": "'$install_dir'", "GANDALF_SCOPE": "local"}, '
+    fi
+
+    if update_json_config_with_env "$config_file" "$server_name" "$mcp_script" "$env_vars" "run"; then
+        echo "Windsurf MCP configuration installed successfully"
+        return 0
+    else
+        echo "Error: Failed to install Windsurf MCP configuration" >&2
+        return 1
+    fi
+}
+
+create_windsurf_rules() {
+    local rules_content="$1"
+    local rules_file="$HOME/.windsurf/global_rules.md"
+
+    if [[ -f "$rules_file" ]] && [[ "${FORCE:-false}" != "true" ]]; then
+        echo "Windsurf rules file already exists: $rules_file"
+        return 0
+    fi
+
+    local char_count=${#rules_content}
+    local max_chars=6000
+
+    if [[ $char_count -gt $max_chars ]]; then
+        echo "Warning: Rules content ($char_count chars) exceeds Windsurf limit ($max_chars chars)" >&2
+        echo "Truncating content for Windsurf compatibility"
+
+        local truncation_message=$'\n\n# Note: Content truncated to fit Windsurf 6000 character limit\n# Full rules available in Cursor and Claude Code configurations\n# See spec/rules/core.md for complete documentation'
+        local message_length=${#truncation_message}
+        local max_content_length=$((max_chars - message_length - 10))
+
+        rules_content=$(printf '%s' "$rules_content" | head -c "$max_content_length")
+        rules_content="$rules_content$truncation_message"
+    fi
+
+    if printf '%s' "$rules_content" >"$rules_file"; then
+        echo "Created Windsurf rules file: $rules_file (${#rules_content}/$max_chars chars)"
+        return 0
+    else
+        echo "Error: Failed to create Windsurf rules file" >&2
+        return 1
+    fi
+}
+
+create_local_windsurf_rules() {
+    local install_dir="$1"
+    local rules_content="$2"
+    local rules_file="$install_dir/.windsurf/rules.md"
+
+    if [[ -f "$rules_file" ]] && [[ "${FORCE:-false}" != "true" ]]; then
+        echo "Local Windsurf rules file already exists: $rules_file"
+        return 0
+    fi
+
+    local char_count=${#rules_content}
+    local max_chars=6000
+
+    if [[ $char_count -gt $max_chars ]]; then
+        echo "Warning: Local rules content ($char_count chars) exceeds Windsurf limit ($max_chars chars)" >&2
+        echo "Truncating content for Windsurf compatibility"
+
+        local truncation_message=$'\n\n# Note: Content truncated to fit Windsurf 6000 character limit\n# Full rules available in local Cursor and Claude Code configurations\n# See spec/rules/core.md for complete documentation'
+        local message_length=${#truncation_message}
+        local max_content_length=$((max_chars - message_length - 10))
+
+        rules_content=$(printf '%s' "$rules_content" | head -c "$max_content_length")
+        rules_content="$rules_content$truncation_message"
+    fi
+
+    if printf '%s' "$rules_content" >"$rules_file"; then
+        echo "Created local Windsurf rules file: $rules_file (${#rules_content}/$max_chars chars)"
+        return 0
+    else
+        echo "Error: Failed to create local Windsurf rules file" >&2
+        return 1
+    fi
+} 

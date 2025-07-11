@@ -19,7 +19,7 @@ source "$SCRIPT_DIR/platform-utils.sh"
 
 # Default configurations
 MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
-GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-2.1.0}"
+GANDALF_SERVER_VERSION="${GANDALF_SERVER_VERSION:-2.2.0}"
 ENV_FILE="$GANDALF_ROOT/.env"
 
 # Load common utilities - create a minimal shared.sh if it doesn't exist
@@ -442,9 +442,13 @@ EXAMPLES:
     $0 --info               # Show directory information
 
 REQUIRED FILES:
-    - gandalf-rules.md      # For Cursor setup
-    - CLAUDE.md             # For Claude Code project memory
-    - claude-user-memory.md # For Claude Code user memory
+    - spec/rules/core.md                 # Core workflows and decision trees
+    - spec/rules/troubleshooting.md      # Error recovery and diagnostics
+    - CLAUDE.md                             # For Claude Code project memory
+    - claude-user-memory.md                 # For Claude Code user memory
+    - gandalf-rules.mdc                     # For Cursor rules
+
+NOTE: Rules files are automatically combined during installation for each tool
 EOF
 }
 

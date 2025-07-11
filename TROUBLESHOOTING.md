@@ -1,8 +1,8 @@
 # Troubleshooting Guide
 
-## Quick Diagnosis
+Quick solutions for common Gandalf MCP Server issues.
 
-Run these commands to quickly identify issues:
+## Quick Diagnosis
 
 ```bash
 # Check system dependencies
@@ -11,7 +11,7 @@ Run these commands to quickly identify issues:
 # Test server functionality
 ./gandalf.sh test
 
-# Full validation workflow
+# Full validation
 ./gandalf.sh lembas
 
 # Check installation status
@@ -20,299 +20,151 @@ cat ~/.gandalf/installation-state
 
 ## Common Issues
 
-### 1. MCP Tools Not Appearing
+### Tools Not Appearing in IDE
 
 Symptoms: Development tool doesn't show Gandalf tools or capabilities
 
-Diagnosis:
-
-```bash
-# Check if server is configured
-./gandalf.sh test
-
-# Verify MCP configuration
-cat ~/.cursor/mcp.json    # For Cursor
-cat ~/.claude/mcp.json    # For Claude Code
-cat ~/.windsurf/mcp.json  # For Windsurf
-```
-
 Solutions:
 
-1. Restart development tool completely:
-
-   - Exit completely (⌘/Ctrl + Q)
-   - Wait 5 seconds
-   - Reopen development tool
-
-2. Verify configuration:
-
-   ```bash
-   # Reset and reinstall
-   ./gandalf.sh install -r
-   ```
-
-3. Check MCP logs (tool specific):
+1. Restart IDE completely: Exit fully (Cmd/Ctrl + Q), wait 5 seconds, reopen
+2. Reset configuration: `./gandalf.sh install --force`
+3. Check MCP logs:
    - Cursor: View > Output > MCP Logs
-   - Claude Code: Check terminal output or logs
+   - Claude Code: Check terminal output
    - Windsurf: View > Output > MCP Logs
 
-### 2. "Server Not Responding" Errors
+### Server Not Responding
 
 Symptoms: Error messages about server connectivity or timeouts
 
-Diagnosis:
-
-```bash
-# Test server directly
-cd gandalf
-./gandalf.sh run --help
-
-# Check Python dependencies
-python3 -c "import yaml; print('Dependencies OK')"
-```
-
 Solutions:
 
-1. Install missing dependencies:
+1. Check dependencies:
 
    ```bash
    cd gandalf/server
    pip install -r requirements.txt
    ```
 
-2. Check Python version:
+2. Verify Python version:
 
    ```bash
    python3 --version  # Should be 3.10+
    ```
 
-3. Verify permissions:
+3. Test server directly:
    ```bash
-   ls -la gandalf/server/src/main.py
-   chmod +x gandalf/server/src/main.py
+   ./gandalf.sh run --help
    ```
 
-### 3. Conversation History Not Available
+### Empty Conversation Results
 
 Symptoms: Can't recall conversations or get empty results
 
-Diagnosis:
-
-```bash
-# Test conversation tools
-./gandalf.sh test
-```
-
 Solutions:
 
-1. Check conversation database permissions:
+1. Check database permissions:
 
    ```bash
-   # For Cursor
+   # Cursor
    ls -la "$HOME/Library/Application Support/Cursor"
 
-   # For Claude Code
+   # Claude Code
    ls -la ~/.claude
-   ls -la ~/.config/claude
 
-   # For Windsurf
+   # Windsurf (normal behavior due to flow-based architecture)
    ls -la ~/.windsurf
    ```
 
 2. Restart development tool to reinitialize database connections
 
-Note: Windsurf conversations may appear empty by design due to its flow-based Cascade AI architecture. This is normal behavior.
-
-### 4. Import Errors
-
-Symptoms: Python import errors when starting server
-
-Diagnosis:
-
-```bash
-cd gandalf
-./gandalf.sh run --help
-```
-
-Solutions:
-
-1. Install server dependencies:
-
-   ```bash
-   cd gandalf/server
-   pip install -r requirements.txt
-   ```
-
-2. Check PYTHONPATH:
-
-   ```bash
-   cd gandalf
-   ./gandalf.sh run --help
-   ```
-
-3. Use virtual environment:
-   ```bash
-   python3 -m venv ~/.gandalf/venv
-   source ~/.gandalf/venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-## Tool-Specific Issues
-
-### Cursor Issues
-
-#### Cursor Can't Find MCP Configuration
-
-Symptoms: Cursor doesn't load Gandalf tools
-
-Check:
-
-```bash
-# Verify configuration file exists and is valid
-cat ~/.cursor/mcp.json
-jq . ~/.cursor/mcp.json  # Should validate JSON
-```
-
-Fix:
-
-```bash
-# Reset Cursor configuration
-./gandalf.sh install --tool cursor -r
-```
-
-#### Cursor MCP Logs Show Errors
-
-Check logs: View > Output > MCP Logs (set to DEBUG level)
-
-Common errors:
-
-- "Command not found": Check absolute paths in configuration
-- "Permission denied": Check file permissions with `chmod +x`
-- "Module not found": Install dependencies with `pip install -r requirements.txt`
-
-### Claude Code Issues
-
-#### Claude Code Can't Connect to MCP
-
-Symptoms: `/mcp` command shows no servers or connection errors
-
-Check:
-
-```bash
-# Verify Claude Code MCP configuration
-claude mcp list
-claude mcp get gandalf
-```
-
-Fix:
-
-```bash
-# Reset Claude Code configuration
-./gandalf.sh install --tool claude-code -r
-```
-
-#### Claude Code MCP Commands Fail
-
-Check status:
-
-```bash
-# Check MCP server status
-claude mcp status gandalf
-
-# Test server directly
-cd gandalf
-./gandalf.sh run --help
-```
-
-### Windsurf Issues
-
-#### Windsurf Shows Empty Conversations
-
-Symptoms: Windsurf conversations appear empty in Gandalf results
-
-This is expected behavior: Windsurf uses Cascade AI with flow-based interactions rather than traditional chat conversations.
-
-For Windsurf context, check instead:
-
-```bash
-# Check Cascade Memories and Rules
-ls -la ~/.windsurf
-ls -la .windsurfrules
-ls -la .windsurf/workflows/
-```
-
-#### Windsurf Can't Find MCP Configuration
-
-Symptoms: Windsurf doesn't load Gandalf tools
-
-Check:
-
-```bash
-# Verify configuration file exists and is valid
-cat ~/.windsurf/mcp.json
-jq . ~/.windsurf/mcp.json  # Should validate JSON
-```
-
-Fix:
-
-```bash
-# Reset Windsurf configuration
-./gandalf.sh install --tool windsurf -r
-```
-
-## Performance Issues
-
-### Slow Response Times
+### Slow Performance
 
 Symptoms: Tools take a long time to respond
 
 Solutions:
 
-1. Enable fast mode:
+1. Enable fast mode: `recall_conversations(fast_mode=true)`
+2. Limit scope: `list_project_files(max_files=50, file_types=[".py"])`
+3. Reduce lookback: `recall_conversations(days_lookback=7, limit=10)`
 
-   ```bash
-   # Use fast_mode=true for recall_conversations
-   recall_conversations(fast_mode=true)
-   ```
+## Tool-Specific Issues
 
-2. Limit file analysis:
+### Cursor Issues
 
-   ```bash
-   # Reduce max_files for large projects
-   list_project_files(max_files=50, file_types=["py", "js"])
-   ```
+Configuration problems:
 
-3. Tune cache settings:
-   ```bash
-   # Add to MCP configuration
-   "env": {
-     "GANDALF_CACHE_TTL": "600",
-     "GANDALF_MAX_FILES": "500"
-   }
-   ```
+```bash
+# Check configuration
+cat ~/.cursor/mcp.json
+jq . ~/.cursor/mcp.json
 
-### High Memory Usage
+# Reset configuration
+./gandalf.sh install --tool cursor --force
+```
 
-Symptoms: System becomes slow when using Gandalf
+Common MCP log errors:
 
-Solutions:
+- "Command not found": Check absolute paths in configuration
+- "Permission denied": `chmod +x gandalf.sh`
+- "Module not found": `pip install -r requirements.txt`
 
-1. Reduce conversation lookback:
+### Claude Code Issues
 
-   ```bash
-   recall_conversations(days_lookback=7, limit=10)
-   ```
+Connection problems:
 
-2. Use specific file types:
+```bash
+# Check MCP server status
+claude mcp list
+claude mcp get gandalf
 
-   ```bash
-   list_project_files(file_types=["py"], max_files=100)
-   ```
+# Reset configuration
+./gandalf.sh install --tool claude-code --force
+```
 
-3. Clear cache:
-   ```bash
-   rm -rf ~/.gandalf/cache/*
-   ```
+### Windsurf Issues
+
+Empty conversations: Expected behavior due to flow-based Cascade architecture
+
+Configuration issues:
+
+```bash
+# Check configuration
+cat ~/.windsurf/mcp.json
+jq . ~/.windsurf/mcp.json
+
+# Reset configuration
+./gandalf.sh install --tool windsurf --force
+```
+
+## Performance Optimization
+
+### Memory Usage
+
+Reduce memory consumption:
+
+```bash
+# Limit conversations
+recall_conversations(days_lookback=7, limit=10)
+
+# Filter file types
+list_project_files(file_types=[".py"], max_files=100)
+
+# Clear cache
+rm -rf ~/.gandalf/cache/*
+```
+
+### Response Time
+
+Improve performance:
+
+```bash
+# Enable fast mode
+recall_conversations(fast_mode=true)
+
+# Limit file analysis
+list_project_files(max_files=50, file_types=[".py", ".js"])
+```
 
 ## Installation Problems
 
@@ -328,19 +180,14 @@ sudo chown -R $(whoami) ~/.gandalf
 
 ```bash
 # Check development tool logs
-# Cursor: View > Output > MCP Logs
-# Claude Code: Check ~/.claude/logs/
-# Windsurf: View > Output > MCP Logs
-
-# Restart completely
-# Don't just reload - fully quit and restart your development tool
+# Restart completely (don't just reload)
 ```
 
 ## Advanced Debugging
 
 ### Enable Debug Logging
 
-Add to your MCP configuration:
+Add to MCP configuration:
 
 ```json
 {
@@ -366,7 +213,6 @@ echo '{"method": "tools/call", "params": {"name": "get_server_version", "argumen
 ### Check Dependencies
 
 ```bash
-# Verify all dependencies are installed
 cd gandalf/server
 python3 -c "
 import sys
@@ -380,26 +226,17 @@ except ImportError as e:
 
 ## Getting Help
 
-If you're still having issues:
+If issues persist:
 
-1. Run full diagnostics:
-
-   ```bash
-   ./gandalf.sh lembas
-   ```
-
-2. Check the logs in your IDE's MCP output, if available
-
-3. Create an issue with:
-
-   - Your operating system
+1. Run diagnostics: `./gandalf.sh lembas`
+2. Check IDE MCP logs
+3. Create issue with:
+   - Operating system
    - Python version (`python3 --version`)
    - IDE and version
    - Error messages from logs
    - Output of `./gandalf.sh test`
+   - MCP configuration (sanitized)
 
-4. Include your configuration (remove sensitive paths):
-   ```bash
-   # Sanitize and include your MCP config
-   cat ~/.cursor/mcp.json | jq 'del(.mcpServers.gandalf.cwd)'
-   ```
+Documentation: [README](README.md) | [Installation](INSTALLATION.md) | [API](API.md)
+Support: [GitHub Issues](https://github.com/bluekornchips/gandalf/issues)

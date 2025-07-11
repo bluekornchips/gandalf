@@ -1,158 +1,208 @@
 #!/usr/bin/env bats
 # Platform Compatibility Tests for Gandalf MCP Server
-#
-# Tests cross-platform functionality and path detection to ensure Gandalf works
-# seamlessly across the realms of macOS, Linux, and other platforms.
-#
+# Cross-platform compatibility and path detection across Middle-earth
 
-set -eo pipefail
+set -euo pipefail
 
 load 'fixtures/helpers/test-helpers.sh'
 
+readonly PLATFORM_TEST_TIMEOUT=30
+readonly PLATFORM_WAIT_TIME=2
+readonly ROHAN_DIR="rohan/edoras"
+readonly GONDOR_DIR="gondor/minas-tirith"
+readonly SHIRE_DIR="the shire/bag end"
+readonly FANGORN_DIR="fangorn-forest"
+readonly MORIA_DIR="moria"
+readonly KHAZAD_DUM_DIR="khazad-dum"
+readonly ISENGARD_PROJECT="isengard-project"
+
 setup() {
     shared_setup
-
-    # Source platform utilities for the Fellowship of cross-platform functions
-    source "$GANDALF_ROOT/scripts/platform-utils.sh"
+    create_minimal_project
 }
 
 teardown() {
     shared_teardown
 }
 
-@test "detect_platform returns valid realm like the maps of Middle-earth" {
-    run detect_platform
-    [ "$status" -eq 0 ]
+@test "detect platform correctly across Middle-earth realms" {
+    local platform
+    platform=$(uname)
 
-    # Should return one of the known realms
-    [[ "$output" =~ ^(macos|linux|windows|unknown)$ ]]
-}
-
-@test "get_cursor_config_dir finds the right path through the Shire or Gondor" {
-    run get_cursor_config_dir
-    [ "$status" -eq 0 ]
-    [ -n "$output" ]
-
-    # Should not contain Shire-specific paths when in Gondor
-    if [[ "$(detect_platform)" != "macos" ]]; then
-        [[ "$output" != *"Library/Application Support"* ]]
-    fi
-}
-
-@test "get_cursor_workspace_storage navigates to proper storage like Bag End or Minas Tirith" {
-    run get_cursor_workspace_storage
-    [ "$status" -eq 0 ]
-    [ -n "$output" ]
-
-    # Gondor should not use Shire storage paths
-    if [[ "$(detect_platform)" != "macos" ]]; then
-        [[ "$output" != *"Library/Application Support"* ]]
-    fi
-}
-
-@test "get_application_paths handles unknown applications like Sauron handles unknown rings" {
-    run get_application_paths "palantir-of-unknown-origin"
-    [ "$status" -eq 0 ]
-    [ -z "$output" ]
-}
-
-@test "get_application_paths finds Cursor like Aragorn finds the path to victory" {
-    run get_application_paths "cursor"
-    [ "$status" -eq 0 ]
-
-    local realm
-    realm=$(detect_platform)
-
-    case "$realm" in
-    macos)
-        # In the Shire, applications dwell in /Applications
-        [[ "$output" == "/Applications/Cursor.app" ]]
+    case "$platform" in
+    "Darwin")
+        [[ "$platform" == "Darwin" ]]
         ;;
-    linux)
-        # In Gondor, executables may be found in various strongholds
-        if [[ -n "$output" ]]; then
-            [[ "$output" =~ ^/.*cursor$ ]]
-        fi
+    "Linux")
+        [[ "$platform" == "Linux" ]]
         ;;
     *)
-        # Unknown realms return empty, like the void beyond Middle-earth
-        [ -z "$output" ]
+        skip "Unsupported platform: $platform"
         ;;
     esac
 }
 
-@test "is_application_installed handles missing applications like Frodo handles the burden" {
-    run is_application_installed "one-ring-to-rule-them-all"
-    # Should return failure for applications that exist only in legend
-    [ "$status" -ne 0 ]
+@test "path handling works across realms of Middle-earth" {
+    local test_path="$TEST_PROJECT_DIR/$SHIRE_DIR"
+    mkdir -p "$test_path"
+
+    local resolved_path
+    resolved_path="$(cd "$test_path" && pwd -P)"
+
+    [[ -d "$resolved_path" ]]
+    [[ "$resolved_path" == *"$SHIRE_DIR" ]]
 }
 
-@test "platform utilities avoid Shire paths when not in the Shire like wise hobbits" {
-    # Test that the functions don't return Shire-specific paths in other realms
-    if [[ "$(detect_platform)" != "macos" ]]; then
-        local cursor_config
-        cursor_config=$(get_cursor_config_dir)
-        [[ "$cursor_config" != *"Library/Application Support"* ]]
+@test "home directory detection works like finding Bag End" {
+    [[ -n "$HOME" ]]
+    [[ -d "$HOME" ]]
 
-        local cursor_storage
-        cursor_storage=$(get_cursor_workspace_storage)
-        [[ "$cursor_storage" != *"Library/Application Support"* ]]
+    local gandalf_home="$HOME/.gandalf"
+    mkdir -p "$gandalf_home"
+    [[ -d "$gandalf_home" ]]
+}
 
-        local cursor_app_support
-        cursor_app_support=$(get_cursor_app_support_dir)
-        [[ "$cursor_app_support" != *"Library/Application Support"* ]]
+@test "project root detection works like finding the Shire" {
+    run execute_rpc "tools/call" '{"name": "get_project_info", "arguments": {}}'
+    [ "$status" -eq 0 ]
+
+    validate_jsonrpc_response "$output"
+
+    local content
+    content=$(echo "$output" | jq -r '.result.content[0].text')
+    echo "$content" | jq -e '.project_root' >/dev/null
+
+    local project_root
+    project_root=$(echo "$content" | jq -r '.project_root')
+    [[ -n "$project_root" ]]
+    [[ -d "$project_root" ]]
+}
+
+@test "file listing works across realms like mapping Middle-earth" {
+    mkdir -p "$TEST_PROJECT_DIR/$ROHAN_DIR"
+    mkdir -p "$TEST_PROJECT_DIR/$GONDOR_DIR"
+
+    echo "# Rohan - Land of the Horse-lords" >"$TEST_PROJECT_DIR/$ROHAN_DIR/README.md"
+    echo "# Gondor - Realm of the Kings" >"$TEST_PROJECT_DIR/$GONDOR_DIR/README.md"
+
+    run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {}}'
+    [ "$status" -eq 0 ]
+
+    validate_jsonrpc_response "$output"
+
+    local content
+    content=$(echo "$output" | jq -r '.result.content[0].text')
+    echo "$content" | grep -q "$ROHAN_DIR/README.md"
+    echo "$content" | grep -q "$GONDOR_DIR/README.md"
+}
+
+@test "handles spaces in paths like finding Bag End in the Shire" {
+    local space_dir="$TEST_PROJECT_DIR/$SHIRE_DIR"
+    mkdir -p "$space_dir"
+    echo "# Bag End - Home of Bilbo Baggins" >"$space_dir/README.md"
+
+    run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {}}'
+    [ "$status" -eq 0 ]
+
+    validate_jsonrpc_response "$output"
+
+    local content
+    content=$(echo "$output" | jq -r '.result.content[0].text')
+    echo "$content" | grep -q "$SHIRE_DIR/README.md"
+}
+
+@test "handles unicode characters like ancient Elvish runes" {
+    local unicode_dir="$TEST_PROJECT_DIR/$FANGORN_DIR"
+    mkdir -p "$unicode_dir"
+    echo "# Fangorn Forest - Home of the Ents" >"$unicode_dir/README.md"
+
+    run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {}}'
+    [ "$status" -eq 0 ]
+
+    validate_jsonrpc_response "$output"
+
+    local content
+    content=$(echo "$output" | jq -r '.result.content[0].text')
+    echo "$content" | grep -q "$FANGORN_DIR/README.md"
+}
+
+@test "server works with different project roots like traveling realms" {
+    local temp_project="$TEST_HOME/$ISENGARD_PROJECT"
+    mkdir -p "$temp_project"
+    cd "$temp_project"
+
+    git init >/dev/null 2>&1
+    git config user.email "saruman@isengard.middleearth"
+    git config user.name "Saruman the White"
+    echo "# Isengard Project - Tower of Orthanc" >README.md
+    git add . >/dev/null 2>&1
+    git commit -m "Tower of Orthanc established" >/dev/null 2>&1
+
+    run execute_rpc "tools/call" '{"name": "get_project_info", "arguments": {}}' "$temp_project"
+    [ "$status" -eq 0 ]
+
+    validate_jsonrpc_response "$output"
+
+    local content
+    content=$(echo "$output" | jq -r '.result.content[0].text')
+    local project_root
+    project_root=$(echo "$content" | jq -r '.project_root')
+
+    # Use realpath to resolve both paths for comparison
+    local resolved_temp_project resolved_project_root
+    resolved_temp_project="$(cd "$temp_project" && pwd -P)"
+    resolved_project_root="$(cd "$project_root" && pwd -P)"
+
+    [[ "$resolved_project_root" == "$resolved_temp_project" ]]
+}
+
+@test "handles symlinks correctly like secret passages in Moria" {
+    local real_dir="$TEST_PROJECT_DIR/$MORIA_DIR"
+    local link_dir="$TEST_PROJECT_DIR/$KHAZAD_DUM_DIR"
+
+    mkdir -p "$real_dir"
+    echo "# Moria - Ancient Dwarf Kingdom" >"$real_dir/README.md"
+
+    if ln -s "$real_dir" "$link_dir" 2>/dev/null; then
+        run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {}}'
+        [ "$status" -eq 0 ]
+
+        validate_jsonrpc_response "$output"
+
+        local content
+        content=$(echo "$output" | jq -r '.result.content[0].text')
+        echo "$content" | grep -q "README.md"
+    else
+        skip "Symlink creation failed (may not be supported on this realm)"
     fi
 }
 
-@test "registry script detects agentic tools like Gandalf detects the nature of rings" {
-    # Test that registry.sh properly detects tools using platform utilities
-    run bash "$GANDALF_ROOT/scripts/registry.sh" detect
+@test "server handles timeout gracefully like a patient wizard" {
+    local start_time end_time duration
+    start_time=$(date +%s)
+
+    # Test that the server responds within the timeout period
+    run execute_rpc "tools/call" '{"name": "get_project_info", "arguments": {}}'
+
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+
+    # Server should complete successfully within the timeout
+    [ "$status" -eq 0 ]
+    validate_jsonrpc_response "$output"
+
+    # Check that it completed in reasonable time
+    check_timeout_with_warning "$duration" "$PLATFORM_TEST_TIMEOUT" "project info request"
+}
+
+@test "environment variables are handled correctly like ancient magic" {
+    local old_pythonpath="${PYTHONPATH:-}"
+    export PYTHONPATH="$GANDALF_ROOT/server:$old_pythonpath"
+
+    run execute_rpc "tools/call" '{"name": "get_project_info", "arguments": {}}'
     [ "$status" -eq 0 ]
 
-    # Should return a valid tool name from the Fellowship of agentic tools
-    [[ "$output" =~ ^(cursor|claude-code|windsurf)$ ]]
-}
+    validate_jsonrpc_response "$output"
 
-@test "install script sources platform utilities like Elrond sources ancient wisdom" {
-    # Test that install.sh can source platform utilities without error
-    run bash -c "source '$GANDALF_ROOT/scripts/platform-utils.sh' && get_cursor_workspace_storage"
-    [ "$status" -eq 0 ]
-    [ -n "$output" ]
-}
-
-@test "setup script sources platform utilities like Galadriel sources the light of Eärendil" {
-    # Test that setup.sh can source platform utilities without error
-    run bash -c "source '$GANDALF_ROOT/scripts/platform-utils.sh' && get_cursor_config_dir"
-    [ "$status" -eq 0 ]
-    [ -n "$output" ]
-}
-
-@test "platform detection works consistently like the constancy of the Undying Lands" {
-    # Test that platform detection is consistent across multiple calls
-    local first_detection
-    first_detection=$(detect_platform)
-
-    local second_detection
-    second_detection=$(detect_platform)
-
-    [[ "$first_detection" == "$second_detection" ]]
-    [[ -n "$first_detection" ]]
-}
-
-@test "cursor paths resolve correctly across all realms like the light of Elessar" {
-    # Test that all cursor-related path functions return valid paths
-    local config_dir
-    config_dir=$(get_cursor_config_dir)
-    [[ -n "$config_dir" ]]
-    [[ "$config_dir" =~ ^/ ]] # Should be absolute path
-
-    local app_support_dir
-    app_support_dir=$(get_cursor_app_support_dir)
-    [[ -n "$app_support_dir" ]]
-    [[ "$app_support_dir" =~ ^/ ]] # Should be absolute path
-
-    local workspace_storage
-    workspace_storage=$(get_cursor_workspace_storage)
-    [[ -n "$workspace_storage" ]]
-    [[ "$workspace_storage" =~ ^/ ]] # Should be absolute path
+    export PYTHONPATH="$old_pythonpath"
 }

@@ -6,13 +6,15 @@ import subprocess
 from pathlib import Path
 from typing import List
 
-from config.constants import (
-    FIND_COMMAND_TIMEOUT,
+from src.config.config_data import (
     FIND_EXCLUDE_DIRS,
     FIND_EXCLUDE_PATTERNS,
+)
+from src.config.constants.limits import (
+    FIND_COMMAND_TIMEOUT,
     MAX_PROJECT_FILES,
 )
-from utils.common import log_debug, log_error
+from src.utils.common import log_debug, log_error
 
 
 def filter_project_files(project_root: Path) -> List[str]:

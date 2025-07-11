@@ -2,33 +2,35 @@
 
 Setup instructions for Gandalf MCP Server.
 
-## Requirements
+## Prerequisites
 
 - Python 3.10+
 - Git
-- Cursor IDE, Claude Code, or Windsurf with MCP support
+- IDE: Cursor, Claude Code, or Windsurf with MCP support
 
-## Quick Install
+## Quick Installation
 
 ```bash
-# Clone and install
+# Clone repository
 git clone https://github.com/bluekornchips/gandalf.git
 cd gandalf
+
+# Auto-install
 ./gandalf.sh install
 
 # Verify
 ./gandalf.sh test
 ```
 
-The installer auto-detects your IDE and sets up everything.
+The installer automatically detects your IDE and configures everything needed.
 
-## Manual Setup
+## Manual Configuration
 
-If auto-install fails:
+If auto-installation fails, configure manually:
 
 ### Cursor IDE
 
-Create `~/.cursor/mcp.json`:
+Create or update `~/.cursor/mcp.json`:
 
 ```json
 {
@@ -47,14 +49,18 @@ Create `~/.cursor/mcp.json`:
 ### Claude Code
 
 ```bash
+# Add MCP server
 claude mcp add gandalf /absolute/path/to/gandalf/gandalf.sh \
   -s user run \
   -e "PYTHONPATH=/absolute/path/to/gandalf/server"
+
+# Verify configuration
+claude mcp list
 ```
 
 ### Windsurf
 
-Create `~/.windsurf/mcp.json`:
+Create or update `~/.windsurf/mcp.json`:
 
 ```json
 {
@@ -72,30 +78,73 @@ Create `~/.windsurf/mcp.json`:
 
 ## Verification
 
-Test in your IDE:
+### Essential Tools Test
+
+Test the 6 core tools in your IDE:
 
 ```bash
-# Try these commands
+# Conversation recall
 recall_conversations(fast_mode=true)
+
+# Project context
 get_project_info()
+
+# File discovery
+list_project_files(max_files=50, file_types=['.py', '.js'])
+
+# Search functionality
+search_conversations(search_query="authentication")
+
+# Server status
+get_server_version(random_string="test")
+
+# Export capability
+export_individual_conversations(format="json", limit=5)
 ```
 
-## Performance Tuning
+### Validation Commands
 
-For large projects, add to your MCP config:
+```bash
+# Quick validation
+./gandalf.sh test
 
-```json
+# Extended validation
+./gandalf.sh lembas --all
+
+# Check test count
+./gandalf.sh test --count
+# Should show: Total tests: {count}
+```
+
+### Debug Mode
+
+Enable detailed logging:
+
+```bash
+# Run with debug output
+GANDALF_DEBUG=true ./gandalf.sh run
+
+# Or add to MCP config
 "env": {
-  "GANDALF_CACHE_TTL": "600",
-  "GANDALF_MAX_FILES": "500"
+  "GANDALF_DEBUG": "true"
 }
 ```
 
-## Multi-Tool Setup
+## Uninstallation
 
-The installer detects all supported tools automatically. No additional setup needed.
+```bash
+# Remove all configurations
+./gandalf.sh uninstall
+
+# Force removal without prompts
+./gandalf.sh uninstall --force
+
+# Keep cache files
+./gandalf.sh uninstall --keep-cache
+```
 
 ## Getting Help
 
-- [Troubleshooting Guide](TROUBLESHOOTING.md)
-- [GitHub Issues](https://github.com/bluekornchips/gandalf/issues)
+- Documentation: [README](README.md) | [API](API.md) | [Troubleshooting](TROUBLESHOOTING.md)
+- Issues: [GitHub Issues](https://github.com/bluekornchips/gandalf/issues)
+- Quick Help: `./gandalf.sh --help`

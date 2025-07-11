@@ -1,0 +1,82 @@
+#!/bin/bash
+# Cursor uninstall logic for Gandalf MCP
+
+uninstall_cursor_global() {
+    local server_name="$1"
+    local backup_path="$2"
+    local dry_run="$3"
+
+    echo "Removing Cursor configuration..."
+    
+    local cursor_config="$HOME/.cursor/mcp.json"
+    local cursor_rules="$HOME/.cursor/rules/gandalf-rules.mdc"
+
+    if [[ -f "$cursor_config" ]]; then
+        if [[ "$dry_run" == "false" ]]; then
+            cp "$cursor_config" "$backup_path/" 2>/dev/null || true
+            if command -v jq &>/dev/null; then
+                local temp_file
+                temp_file=$(mktemp)
+                jq --arg name "$server_name" 'del(.mcpServers[$name])' "$cursor_config" >"$temp_file" && mv "$temp_file" "$cursor_config"
+            else
+                rm -f "$cursor_config"
+            fi
+        else
+            echo "[DRY RUN] Would remove Cursor MCP configuration"
+        fi
+    fi
+
+    if [[ -f "$cursor_rules" ]]; then
+        if [[ "$dry_run" == "false" ]]; then
+            cp "$cursor_rules" "$backup_path/" 2>/dev/null || true
+            rm -f "$cursor_rules"
+        else
+            echo "[DRY RUN] Would remove Cursor rules file"
+        fi
+    fi
+
+    local cursor_rules_dir="$HOME/.cursor/rules"
+    if [[ -d "$cursor_rules_dir" ]] && [[ -z "$(ls -A "$cursor_rules_dir" 2>/dev/null)" ]]; then
+        [[ "$dry_run" == "false" ]] && rmdir "$cursor_rules_dir" 2>/dev/null || true
+    fi
+}
+
+uninstall_cursor_local() {
+    local target_dir="$1"
+    local backup_path="$2"
+    local dry_run="$3"
+
+    local cursor_config="$target_dir/.cursor/mcp.json"
+    local cursor_rules="$target_dir/.cursor/rules/gandalf-rules.mdc"
+
+    if [[ -f "$cursor_config" ]]; then
+        echo "Removing local Cursor MCP configuration..."
+        if [[ "$dry_run" == "false" ]]; then
+            mkdir -p "$backup_path/cursor/"
+            cp "$cursor_config" "$backup_path/cursor/" 2>/dev/null || true
+            rm -f "$cursor_config"
+            echo "Removed local Cursor MCP configuration"
+        else
+            echo "[DRY RUN] Would remove local Cursor MCP configuration"
+        fi
+    fi
+    
+    if [[ -f "$cursor_rules" ]]; then
+        if [[ "$dry_run" == "false" ]]; then
+            mkdir -p "$backup_path/cursor/rules/"
+            cp "$cursor_rules" "$backup_path/cursor/rules/" 2>/dev/null || true
+            rm -f "$cursor_rules"
+            echo "Removed local Cursor rules file"
+        else
+            echo "[DRY RUN] Would remove local Cursor rules file"
+        fi
+    fi
+
+    local cursor_rules_dir="$target_dir/.cursor/rules"
+    if [[ -d "$cursor_rules_dir" ]] && [[ -z "$(ls -A "$cursor_rules_dir" 2>/dev/null)" ]]; then
+        [[ "$dry_run" == "false" ]] && rmdir "$cursor_rules_dir" 2>/dev/null || true
+    fi
+    if [[ -d "$target_dir/.cursor" ]] && [[ -z "$(ls -A "$target_dir/.cursor" 2>/dev/null)" ]]; then
+        [[ "$dry_run" == "false" ]] && rmdir "$target_dir/.cursor" 2>/dev/null || true
+    fi
+} 

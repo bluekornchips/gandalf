@@ -9,7 +9,7 @@ import argparse
 from pathlib import Path
 from typing import List, Union
 
-from utils.cursor_chat_query import CursorQuery
+from src.utils.cursor_chat_query import CursorQuery
 
 
 def export_conversations_simple(

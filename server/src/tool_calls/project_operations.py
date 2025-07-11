@@ -8,14 +8,14 @@ import time
 from pathlib import Path
 from typing import Any, Dict
 
-from config.constants import (
+from src.config.constants.server import (
     GANDALF_SERVER_VERSION,
     MCP_PROTOCOL_VERSION,
 )
-from core.file_scoring import get_files_list
-from utils.access_control import AccessValidator
-from utils.common import log_debug, log_error, log_info
-from utils.performance import get_duration, start_timer
+from src.core.file_scoring import get_files_list
+from src.utils.access_control import AccessValidator
+from src.utils.common import log_debug, log_error, log_info
+from src.utils.performance import get_duration, start_timer
 
 
 def validate_project_root(project_root: Path) -> bool:

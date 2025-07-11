@@ -1,9 +1,6 @@
 """Test main module functionality."""
 
-import argparse
-from unittest.mock import AsyncMock, Mock, patch
-
-import pytest
+from unittest.mock import Mock, patch
 
 from src.main import main
 

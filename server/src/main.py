@@ -1,15 +1,17 @@
 """
 Main entry point for Gandalf MCP Server.
 
-This module launches the Gandalf Model Context Protocol (MCP) server to provide intelligent code assistance for agentic tools.
+This module launches the Gandalf Model Context Protocol (MCP) server to
+provide intelligent code assistance for agentic tools.
 
-All communication with agentic tools is performed over stdin/stdout using the JSON-RPC protocol.
+All communication with agentic tools is performed over stdin/stdout using
+the JSON-RPC protocol.
 """
 
 import argparse
 from pathlib import Path
 
-from core.server import GandalfMCP
+from src.core.server import GandalfMCP
 
 
 def main():
@@ -21,7 +23,10 @@ def main():
     parser.add_argument(
         "--project-root",
         type=str,
-        help="Path to the project root (default: auto-detect from agentic tool workspace or git)",
+        help=(
+            "Path to the project root (default: auto-detect from agentic "
+            "tool workspace or git)"
+        ),
         default=None,
     )
 

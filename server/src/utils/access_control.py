@@ -2,47 +2,37 @@
 Access control and security validation for the Gandalf MCP server.
 """
 
-import re
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from config.constants import (
+from src.config.config_data import (
     BLOCKED_EXTENSIONS,
     BLOCKED_PATHS,
-    COMMON_BLOCKED_PATHS,
     LINUX_SPECIFIC_BLOCKED_PATHS,
     MACOS_SPECIFIC_BLOCKED_PATHS,
+    WSL_SPECIFIC_BLOCKED_PATHS,
+)
+from src.config.constants.limits import (
     MAX_ARRAY_LENGTH,
     MAX_FILE_TYPES,
     MAX_PATH_DEPTH,
     MAX_QUERY_LENGTH,
     MAX_STRING_LENGTH,
-    WSL_SPECIFIC_BLOCKED_PATHS,
+    PROJECT_NAME_MAX_LENGTH,
 )
-from utils.common import log_debug, log_info
+from src.config.constants.security import (
+    COMMON_BLOCKED_PATHS,
+    DANGEROUS_PATTERNS,
+    FILE_EXTENSION_MAX_LENGTH,
+    FILE_EXTENSION_PATTERN,
+    PROJECT_NAME_SANITIZE_PATTERN,
+    QUERY_SANITIZE_PATTERN,
+)
+from src.utils.common import log_debug, log_info
 
-# File extension validation constants
-FILE_EXTENSION_MAX_LENGTH = 10
-FILE_EXTENSION_PATTERN = r"^\.[a-z0-9]+$"
-
-# Query sanitization patterns
-QUERY_SANITIZE_PATTERN = r'[<>"\';\\]'
-
-# Project name validation constants
-PROJECT_NAME_SANITIZE_PATTERN = r"[^a-zA-Z0-9._-]"
-PROJECT_NAME_MAX_LENGTH = 100
-
-# Security threat detection patterns
-DANGEROUS_PATTERNS = [
-    r"\.\./",  # Directory traversal
-    r"<script",  # Script injection
-    r"javascript:",  # JavaScript injection
-    r"data:",  # Data URLs
-    r"file://",  # File URLs
-    r"\x00",  # Null bytes
-    r"[;&|`$()]",  # Shell metacharacters
-]
+# All other constants imported from src.config.constants.security above
 
 # Conversation-specific threat patterns
 CONVERSATION_DANGEROUS_PATTERNS = [

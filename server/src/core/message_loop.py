@@ -6,16 +6,15 @@ import json
 import sys
 from typing import Any, Dict, TextIO
 
-from config.constants import ErrorCodes
-from core.server import GandalfMCP
-from utils.common import log_error, log_info
-from utils.jsonrpc import create_error_response
+from src.config.enums import ErrorCodes
+from src.utils.common import log_error, log_info
+from src.utils.jsonrpc import create_error_response
 
 
 class MessageLoopHandler:
     """Handles JSON-RPC message loop for MCP communication."""
 
-    def __init__(self, server: GandalfMCP, output_stream: TextIO = sys.stdout):
+    def __init__(self, server: Any, output_stream: TextIO = sys.stdout):
         """Initialize message loop handler."""
         self.server = server
         self.output_stream = output_stream

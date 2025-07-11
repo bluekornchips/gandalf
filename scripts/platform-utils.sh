@@ -1,16 +1,32 @@
 #!/bin/bash
-# Platform detection utilities for cross-platform compatibility
+# Platform Utilities for Cross-Platform Compatibility
+# Provides consistent platform detection and path resolution across different operating systems
+
+set -euo pipefail
+
+readonly PLATFORM_MACOS="Darwin"
+readonly PLATFORM_LINUX="Linux"
+
+readonly CURSOR_APP_MACOS="/Applications/Cursor.app"
+readonly CURSOR_CONFIG_MACOS="$HOME/Library/Application Support/Cursor/User"
+readonly CURSOR_WORKSPACE_MACOS="$HOME/Library/Application Support/Cursor/User/workspaceStorage"
+
+readonly CURSOR_CONFIG_LINUX="$HOME/.config/Cursor/User"
+readonly CURSOR_WORKSPACE_LINUX="$HOME/.config/Cursor/User/workspaceStorage"
+
+readonly CLAUDE_HOME_DIR="$HOME/.claude"
+readonly WINDSURF_CONFIG_DIR="$HOME/.codeium/windsurf"
 
 detect_platform() {
-    case "$(uname -s)" in
-    Darwin*)
+    local platform
+    platform="$(uname)"
+
+    case "$platform" in
+    "$PLATFORM_MACOS")
         echo "macos"
         ;;
-    Linux*)
+    "$PLATFORM_LINUX")
         echo "linux"
-        ;;
-    CYGWIN* | MINGW32* | MSYS* | MINGW*)
-        echo "windows"
         ;;
     *)
         echo "unknown"
@@ -19,12 +35,15 @@ detect_platform() {
 }
 
 get_cursor_config_dir() {
-    case "$(detect_platform)" in
+    local platform
+    platform="$(detect_platform)"
+
+    case "$platform" in
     macos)
-        echo "$HOME/.cursor"
+        echo "$CURSOR_CONFIG_MACOS"
         ;;
     linux)
-        echo "$HOME/.config/Cursor/User"
+        echo "$CURSOR_CONFIG_LINUX"
         ;;
     *)
         echo "$HOME/.cursor"
@@ -32,8 +51,28 @@ get_cursor_config_dir() {
     esac
 }
 
+get_cursor_workspace_storage() {
+    local platform
+    platform="$(detect_platform)"
+
+    case "$platform" in
+    macos)
+        echo "$CURSOR_WORKSPACE_MACOS"
+        ;;
+    linux)
+        echo "$CURSOR_WORKSPACE_LINUX"
+        ;;
+    *)
+        echo "$HOME/.cursor/workspaceStorage"
+        ;;
+    esac
+}
+
 get_cursor_app_support_dir() {
-    case "$(detect_platform)" in
+    local platform
+    platform="$(detect_platform)"
+
+    case "$platform" in
     macos)
         echo "$HOME/Library/Application Support/Cursor"
         ;;
@@ -46,58 +85,40 @@ get_cursor_app_support_dir() {
     esac
 }
 
-get_cursor_workspace_storage() {
-    case "$(detect_platform)" in
-    macos)
-        echo "$HOME/Library/Application Support/Cursor/workspaceStorage"
-        ;;
-    linux)
-        echo "$HOME/.config/Cursor/workspaceStorage"
-        ;;
-    *)
-        echo "$HOME/.cursor/workspaceStorage"
-        ;;
-    esac
-}
-
 get_application_paths() {
     local app_name="$1"
-    case "$(detect_platform)" in
-    macos)
-        case "$app_name" in
-        cursor)
-            echo "/Applications/Cursor.app"
+    local platform
+    platform="$(detect_platform)"
+
+    case "$app_name" in
+    cursor)
+        case "$platform" in
+        macos)
+            echo "$CURSOR_APP_MACOS"
             ;;
-        windsurf)
-            echo "/Applications/Windsurf.app"
+        linux)
+            command -v cursor 2>/dev/null || echo ""
             ;;
         *)
             echo ""
             ;;
         esac
         ;;
-    linux)
-        # On Linux, applications are typically in PATH or installed via package managers
-        # Check common installation locations
-        case "$app_name" in
-        cursor)
-            for path in "/usr/bin/cursor" "/usr/local/bin/cursor" "/opt/cursor/cursor" "$HOME/.local/bin/cursor"; do
-                if [[ -x "$path" ]]; then
-                    echo "$path"
-                    return 0
-                fi
-            done
+    claude-code)
+        command -v claude 2>/dev/null || echo ""
+        ;;
+    windsurf)
+        case "$platform" in
+        macos)
+            echo "/Applications/Windsurf.app"
             ;;
-        windsurf)
-            for path in "/usr/bin/windsurf" "/usr/local/bin/windsurf" "/opt/windsurf/windsurf" "$HOME/.local/bin/windsurf"; do
-                if [[ -x "$path" ]]; then
-                    echo "$path"
-                    return 0
-                fi
-            done
+        linux)
+            command -v windsurf 2>/dev/null || echo ""
+            ;;
+        *)
+            echo ""
             ;;
         esac
-        echo ""
         ;;
     *)
         echo ""
@@ -108,22 +129,37 @@ get_application_paths() {
 is_application_installed() {
     local app_name="$1"
     local app_path
-    app_path=$(get_application_paths "$app_name")
+    app_path="$(get_application_paths "$app_name")"
 
     if [[ -n "$app_path" ]]; then
-        case "$(detect_platform)" in
-        macos)
-            [[ -d "$app_path" ]]
-            ;;
-        linux)
-            [[ -x "$app_path" ]]
-            ;;
-        *)
-            [[ -e "$app_path" ]]
-            ;;
-        esac
-    else
-        # Fallback: check if command is in PATH
-        command -v "$app_name" >/dev/null 2>&1
+        if [[ -d "$app_path" ]] || [[ -f "$app_path" ]]; then
+            return 0
+        fi
     fi
+
+    return 1
+}
+
+get_claude_home_dir() {
+    echo "$CLAUDE_HOME_DIR"
+}
+
+get_windsurf_config_dir() {
+    echo "$WINDSURF_CONFIG_DIR"
+}
+
+normalize_path() {
+    local path="$1"
+
+    # Handle tilde expansion
+    if [[ "$path" == "~"* ]]; then
+        path="${path/#~/$HOME}"
+    fi
+
+    # Resolve to absolute path if possible
+    if [[ -e "$path" ]]; then
+        path="$(cd "$path" && pwd -P)"
+    fi
+
+    echo "$path"
 }

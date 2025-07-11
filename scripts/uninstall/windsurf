@@ -1,0 +1,77 @@
+#!/bin/bash
+# Windsurf uninstall logic for Gandalf MCP
+
+uninstall_windsurf_global() {
+    local server_name="$1"
+    local backup_path="$2"
+    local dry_run="$3"
+
+    echo "Removing Windsurf configuration..."
+    
+    local windsurf_config="$HOME/.windsurf/mcp.json"
+    local windsurf_global_rules="$HOME/.windsurf/global_rules.md"
+
+    if [[ -f "$windsurf_config" ]]; then
+        if [[ "$dry_run" == "false" ]]; then
+            cp "$windsurf_config" "$backup_path/" 2>/dev/null || true
+            if command -v jq &>/dev/null; then
+                local temp_file
+                temp_file=$(mktemp)
+                jq --arg name "$server_name" 'del(.mcpServers[$name])' "$windsurf_config" >"$temp_file" && mv "$temp_file" "$windsurf_config"
+            else
+                rm -f "$windsurf_config"
+            fi
+        else
+            echo "[DRY RUN] Would remove Windsurf MCP configuration"
+        fi
+    fi
+
+    if [[ -f "$windsurf_global_rules" ]]; then
+        if [[ "$dry_run" == "false" ]]; then
+            cp "$windsurf_global_rules" "$backup_path/" 2>/dev/null || true
+            rm -f "$windsurf_global_rules"
+        else
+            echo "[DRY RUN] Would remove Windsurf global rules file"
+        fi
+    fi
+
+    if [[ "$dry_run" == "false" ]]; then
+        echo "Note: Project-specific .windsurfrules files remain in individual project directories"
+    fi
+}
+
+uninstall_windsurf_local() {
+    local target_dir="$1"
+    local backup_path="$2"
+    local dry_run="$3"
+
+    local windsurf_config="$target_dir/.windsurf/mcp_config.json"
+    local windsurf_rules="$target_dir/.windsurf/rules.md"
+
+    if [[ -f "$windsurf_config" ]]; then
+        echo "Removing local Windsurf MCP configuration..."
+        if [[ "$dry_run" == "false" ]]; then
+            mkdir -p "$backup_path/windsurf/"
+            cp "$windsurf_config" "$backup_path/windsurf/" 2>/dev/null || true
+            rm -f "$windsurf_config"
+            echo "Removed local Windsurf MCP configuration"
+        else
+            echo "[DRY RUN] Would remove local Windsurf MCP configuration"
+        fi
+    fi
+    
+    if [[ -f "$windsurf_rules" ]]; then
+        if [[ "$dry_run" == "false" ]]; then
+            mkdir -p "$backup_path/windsurf/"
+            cp "$windsurf_rules" "$backup_path/windsurf/" 2>/dev/null || true
+            rm -f "$windsurf_rules"
+            echo "Removed local Windsurf rules file"
+        else
+            echo "[DRY RUN] Would remove local Windsurf rules file"
+        fi
+    fi
+
+    if [[ -d "$target_dir/.windsurf" ]] && [[ -z "$(ls -A "$target_dir/.windsurf" 2>/dev/null)" ]]; then
+        [[ "$dry_run" == "false" ]] && rmdir "$target_dir/.windsurf" 2>/dev/null || true
+    fi
+} 

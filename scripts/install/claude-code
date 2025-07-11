@@ -1,0 +1,132 @@
+#!/bin/bash
+# Claude Code installation logic for Gandalf MCP
+
+install_for_claude_code() {
+    local server_name="$1"
+    local gandalf_root="$2"
+    local scope="$3"
+    local install_dir="$4"
+
+    echo "Installing Gandalf MCP for Claude Code (scope: $scope)..."
+
+    if ! validate_executable "claude" "Claude CLI"; then
+        echo "Error: Claude CLI not found. Please install Claude Code first." >&2
+        return 1
+    fi
+
+    local scope_flag
+    if [[ "$scope" == "local" ]]; then
+        scope_flag="local"
+        echo "Installing to local scope for directory: $install_dir"
+        [[ -n "$install_dir" ]] && cd "$install_dir"
+    else
+        scope_flag="user"
+        echo "Installing to global user scope"
+    fi
+
+    # Clean existing configurations
+    claude mcp remove "$server_name" -s local 2>/dev/null || true
+    claude mcp remove "$server_name" -s user 2>/dev/null || true
+
+    local mcp_script="$gandalf_root/gandalf.sh"
+    if [[ "$scope" == "local" && (-n "$CUSTOM_PORT" || "$scope" == "local") ]]; then
+        local port="${CUSTOM_PORT:-$(find_available_port)}"
+        mcp_script="$(create_local_gandalf_script "$install_dir" "$port" "$server_name")"
+    fi
+
+    if claude mcp add "$server_name" "$mcp_script" -s "$scope_flag" "run" \
+        -e "PYTHONPATH=$gandalf_root/server" \
+        -e "CLAUDECODE=1" \
+        -e "CLAUDE_CODE_ENTRYPOINT=cli" \
+        -e "GANDALF_SCOPE=$scope" \
+        $([[ "$scope" == "local" ]] && echo "-e GANDALF_LOCAL_DIR=$install_dir"); then
+        echo "Claude Code MCP configuration installed successfully"
+        return 0
+    else
+        echo "Error: Failed to install Claude Code MCP configuration" >&2
+        return 1
+    fi
+}
+
+create_claude_rules() {
+    local rules_content="$1"
+    local settings_file="$HOME/.claude/global_settings.json"
+
+    if [[ -f "$settings_file" ]] && [[ "${FORCE:-false}" != "true" ]]; then
+        echo "Claude Code settings file already exists: $settings_file"
+        return 0
+    fi
+
+    if [[ -f "$settings_file" ]]; then
+        local backup_file="$settings_file.backup.$(date +%s)"
+        cp "$settings_file" "$backup_file" && echo "Backed up existing Claude Code settings: $backup_file"
+    fi
+
+    local escaped_content
+    if command -v python3 &>/dev/null; then
+        escaped_content=$(python3 -c "import json; import sys; print(json.dumps(sys.stdin.read()))" <<<"$rules_content")
+    else
+        escaped_content=$(printf '%s' "$rules_content" |
+            sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\f/\\f/g; s/\b/\\b/g; :a;N;$!ba;s/\n/\\n/g')
+        escaped_content="\"$escaped_content\""
+    fi
+
+    cat >"$settings_file" <<EOF
+{
+    "permissions": {
+        "allow": [
+            "Bash(*)",
+            "Edit(*)",
+            "Read(*)",
+            "Write(*)"
+        ]
+    },
+    "gandalfRules": $escaped_content
+}
+EOF
+
+    echo "Created Claude Code settings file: $settings_file"
+    return 0
+}
+
+create_local_claude_rules() {
+    local install_dir="$1"
+    local rules_content="$2"
+    local settings_file="$install_dir/.claude/local_settings.json"
+
+    if [[ -f "$settings_file" ]] && [[ "${FORCE:-false}" != "true" ]]; then
+        echo "Local Claude Code settings file already exists: $settings_file"
+        return 0
+    fi
+
+    if [[ -f "$settings_file" ]]; then
+        local backup_file="$settings_file.backup.$(date +%s)"
+        cp "$settings_file" "$backup_file" && echo "Backed up existing local Claude Code settings: $backup_file"
+    fi
+
+    local escaped_content
+    if command -v python3 &>/dev/null; then
+        escaped_content=$(python3 -c "import json; import sys; print(json.dumps(sys.stdin.read()))" <<<"$rules_content")
+    else
+        escaped_content=$(printf '%s' "$rules_content" |
+            sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\f/\\f/g; s/\b/\\b/g; :a;N;$!ba;s/\n/\\n/g')
+        escaped_content="\"$escaped_content\""
+    fi
+
+    cat >"$settings_file" <<EOF
+{
+    "permissions": {
+        "allow": [
+            "Bash(*)",
+            "Edit(*)",
+            "Read(*)",
+            "Write(*)"
+        ]
+    },
+    "gandalfRules": $escaped_content
+}
+EOF
+
+    echo "Created local Claude Code settings file: $settings_file"
+    return 0
+} 

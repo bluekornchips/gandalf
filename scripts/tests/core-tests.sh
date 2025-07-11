@@ -16,7 +16,8 @@ teardown() {
 }
 
 @test "server starts without errors" {
-    local python_cmd=$(get_python_executable)
+    local python_cmd
+    python_cmd=$(get_python_executable)
     run bash -c "cd '$GANDALF_ROOT/server' && PYTHONPATH=. '$python_cmd' src/main.py --help"
     [ "$status" -eq 0 ]
 }
@@ -42,7 +43,6 @@ teardown() {
     echo "$tools" | grep -q "list_project_files"
     echo "$tools" | grep -q "get_project_info"
     echo "$tools" | grep -q "recall_conversations"
-    echo "$tools" | grep -q "search_conversations"
     echo "$tools" | grep -q "get_server_version"
     echo "$tools" | grep -q "export_individual_conversations"
 }
@@ -57,23 +57,22 @@ teardown() {
 
 @test "server handles malformed JSON" {
     local malformed_json='{"invalid": json}'
-    local python_cmd=$(get_python_executable)
+    local python_cmd
+    python_cmd=$(get_python_executable)
 
     run bash -c "cd '$GANDALF_ROOT/server' && echo '$malformed_json' | PYTHONPATH=. '$python_cmd' src/main.py --project-root '$TEST_PROJECT_DIR' 2>/dev/null"
     [ "$status" -eq 0 ]
 
-    # Server returns multiple JSON objects: notifications + error response
-    # Find the one with the error code; it should be the last one
     echo "$output" | while IFS= read -r line; do
         if [[ -n "$line" ]] && echo "$line" | jq -e '.error.code == -32700' >/dev/null 2>&1; then
             exit 0
         fi
     done
-
 }
 
 @test "server handles empty input gracefully" {
-    local python_cmd=$(get_python_executable)
+    local python_cmd
+    python_cmd=$(get_python_executable)
     run bash -c "cd '$GANDALF_ROOT/server' && echo '' | PYTHONPATH=. '$python_cmd' src/main.py --project-root '$TEST_PROJECT_DIR' 2>/dev/null"
     [ "$status" -eq 0 ]
 }
@@ -107,27 +106,28 @@ teardown() {
 
     validate_jsonrpc_response "$output"
 
-    # Should return conversation data or indication of no conversations
     local content
     content=$(echo "$output" | jq -r '.result.content[0].text')
     [[ -n "$content" ]]
 }
 
 @test "server handles multiple sequential requests" {
-    # Test that server can handle multiple requests in sequence
     run execute_rpc "tools/list" '{}'
     [ "$status" -eq 0 ]
-    local first_id=$(echo "$output" | jq -r '.id')
+    local first_id
+    first_id=$(echo "$output" | jq -r '.id')
     validate_jsonrpc_response "$output" "$first_id"
 
     run execute_rpc "tools/call" '{"name": "get_project_info", "arguments": {}}'
     [ "$status" -eq 0 ]
-    local second_id=$(echo "$output" | jq -r '.id')
+    local second_id
+    second_id=$(echo "$output" | jq -r '.id')
     validate_jsonrpc_response "$output" "$second_id"
 
     run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {}}'
     [ "$status" -eq 0 ]
-    local third_id=$(echo "$output" | jq -r '.id')
+    local third_id
+    third_id=$(echo "$output" | jq -r '.id')
     validate_jsonrpc_response "$output" "$third_id"
 }
 
@@ -140,15 +140,15 @@ teardown() {
 }
 
 @test "server respects project root parameter" {
-    local other_project="$TEST_HOME/other-project"
+    local other_project="$TEST_HOME/rivendell-project"
     mkdir -p "$other_project"
     cd "$other_project"
     git init >/dev/null 2>&1
-    git config user.email "test@gandalf.test"
-    git config user.name "Gandalf Test"
-    echo "# Other Project" >OTHER.md
+    git config user.email "elrond@rivendell.middleearth"
+    git config user.name "Elrond Half-elven"
+    echo "# Rivendell Project" >RIVENDELL.md
     git add . >/dev/null 2>&1
-    git commit -m "Other project" >/dev/null 2>&1
+    git commit -m "Council of Elrond" >/dev/null 2>&1
 
     run execute_rpc "tools/call" '{"name": "list_project_files", "arguments": {}}' "$other_project"
     [ "$status" -eq 0 ]
@@ -157,12 +157,11 @@ teardown() {
 
     local content
     content=$(echo "$output" | jq -r '.result.content[0].text')
-    echo "$content" | grep -q "OTHER.md"
+    echo "$content" | grep -q "RIVENDELL.md"
     ! echo "$content" | grep -q "README.md"
 }
 
 @test "conversation tools are automatically detected" {
-    # Test that conversation aggregation tools are available
     run execute_rpc "tools/list" '{}'
     [ "$status" -eq 0 ]
 
@@ -171,11 +170,7 @@ teardown() {
     local tools
     tools=$(echo "$output" | jq -r '.result.tools[].name')
 
-    # Should have streamlined conversation aggregation tools
     echo "$tools" | grep -q "recall_conversations"
-    echo "$tools" | grep -q "search_conversations"
-
-    # Should have basic tools regardless
     echo "$tools" | grep -q "list_project_files"
     echo "$tools" | grep -q "get_project_info"
 }

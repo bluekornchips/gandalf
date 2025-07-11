@@ -6,67 +6,26 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from config.constants import (
+from src.config.constants.context import (
     CONTEXT_FILE_SIZE_ACCEPTABLE_MAX,
-    CONTEXT_MIN_SCORE,
     CONTEXT_TOP_FILES_COUNT,
 )
-from config.weights import (
-    CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER,
-    CONTEXT_FILE_SIZE_LARGE_MULTIPLIER,
-    CONTEXT_FILE_SIZE_OPTIMAL_MAX,
-    CONTEXT_FILE_SIZE_OPTIMAL_MIN,
-    CONTEXT_RECENT_DAY_MULTIPLIER,
-    CONTEXT_RECENT_DAY_THRESHOLD,
-    CONTEXT_RECENT_HOUR_THRESHOLD,
-    CONTEXT_RECENT_WEEK_MULTIPLIER,
-    CONTEXT_RECENT_WEEK_THRESHOLD,
-    CONTEXT_WEIGHTS,
-    get_directory_priority_weights,
-    get_file_extension_weights,
-)
-from core.git_activity import GitActivityTracker
-from utils.common import log_debug
-
-# Import cache constants
-CONTEXT_IMPORT_CACHE_TTL = 3600  # 1 hour
-CONTEXT_IMPORT_TIMEOUT = 10  # 10 seconds
-
-# File size penalty threshold
-CONTEXT_FILE_SIZE_PENALTY_THRESHOLD = 100000  # 100KB
-
-# Activity-based weight constants
-ACTIVE_FILE_WEIGHT = 5.0
-IMPORT_NEIGHBOR_WEIGHT = 3.0
-RECENT_EDIT_WEIGHT = 4.0
-CURSOR_ACTIVITY_WEIGHT = 2.0
-
-# Scoring thresholds and multipliers
-CURSOR_ACTIVITY_WEIGHT_MULTIPLIER = 1.5
-CURSOR_ACTIVITY_SCORE_THRESHOLD = 0.1
-CURSOR_ACTIVITY_POSITION_WEIGHT = 0.3
-CURSOR_ACTIVITY_RECENT_WEIGHT = 0.7
-
-RECENT_EDIT_HOURS_THRESHOLD = 24
-RECENT_EDIT_WEIGHT_MULTIPLIER = 2.0
-RECENT_EDIT_SCORE_THRESHOLD = 0.2
-RECENT_EDIT_TIME_WEIGHT = 0.5
-
-IMPORT_NEIGHBOR_SCORE_THRESHOLD = 0.15
-IMPORT_NEIGHBOR_WEIGHT_MULTIPLIER = 1.8
-IMPORT_NEIGHBOR_DEPTH_WEIGHT = 0.2
-
-ACTIVE_FILE_SCORE_THRESHOLD = 0.3
-ACTIVE_FILE_WEIGHT_MULTIPLIER = 3.0
+from src.config.constants.limits import CONTEXT_MIN_SCORE
+from src.config.weights import WeightsManager
+from src.core.git_activity import GitActivityTracker
+from src.utils.common import log_debug
 
 
 class ContextIntelligence:
     """Context scoring and prioritization system."""
 
-    def __init__(self, project_root: Path):
+    def __init__(self, project_root: Path, weights_config: Optional[Any] = None):
         """Initialize context intelligence for a project."""
         self.project_root = project_root
         self._import_cache = {}
+
+        # dependency injection, great, this is a good idea me
+        self.weights = weights_config or WeightsManager.get_default()
 
         self.git_tracker = GitActivityTracker(project_root)
 
@@ -109,17 +68,34 @@ class ContextIntelligence:
             now = time.time()
             hours_ago = (now - mod_time) / 3600
 
-            if hours_ago < CONTEXT_RECENT_HOUR_THRESHOLD:
-                return CONTEXT_WEIGHTS.get("recent_modification", CONTEXT_MIN_SCORE)
-            elif hours_ago < CONTEXT_RECENT_DAY_THRESHOLD:
+            context_weights = self.weights.get_dict("weights")
+            recent_hour_threshold = self.weights.get(
+                "context.recent_modifications.hour_threshold"
+            )
+            recent_day_threshold = self.weights.get(
+                "context.recent_modifications.day_threshold"
+            )
+            recent_week_threshold = self.weights.get(
+                "context.recent_modifications.week_threshold"
+            )
+            recent_day_multiplier = self.weights.get(
+                "context.recent_modifications.day_multiplier"
+            )
+            recent_week_multiplier = self.weights.get(
+                "context.recent_modifications.week_multiplier"
+            )
+
+            if hours_ago < recent_hour_threshold:
+                return context_weights.get("recent_modification", CONTEXT_MIN_SCORE)
+            elif hours_ago < recent_day_threshold:
                 return (
-                    CONTEXT_WEIGHTS.get("recent_modification", CONTEXT_MIN_SCORE)
-                    * CONTEXT_RECENT_DAY_MULTIPLIER
+                    context_weights.get("recent_modification", CONTEXT_MIN_SCORE)
+                    * recent_day_multiplier
                 )
-            elif hours_ago < CONTEXT_RECENT_WEEK_THRESHOLD:
+            elif hours_ago < recent_week_threshold:
                 return (
-                    CONTEXT_WEIGHTS.get("recent_modification", CONTEXT_MIN_SCORE)
-                    * CONTEXT_RECENT_WEEK_MULTIPLIER
+                    context_weights.get("recent_modification", CONTEXT_MIN_SCORE)
+                    * recent_week_multiplier
                 )
             else:
                 return CONTEXT_MIN_SCORE
@@ -132,19 +108,25 @@ class ContextIntelligence:
         try:
             size = full_path.stat().st_size
 
-            if CONTEXT_FILE_SIZE_OPTIMAL_MIN <= size <= CONTEXT_FILE_SIZE_OPTIMAL_MAX:
-                return CONTEXT_WEIGHTS.get("file_size_optimal", CONTEXT_MIN_SCORE)
-            elif (
-                CONTEXT_FILE_SIZE_OPTIMAL_MAX < size <= CONTEXT_FILE_SIZE_ACCEPTABLE_MAX
-            ):
+            context_weights = self.weights.get_dict("weights")
+            optimal_min = self.weights.get("context.file_size.optimal_min")
+            optimal_max = self.weights.get("context.file_size.optimal_max")
+            acceptable_multiplier = self.weights.get(
+                "context.file_size.acceptable_multiplier"
+            )
+            large_multiplier = self.weights.get("context.file_size.large_multiplier")
+
+            if optimal_min <= size <= optimal_max:
+                return context_weights.get("file_size_optimal", CONTEXT_MIN_SCORE)
+            elif optimal_max < size <= CONTEXT_FILE_SIZE_ACCEPTABLE_MAX:
                 return (
-                    CONTEXT_WEIGHTS.get("file_size_optimal", CONTEXT_MIN_SCORE)
-                    * CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER
+                    context_weights.get("file_size_optimal", CONTEXT_MIN_SCORE)
+                    * acceptable_multiplier
                 )
             elif size > CONTEXT_FILE_SIZE_ACCEPTABLE_MAX:
                 return (
-                    CONTEXT_WEIGHTS.get("file_size_optimal", CONTEXT_MIN_SCORE)
-                    * CONTEXT_FILE_SIZE_LARGE_MULTIPLIER
+                    context_weights.get("file_size_optimal", CONTEXT_MIN_SCORE)
+                    * large_multiplier
                 )
             else:
                 return CONTEXT_MIN_SCORE
@@ -155,8 +137,11 @@ class ContextIntelligence:
     def _score_file_type(self, file_path: str) -> float:
         """Score based on file extension priority."""
         suffix = Path(file_path).suffix.lower()
-        extension_score = get_file_extension_weights().get(suffix, CONTEXT_MIN_SCORE)
-        return extension_score * CONTEXT_WEIGHTS.get(
+        extension_score = self.weights.get_file_extension_weights().get(
+            suffix, CONTEXT_MIN_SCORE
+        )
+        context_weights = self.weights.get_dict("weights")
+        return extension_score * context_weights.get(
             "file_type_priority", CONTEXT_MIN_SCORE
         )
 
@@ -165,11 +150,12 @@ class ContextIntelligence:
         parts = Path(file_path).parts
         score = 0.0
 
+        context_weights = self.weights.get_dict("weights")
+        directory_weights = self.weights.get_directory_priority_weights()
+
         for part in parts[:-1]:  # Exclude filename
-            dir_score = get_directory_priority_weights().get(
-                part.lower(), CONTEXT_MIN_SCORE
-            )
-            score += dir_score * CONTEXT_WEIGHTS.get(
+            dir_score = directory_weights.get(part.lower(), CONTEXT_MIN_SCORE)
+            score += dir_score * context_weights.get(
                 "directory_importance", CONTEXT_MIN_SCORE
             )
 
@@ -179,7 +165,8 @@ class ContextIntelligence:
         """Score based on recent git activity using GitActivityTracker."""
         try:
             activity_score = self.git_tracker.get_activity_score(file_path)
-            return activity_score * CONTEXT_WEIGHTS.get(
+            context_weights = self.weights.get_dict("weights")
+            return activity_score * context_weights.get(
                 "git_activity", CONTEXT_MIN_SCORE
             )
         except (AttributeError, TypeError):
@@ -295,9 +282,11 @@ class ContextIntelligence:
 _context_cache: Dict[str, ContextIntelligence] = {}
 
 
-def get_context_intelligence(project_root: Path) -> ContextIntelligence:
-    """Get or create a ContextIntelligence instance for a project."""
+def get_context_intelligence(
+    project_root: Path, weights_config: Optional[Any] = None
+) -> ContextIntelligence:
+    """Get context intelligence instance for a project."""
     cache_key = str(project_root)
     if cache_key not in _context_cache:
-        _context_cache[cache_key] = ContextIntelligence(project_root)
+        _context_cache[cache_key] = ContextIntelligence(project_root, weights_config)
     return _context_cache[cache_key]

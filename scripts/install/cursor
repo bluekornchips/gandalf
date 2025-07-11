@@ -1,0 +1,77 @@
+#!/bin/bash
+# Cursor installation logic for Gandalf MCP
+
+install_for_cursor() {
+    local server_name="$1"
+    local gandalf_root="$2"
+    local scope="$3"
+    local install_dir="$4"
+
+    echo "Installing Gandalf MCP for Cursor (scope: $scope)..."
+
+    local config_file mcp_script="$gandalf_root/gandalf.sh"
+    
+    if [[ "$scope" == "local" ]]; then
+        config_file="$(get_local_config_path "cursor" "$install_dir")"
+        if [[ -n "$CUSTOM_PORT" ]] || [[ "$scope" == "local" ]]; then
+            local port="${CUSTOM_PORT:-$(find_available_port)}"
+            mcp_script="$(create_local_gandalf_script "$install_dir" "$port" "$server_name")"
+        fi
+        echo "Creating local Cursor configuration: $config_file"
+    else
+        config_file="$HOME/.cursor/mcp.json"
+        echo "Creating global Cursor configuration: $config_file"
+    fi
+
+    [[ -f "$config_file" ]] && create_backup "$config_file" "cursor-mcp.json"
+
+    local env_vars=""
+    if [[ "$scope" == "local" ]]; then
+        env_vars='"env": {"GANDALF_LOCAL_DIR": "'$install_dir'", "GANDALF_SCOPE": "local"}, '
+    fi
+
+    if update_json_config_with_env "$config_file" "$server_name" "$mcp_script" "$env_vars" "run"; then
+        echo "Cursor MCP configuration installed successfully"
+        return 0
+    else
+        echo "Error: Failed to install Cursor MCP configuration" >&2
+        return 1
+    fi
+}
+
+create_cursor_rules() {
+    local rules_content="$1"
+    local rules_file="$HOME/.cursor/rules/$MCP_SERVER_NAME-rules.mdc"
+
+    if [[ -f "$rules_file" ]] && [[ "${FORCE:-false}" != "true" ]]; then
+        echo "Cursor rules file already exists: $rules_file"
+        return 0
+    fi
+
+    if printf '%s' "$rules_content" >"$rules_file"; then
+        echo "Created Cursor rules file: $rules_file"
+        return 0
+    else
+        echo "Error: Failed to create Cursor rules file" >&2
+        return 1
+    fi
+}
+
+create_local_cursor_rules() {
+    local install_dir="$1"
+    local rules_content="$2"
+    local rules_file="$install_dir/.cursor/rules/gandalf-rules.mdc"
+
+    if [[ -f "$rules_file" ]] && [[ "${FORCE:-false}" != "true" ]]; then
+        echo "Local Cursor rules file already exists: $rules_file"
+        return 0
+    fi
+
+    if printf '%s' "$rules_content" >"$rules_file"; then
+        echo "Created local Cursor rules file: $rules_file"
+        return 0
+    else
+        echo "Error: Failed to create local Cursor rules file" >&2
+        return 1
+    fi
+} 

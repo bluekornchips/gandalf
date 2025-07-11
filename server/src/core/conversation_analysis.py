@@ -10,25 +10,26 @@ import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from config.constants import (
-    CONTEXT_CACHE_TTL_SECONDS,
-    CONTEXT_KEYWORD_MAX_COUNT,
-    CONTEXT_MAX_FILES_TO_CHECK,
-    CONTEXT_MIN_EXTENSIONS_BEFORE_DEEP_SCAN,
+from src.config.config_data import (
     CONTEXT_SKIP_DIRECTORIES,
-    CONVERSATION_TEXT_EXTRACTION_LIMIT,
     FILE_REFERENCE_PATTERNS,
     TECHNOLOGY_KEYWORD_MAPPING,
 )
-from config.weights import (
-    CONVERSATION_FILE_REF_SCORE,
-    CONVERSATION_KEYWORD_WEIGHT,
-    CONVERSATION_RECENCY_THRESHOLDS,
-    CONVERSATION_WEIGHTS,
+from src.config.constants.cache import (
+    CONTEXT_CACHE_TTL_SECONDS,
 )
-from utils.common import log_debug, log_error
+from src.config.constants.context import (
+    CONTEXT_KEYWORD_MAX_COUNT,
+    CONTEXT_MAX_FILES_TO_CHECK,
+    CONTEXT_MIN_EXTENSIONS_BEFORE_DEEP_SCAN,
+)
+from src.config.constants.conversation import (
+    CONVERSATION_TEXT_EXTRACTION_LIMIT,
+)
+from src.config.weights import WeightsManager
+from src.utils.common import log_debug, log_error
 
 # Global cache for context keywords
 _context_keywords_cache = {}
@@ -49,7 +50,6 @@ def generate_shared_context_keywords(project_root: Path) -> List[str]:
             "package.json",
             "pyproject.toml",
             "requirements.txt",
-            "Cargo.toml",
             "README.md",
         ]
         latest_mtime = 0
@@ -105,14 +105,9 @@ def _extract_project_keywords(project_root: Path) -> List[str]:
         common_files = [
             "package.json",
             "pyproject.toml",
-            "Cargo.toml",
-            "go.mod",
-            "pom.xml",
             "README.md",
             "CLAUDE.md",
             "requirements.txt",
-            "Gemfile",
-            "composer.json",
         ]
 
         for file_name in common_files:
@@ -198,18 +193,6 @@ def _extract_keywords_from_file(file_name: str, content: str) -> List[str]:
             if "fastapi" in content_lower:
                 keywords.append("fastapi")
 
-        elif file_name == "Cargo.toml":
-            keywords.append("rust")
-
-        elif file_name == "go.mod":
-            keywords.append("go")
-
-        elif file_name == "pom.xml":
-            keywords.append("java")
-            content_lower = content.lower()
-            if "spring" in content_lower:
-                keywords.append("spring")
-
     except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as e:
         log_debug(f"Error extracting keywords from {file_name}: {e}")
 
@@ -260,7 +243,7 @@ def _extract_tech_keywords_from_files(project_root: Path) -> List[str]:
                     except (OSError, PermissionError):
                         continue
 
-        # Map extensions to technologies
+        # Map extensions to technologies (only supported languages)
         ext_mapping = {
             ".py": "python",
             ".js": "javascript",
@@ -268,16 +251,6 @@ def _extract_tech_keywords_from_files(project_root: Path) -> List[str]:
             ".jsx": "react",
             ".tsx": "react",
             ".vue": "vue",
-            ".rs": "rust",
-            ".go": "go",
-            ".java": "java",
-            ".rb": "ruby",
-            ".php": "php",
-            ".cs": "csharp",
-            ".cpp": "cpp",
-            ".c": "c",
-            ".swift": "swift",
-            ".kt": "kotlin",
         }
 
         for ext in file_extensions:
@@ -295,88 +268,106 @@ def analyze_session_relevance(
     context_keywords: List[str],
     session_metadata: Dict[str, Any],
     include_detailed_analysis: bool = False,
+    weights_config: Optional[Any] = None,
 ) -> Tuple[float, Dict[str, Any]]:
-    """Analyze relevance of a conversation session using multi-factor scoring."""
+    """Analyze session relevance with configurable weights."""
     try:
-        score = 0.0
-        analysis = {
-            "keyword_matches": [],
-            "file_references": [],
-            "recency_score": 0.0,
-            "conversation_type": "general",
-        }
+        # Return 0 score for empty content
+        if not session_content or not session_content.strip():
+            return 0.0, {
+                "keyword_matches": [],
+                "file_references": [],
+                "recency_score": 0.0,
+                "conversation_type": "general",
+            }
 
-        if not session_content:
-            return 0.0, analysis
+        weights = weights_config or WeightsManager.get_default()
+        conversation_weights = weights.get_dict("conversation")
 
-        text_content = session_content.lower()
-
-        # Score keyword matches
-        keyword_score, matched_keywords = score_keyword_matches(
-            text_content, context_keywords
+        keyword_score, keyword_matches = score_keyword_matches(
+            session_content, context_keywords, weights
         )
-        analysis["keyword_matches"] = matched_keywords
-        score += keyword_score * CONVERSATION_WEIGHTS["keyword_match"]
+        file_score, file_references = score_file_references(session_content, weights)
+        recency_score = score_session_recency(session_metadata, weights)
 
-        # Score recency
-        recency_score = score_session_recency(session_metadata)
-        analysis["recency_score"] = recency_score
-        score += recency_score * CONVERSATION_WEIGHTS["recency"]
+        total_score = 0.0
+        total_score += keyword_score * conversation_weights.get("keyword_match", 1.0)
+        total_score += recency_score * conversation_weights.get("recency", 1.0)
+        total_score += file_score * conversation_weights.get("file_reference", 1.0)
 
-        # Score file references if detailed analysis requested
-        if include_detailed_analysis:
-            file_score, file_refs = score_file_references(text_content)
-            analysis["file_references"] = file_refs
-            score += file_score * CONVERSATION_WEIGHTS["file_reference"]
-
-        # Classify conversation type
-        analysis["conversation_type"] = classify_conversation_type(
-            text_content, matched_keywords, analysis.get("file_references", [])
+        conversation_type = classify_conversation_type(
+            session_content, keyword_matches, file_references
         )
 
         # Add type-specific scoring bonuses
-        type_bonus = get_conversation_type_bonus(analysis["conversation_type"])
-        score += type_bonus
+        type_bonus = get_conversation_type_bonus(conversation_type, weights)
+        total_score += type_bonus
 
-        return min(score, 5.0), analysis
+        analysis = {
+            "keyword_matches": keyword_matches,
+            "file_references": file_references,
+            "recency_score": recency_score,
+            "conversation_type": conversation_type,
+        }
 
-    except (ValueError, TypeError, KeyError, AttributeError) as e:
+        return (
+            min(total_score, 5.0),
+            analysis,
+        )  # should be a constant for the max score
+
+    except Exception as e:
         log_error(e, "analyzing session relevance")
-        return 0.0, analysis
+        return 0.0, {"conversation_type": "general"}
 
 
-def score_keyword_matches(text: str, keywords: List[str]) -> Tuple[float, List[str]]:
-    """Score based on keyword matches with intelligent weighting."""
+def score_keyword_matches(
+    text: str, keywords: List[str], weights_config: Optional[Any] = None
+) -> Tuple[float, List[str]]:
+    """Score text based on keyword matches with configurable weights."""
     matches = []
     score = 0.0
 
+    weights = weights_config or WeightsManager.get_default()
+    conversation_weights = weights.get_dict("conversation")
+
+    text_lower = text.lower()
     for keyword in keywords:
-        if keyword.lower() in text:
+        if keyword.lower() in text_lower:
             matches.append(keyword)
             # Weight longer keywords more heavily
-            score += len(keyword) * CONVERSATION_KEYWORD_WEIGHT
+            score += len(keyword) * conversation_weights.get("keyword_weight", 1.0)
 
     return min(score, 1.0), matches[:8]  # Limit matches returned
 
 
-def score_file_references(text: str) -> Tuple[float, List[str]]:
+def score_file_references(
+    text: str, weights_config: Optional[Any] = None
+) -> Tuple[float, List[str]]:
     """Score based on file references using standardized patterns."""
     refs = []
     score = 0.0
+
+    weights = weights_config or WeightsManager.get_default()
+    conversation_weights = weights.get_dict("conversation")
 
     # Use shared file reference patterns
     for pattern in FILE_REFERENCE_PATTERNS:
         matches = re.findall(pattern, text, re.IGNORECASE)
         for match in matches:
             refs.append(match)
-            score += CONVERSATION_FILE_REF_SCORE
+            score += conversation_weights.get("file_reference_score", 1.0)
 
     return min(score, 1.0), refs[:5]  # Limit references returned
 
 
-def score_session_recency(session_metadata: Dict[str, Any]) -> float:
+def score_session_recency(
+    session_metadata: Dict[str, Any], weights_config: Optional[Any] = None
+) -> float:
     """Score based on session recency using standardized thresholds."""
     try:
+        weights = weights_config or WeightsManager.get_default()
+        recency_thresholds = weights.get_dict("recency_thresholds")
+
         # Try different timestamp fields based on IDE
         timestamp = None
 
@@ -405,15 +396,15 @@ def score_session_recency(session_metadata: Dict[str, Any]) -> float:
 
         # Use standardized recency thresholds
         if days_ago <= 1:
-            return CONVERSATION_RECENCY_THRESHOLDS["days_1"]
+            return recency_thresholds.get("days_1", 0.0)
         elif days_ago <= 7:
-            return CONVERSATION_RECENCY_THRESHOLDS["days_7"]
+            return recency_thresholds.get("days_7", 0.0)
         elif days_ago <= 30:
-            return CONVERSATION_RECENCY_THRESHOLDS["days_30"]
+            return recency_thresholds.get("days_30", 0.0)
         elif days_ago <= 90:
-            return CONVERSATION_RECENCY_THRESHOLDS["days_90"]
+            return recency_thresholds.get("days_90", 0.0)
         else:
-            return CONVERSATION_RECENCY_THRESHOLDS["default"]
+            return recency_thresholds.get("default", 0.0)
 
     except (ValueError, TypeError, OSError):
         return 0.0
@@ -459,9 +450,15 @@ def classify_conversation_type(
     return "general"
 
 
-def get_conversation_type_bonus(conversation_type: str) -> float:
+def get_conversation_type_bonus(
+    conversation_type: str, weights_config: Optional[Any] = None
+) -> float:
     """Get scoring bonus based on conversation type."""
-    type_bonuses = {
+    weights = weights_config or WeightsManager.get_default()
+    conversation_weights = weights.get_dict("conversation")
+
+    # Default type bonuses if not configured
+    default_bonuses = {
         "debugging": 0.25,
         "architecture": 0.2,
         "testing": 0.15,
@@ -470,6 +467,7 @@ def get_conversation_type_bonus(conversation_type: str) -> float:
         "general": 0.0,
     }
 
+    type_bonuses = conversation_weights.get("type_bonuses", default_bonuses)
     return type_bonuses.get(conversation_type, 0.0)
 
 

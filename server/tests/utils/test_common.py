@@ -1,6 +1,5 @@
 """Test common utility functions for file-based logging only."""
 
-import json
 import tempfile
 import unittest.mock as mock
 from pathlib import Path
@@ -135,7 +134,8 @@ class TestLogConvenienceFunctions:
         log_info("all we have to decide is what to do with the time given us")
 
         mock_write_log.assert_called_once_with(
-            "info", "all we have to decide is what to do with the time given us"
+            "info",
+            "all we have to decide is what to do with the time given us",
         )
 
     @mock.patch("src.utils.common.write_log")

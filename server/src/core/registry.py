@@ -7,19 +7,23 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config.constants import (
-    AGENTIC_TOOL_CLAUDE_CODE,
-    AGENTIC_TOOL_CURSOR,
-    AGENTIC_TOOL_WINDSURF,
+from src.config.config_data import (
     CLAUDE_CONVERSATION_PATTERNS,
     CURSOR_DB_PATTERNS,
     WINDSURF_DB_PATTERNS,
-    CURSOR_WORKSPACE_STORAGE_PATH,
+)
+from src.config.constants.agentic import (
+    AGENTIC_TOOL_CLAUDE_CODE,
+    AGENTIC_TOOL_CURSOR,
+    AGENTIC_TOOL_WINDSURF,
     DEFAULT_GANDALF_HOME,
     GANDALF_HOME_ENV,
     REGISTRY_FILENAME,
 )
-from utils.common import log_debug, log_error
+from src.config.constants.paths import (
+    CURSOR_WORKSPACE_STORAGE_PATH,
+)
+from src.utils.common import log_debug, log_error
 
 
 def get_registry_path() -> Path:
@@ -39,11 +43,10 @@ def read_registry() -> Dict[str, str]:
         return {}
 
     try:
-        with open(registry_path, "r") as f:
+        with open(registry_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-
         if not isinstance(data, dict):
-            log_error("Registry file is not a valid JSON object")
+            log_error(ValueError("Registry file is not a valid JSON object"))
             return {}
 
         return data

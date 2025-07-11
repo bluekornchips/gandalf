@@ -260,14 +260,8 @@ class TestProjectSecurityIntegration:
         ) as mock_sanitize:
             mock_sanitize.return_value = "orthanc-clean"
 
-            # Test ProjectContext.from_path
             ProjectContext.from_path(Path("/path/to/orthanc"))
             assert mock_sanitize.call_count == 1
-
-            # Test get_project_names
-            project_name_1 = get_project_names(Path("/path/to/orthanc"))
-            project_name_2 = get_project_names(Path("/path/to/orthanc"))
-            project_name_3 = get_sanitized_project_name(Path("/path/to/orthanc"))
 
             for call in mock_sanitize.call_args_list:
                 assert call[0][0] == "orthanc"

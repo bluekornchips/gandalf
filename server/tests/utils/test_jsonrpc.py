@@ -1,8 +1,6 @@
 """Test JSON-RPC utility functions."""
 
-import pytest
-
-from src.config.constants import ErrorCodes
+from src.config.enums import ErrorCodes
 from src.utils.jsonrpc import create_error_response, create_success_response
 
 
@@ -36,7 +34,10 @@ class TestErrorResponseCreation:
 
         expected = {
             "jsonrpc": "2.0",
-            "error": {"code": -32700, "message": "The One Ring corrupted the JSON"},
+            "error": {
+                "code": -32700,
+                "message": "The One Ring corrupted the JSON",
+            },
             "id": None,
         }
 
@@ -91,7 +92,10 @@ class TestErrorResponseCreation:
     def test_create_error_response_empty_data(self):
         """Test creating error response with empty data dict."""
         response = create_error_response(
-            ErrorCodes.INTERNAL_ERROR, "Something went wrong in Rohan", "theoden_1", {}
+            ErrorCodes.INTERNAL_ERROR,
+            "Something went wrong in Rohan",
+            "theoden_1",
+            {},
         )
 
         # Empty data should be omitted (JSON-RPC spec compliance)
@@ -167,7 +171,11 @@ class TestSuccessResponseCreation:
 
         response = create_success_response(result_data, "gandalf_the_grey")
 
-        expected = {"jsonrpc": "2.0", "result": result_data, "id": "gandalf_the_grey"}
+        expected = {
+            "jsonrpc": "2.0",
+            "result": result_data,
+            "id": "gandalf_the_grey",
+        }
 
         assert response == expected
 

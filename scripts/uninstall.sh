@@ -1,12 +1,6 @@
 #!/bin/bash
-################################################################################
 # Gandalf MCP Server Uninstall Script
-#
-# This script removes all Gandalf MCP server configurations and setup files.
-# It creates backups of configuration files but does NOT remove conversation history.
-#
-# Usage: ./uninstall.sh [OPTIONS]
-################################################################################
+# Simple removal of all Gandalf MCP server configurations
 
 set -euo pipefail
 
@@ -14,302 +8,178 @@ SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
 GANDALF_ROOT="$(dirname "$(dirname "$SCRIPT_PATH")")"
 
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 usage() {
     cat <<EOF
-Usage: gandalf.sh uninstall [OPTIONS]
+Usage: uninstall.sh [OPTIONS]
 
-Remove Gandalf MCP server configurations and setup files.
-
-IMPORTANT: This removes configuration files but preserves conversation history.
+Remove Gandalf MCP server configurations.
 
 Options:
-    -f, --force            Skip confirmation prompts
-    -h, --help             Show this help
-    --backup-dir <path>    Custom backup directory (default: ~/.gandalf_backups)
-    --keep-cache           Keep cache files (default: remove cache)
-    --dry-run              Show what would be removed without actually removing
+    --force            Skip confirmation prompts
+    --local            Remove from current directory only
+    --local-dir <dir>  Remove from specific directory
+    --help             Show this help
 
-What this removes:
-    - Gandalf MCP server files and binaries
-    - Python virtual environment and dependencies
-    - Global ~/.gandalf directory and all contents
-    - MCP server configurations from all agentic tools (Cursor, Claude Code, Windsurf)
-    - Gandalf CLI aliases and shortcuts
-
-What this preserves:
-    - Conversation history (agentic tool databases remain untouched)
-    - Project files and code
-    - Git repositories and history
-    - Python installation
-    - Agentic tool installations themselves
+Environment Variables:
+    TEST_MODE=true     Auto-run mode for testing (skips prompts)
 
 Examples:
-    gandalf.sh uninstall                    # Interactive uninstall with prompts
-    gandalf.sh uninstall -f                 # Force uninstall without prompts
-    gandalf.sh uninstall --dry-run          # Show what would be removed
-    gandalf.sh uninstall --keep-cache       # Keep cache files
+    uninstall.sh                        # Remove global installation
+    uninstall.sh --local                # Remove from current directory
+    uninstall.sh --local-dir /path      # Remove from specific directory
+    uninstall.sh --force                # Skip confirmation
+    TEST_MODE=true uninstall.sh         # Auto-run for testing
 
 EOF
 }
 
-# Parse arguments
 FORCE_MODE=false
-DRY_RUN=false
-KEEP_CACHE=false
-BACKUP_DIR="$HOME/.gandalf_backups"
+LOCAL_MODE=false
+LOCAL_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-    -f | --force)
+    --force)
         FORCE_MODE=true
         shift
         ;;
-    --dry-run)
-        DRY_RUN=true
+    --local)
+        LOCAL_MODE=true
+        LOCAL_DIR="$(pwd)"
         shift
         ;;
-    --keep-cache)
-        KEEP_CACHE=true
-        shift
-        ;;
-    --backup-dir)
-        BACKUP_DIR="$2"
+    --local-dir)
+        LOCAL_MODE=true
+        LOCAL_DIR="$2"
+        if [[ ! -d "$LOCAL_DIR" ]]; then
+            echo "Error: Directory does not exist: $LOCAL_DIR" >&2
+            exit 1
+        fi
+        LOCAL_DIR="$(cd "$LOCAL_DIR" && pwd)"
         shift 2
         ;;
-    -h | --help)
+    --help)
         usage
         exit 0
         ;;
     *)
-        echo "Unknown option $1"
+        echo "Unknown option: $1" >&2
         usage
         exit 1
         ;;
     esac
 done
 
-BACKUP_PATH="$BACKUP_DIR/gandalf_backup_$TIMESTAMP"
-
-if [[ "$DRY_RUN" == "true" ]]; then
-    echo "DRY RUN MODE - No changes will be made"
-fi
-
-# Create backup directory
-if [[ "$DRY_RUN" == "false" ]]; then
-    mkdir -p "$BACKUP_PATH"
-    echo "Created backup directory: $BACKUP_PATH"
-fi
-
-# Confirmation prompt
-if [[ "$FORCE_MODE" == "false" && "$DRY_RUN" == "false" ]]; then
-    echo "This will remove all Gandalf MCP server configurations"
-    echo "Backup location: $BACKUP_PATH"
-    read -p "Continue? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Uninstall cancelled"
+# Simple confirmation without hanging prompts
+if [[ "$FORCE_MODE" == "false" && "${TEST_MODE:-false}" != "true" ]]; then
+    if [[ "$LOCAL_MODE" == "true" ]]; then
+        echo "Remove Gandalf from: $LOCAL_DIR"
+    else
+        echo "Remove Gandalf globally"
+    fi
+    echo -n "Continue? (y/N): "
+    read -r response
+    if [[ "$response" != "y" && "$response" != "Y" ]]; then
+        echo "Cancelled"
         exit 0
     fi
 fi
 
-# Stop MCP server processes
-echo "Stopping Gandalf MCP server processes..."
-
-# In test mode, don't kill processes to avoid interfering with running servers
-if [[ "${TEST_MODE:-false}" == "true" ]]; then
-    echo "TEST_MODE detected - skipping process termination to avoid interfering with running servers"
-else
-    PIDS=$(pgrep -f "$MCP_SERVER_NAME.*main.py" 2>/dev/null || echo "")
-    if [[ -n "$PIDS" ]]; then
-        if [[ "$DRY_RUN" == "false" ]]; then
-            echo "$PIDS" | xargs kill 2>/dev/null || true
-            sleep 2
-            # Force kill if still running
-            REMAINING=$(pgrep -f "$MCP_SERVER_NAME.*main.py" 2>/dev/null || echo "")
-            if [[ -n "$REMAINING" ]]; then
-                echo "$REMAINING" | xargs kill -9 2>/dev/null || true
-            fi
-            echo "Stopped MCP server processes"
-        else
-            echo "[DRY RUN] Would stop processes: $PIDS"
-        fi
-    else
-        echo "No running MCP server processes found"
-    fi
-fi
-
-# Remove Cursor configuration
-CURSOR_CONFIG="$HOME/.cursor/mcp.json"
-CURSOR_RULES_DIR="$HOME/.cursor/rules"
-CURSOR_RULES="$CURSOR_RULES_DIR/gandalf-rules.mdc"
-
-if [[ -f "$CURSOR_CONFIG" ]]; then
-    echo "Removing Cursor MCP configuration..."
-    if [[ "$DRY_RUN" == "false" ]]; then
-        cp "$CURSOR_CONFIG" "$BACKUP_PATH/" 2>/dev/null || true
-        if command -v jq &>/dev/null; then
-            TEMP_FILE=$(mktemp)
-            jq --arg name "$MCP_SERVER_NAME" 'del(.mcpServers[$name])' "$CURSOR_CONFIG" >"$TEMP_FILE" && mv "$TEMP_FILE" "$CURSOR_CONFIG"
-            echo "Removed $MCP_SERVER_NAME from Cursor MCP config"
-        else
-            rm -f "$CURSOR_CONFIG"
-            echo "jq not available, removed entire Cursor MCP config"
-        fi
-    else
-        echo "[DRY RUN] Would remove Cursor MCP configuration"
-    fi
-fi
-
-if [[ -f "$CURSOR_RULES" ]]; then
-    if [[ "$DRY_RUN" == "false" ]]; then
-        cp "$CURSOR_RULES" "$BACKUP_PATH/" 2>/dev/null || true
-        rm -f "$CURSOR_RULES"
-        echo "Removed Cursor rules file"
-    else
-        echo "[DRY RUN] Would remove Cursor rules file"
-    fi
-fi
-
-# Clean up empty Cursor rules directory
-if [[ -d "$CURSOR_RULES_DIR" ]] && [[ -z "$(ls -A "$CURSOR_RULES_DIR" 2>/dev/null)" ]]; then
-    if [[ "$DRY_RUN" == "false" ]]; then
-        rmdir "$CURSOR_RULES_DIR" 2>/dev/null || true
-        echo "Removed empty Cursor rules directory"
-    else
-        echo "[DRY RUN] Would remove empty Cursor rules directory"
-    fi
-fi
-
-# Remove Claude Code configuration
-echo "Removing Claude Code configuration..."
-CLAUDE_CONFIG="$HOME/.claude/mcp.json"
-CLAUDE_SETTINGS="$HOME/.claude/settings.json"
-
-if command -v claude >/dev/null 2>&1; then
-    if [[ "$DRY_RUN" == "false" ]]; then
-        claude mcp remove "$MCP_SERVER_NAME" -s user 2>/dev/null || true
-        claude mcp remove "$MCP_SERVER_NAME" -s local 2>/dev/null || true
-        echo "Removed Claude Code MCP configuration"
-    else
-        echo "[DRY RUN] Would remove Claude Code MCP configuration"
-    fi
-else
-    echo "Claude CLI not available - checking manual config files"
+remove_cursor_config() {
+    local config_dir="$1"
+    local mcp_file="$config_dir/.cursor/mcp.json"
+    local rules_file="$config_dir/.cursor/rules/gandalf-rules.mdc"
     
-    if [[ -f "$CLAUDE_CONFIG" ]]; then
-        if [[ "$DRY_RUN" == "false" ]]; then
-            cp "$CLAUDE_CONFIG" "$BACKUP_PATH/" 2>/dev/null || true
-            if command -v jq &>/dev/null; then
-                TEMP_FILE=$(mktemp)
-                jq --arg name "$MCP_SERVER_NAME" 'del(.mcpServers[$name])' "$CLAUDE_CONFIG" >"$TEMP_FILE" && mv "$TEMP_FILE" "$CLAUDE_CONFIG"
-                echo "Removed $MCP_SERVER_NAME from Claude Code MCP config"
-            else
-                rm -f "$CLAUDE_CONFIG"
-                echo "jq not available, removed entire Claude Code MCP config"
-            fi
-        else
-            echo "[DRY RUN] Would remove Claude Code MCP configuration"
+    if [[ -f "$mcp_file" ]]; then
+        # Simple removal - just delete the file if it only has gandalf
+        if grep -q "gandalf" "$mcp_file" 2>/dev/null; then
+            rm -f "$mcp_file"
+            echo "Removed Cursor MCP config"
         fi
     fi
-fi
-
-# Remove Claude Code project settings with Gandalf rules
-if [[ -f "$CLAUDE_SETTINGS" ]]; then
-    if [[ "$DRY_RUN" == "false" ]]; then
-        cp "$CLAUDE_SETTINGS" "$BACKUP_PATH/" 2>/dev/null || true
-        if command -v jq &>/dev/null; then
-            TEMP_FILE=$(mktemp)
-            jq 'del(.gandalfRules)' "$CLAUDE_SETTINGS" >"$TEMP_FILE" && mv "$TEMP_FILE" "$CLAUDE_SETTINGS"
-            echo "Removed Gandalf rules from Claude Code settings"
-        else
-            echo "jq not available - Claude Code settings may contain Gandalf rules"
-        fi
-    else
-        echo "[DRY RUN] Would remove Gandalf rules from Claude Code settings"
+    
+    if [[ -f "$rules_file" ]]; then
+        rm -f "$rules_file"
+        echo "Removed Cursor rules file"
     fi
-fi
-
-# Remove Windsurf configuration
-echo "Removing Windsurf configuration..."
-WINDSURF_CONFIG="$HOME/.windsurf/mcp.json"
-WINDSURF_GLOBAL_RULES="$HOME/.windsurf/global_rules.md"
-
-if [[ -f "$WINDSURF_CONFIG" ]]; then
-    if [[ "$DRY_RUN" == "false" ]]; then
-        cp "$WINDSURF_CONFIG" "$BACKUP_PATH/" 2>/dev/null || true
-        if command -v jq &>/dev/null; then
-            TEMP_FILE=$(mktemp)
-            jq --arg name "$MCP_SERVER_NAME" 'del(.mcpServers[$name])' "$WINDSURF_CONFIG" >"$TEMP_FILE" && mv "$TEMP_FILE" "$WINDSURF_CONFIG"
-            echo "Removed $MCP_SERVER_NAME from Windsurf MCP config"
-        else
-            rm -f "$WINDSURF_CONFIG"
-            echo "jq not available, removed entire Windsurf MCP config"
-        fi
-    else
-        echo "[DRY RUN] Would remove Windsurf MCP configuration"
+    
+    # Clean up empty directories
+    if [[ -d "$config_dir/.cursor/rules" && -z "$(ls -A "$config_dir/.cursor/rules")" ]]; then
+        rmdir "$config_dir/.cursor/rules" 2>/dev/null || true
     fi
-fi
+}
 
-if [[ -f "$WINDSURF_GLOBAL_RULES" ]]; then
-    if [[ "$DRY_RUN" == "false" ]]; then
-        cp "$WINDSURF_GLOBAL_RULES" "$BACKUP_PATH/" 2>/dev/null || true
-        rm -f "$WINDSURF_GLOBAL_RULES"
-        echo "Removed Windsurf global rules file"
-    else
-        echo "[DRY RUN] Would remove Windsurf global rules file"
+remove_claude_config() {
+    local config_dir="$1"
+    local settings_file="$config_dir/.claude/local_settings.json"
+    
+    if [[ -f "$settings_file" ]]; then
+        rm -f "$settings_file"
+        echo "Removed Claude Code settings"
     fi
-fi
-
-# Note about project-specific Windsurf rules
-echo "Note: Project-specific .windsurfrules files remain in individual project directories"
-echo "These can be safely removed manually if no longer needed"
-
-# Remove ~/.gandalf directory
-GANDALF_HOME="$HOME/.gandalf"
-if [[ -d "$GANDALF_HOME" ]]; then
-    echo "Removing ~/.gandalf directory..."
-    if [[ "$DRY_RUN" == "false" ]]; then
-        cp -r "$GANDALF_HOME" "$BACKUP_PATH/" 2>/dev/null || true
-        if [[ "$KEEP_CACHE" == "false" ]]; then
-            rm -rf "$GANDALF_HOME"
-            echo "Removed ~/.gandalf directory"
-        else
-            rm -rf "$GANDALF_HOME"/{exports,backups,config,installation-state} 2>/dev/null || true
-            echo "Removed ~/.gandalf directory (kept cache)"
-        fi
-    else
-        echo "[DRY RUN] Would remove ~/.gandalf directory"
+    
+    # Clean up empty directories
+    if [[ -d "$config_dir/.claude" && -z "$(ls -A "$config_dir/.claude")" ]]; then
+        rmdir "$config_dir/.claude" 2>/dev/null || true
     fi
-fi
+}
 
-# Remove shell aliases
-SHELL_FILES=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.zshrc" "$HOME/.profile")
-for SHELL_FILE in "${SHELL_FILES[@]}"; do
-    if [[ -f "$SHELL_FILE" ]] && grep -q "gandalf\|gdlf" "$SHELL_FILE" 2>/dev/null; then
-        if [[ "$DRY_RUN" == "false" ]]; then
-            cp "$SHELL_FILE" "$BACKUP_PATH/" 2>/dev/null || true
-            TEMP_FILE=$(mktemp)
-            grep -v "gandalf\|gdlf" "$SHELL_FILE" >"$TEMP_FILE" || true
-            mv "$TEMP_FILE" "$SHELL_FILE"
-            echo "Removed Gandalf references from: $SHELL_FILE"
-        else
-            echo "[DRY RUN] Would remove Gandalf references from: $SHELL_FILE"
-        fi
+remove_windsurf_config() {
+    local config_dir="$1"
+    local mcp_file="$config_dir/.windsurf/mcp_config.json"
+    local rules_file="$config_dir/.windsurf/rules.md"
+    
+    if [[ -f "$mcp_file" ]]; then
+        rm -f "$mcp_file"
+        echo "Removed Windsurf MCP config"
     fi
-done
+    
+    if [[ -f "$rules_file" ]]; then
+        rm -f "$rules_file"
+        echo "Removed Windsurf rules file"
+    fi
+    
+    # Clean up empty directories
+    if [[ -d "$config_dir/.windsurf" && -z "$(ls -A "$config_dir/.windsurf")" ]]; then
+        rmdir "$config_dir/.windsurf" 2>/dev/null || true
+    fi
+}
 
-if [[ "$DRY_RUN" == "false" ]]; then
-    echo ""
-    echo "Uninstall completed successfully!"
-    echo "Backup location: $BACKUP_PATH"
-    echo ""
-    echo "Next steps:"
-    echo "1. Restart your agentic tools to reload configurations"
-    echo "2. Backup files are available at: $BACKUP_PATH"
-    echo ""
-    echo "To reinstall: ./gandalf.sh install"
+remove_gandalf_directory() {
+    local gandalf_dir="$1"
+    
+    if [[ -d "$gandalf_dir" ]]; then
+        rm -rf "$gandalf_dir"
+        echo "Removed .gandalf directory"
+    fi
+}
+
+if [[ "$LOCAL_MODE" == "true" ]]; then
+    echo "Local uninstall mode for: $LOCAL_DIR"
+    
+    # Remove local configurations
+    remove_cursor_config "$LOCAL_DIR"
+    remove_claude_config "$LOCAL_DIR"
+    remove_windsurf_config "$LOCAL_DIR"
+    remove_gandalf_directory "$LOCAL_DIR/.gandalf"
+    
+    echo "Local uninstall completed"
 else
-    echo "DRY RUN completed - no changes were made"
+    echo "Global uninstall mode"
+    
+    # Stop any running gandalf processes
+    if ! [[ "${TEST_MODE:-false}" == "true" ]]; then
+        pkill -f "gandalf.*main.py" 2>/dev/null || true
+    fi
+    
+    # Remove global configurations
+    remove_cursor_config "$HOME"
+    remove_claude_config "$HOME"
+    remove_windsurf_config "$HOME"
+    remove_gandalf_directory "$HOME/.gandalf"
+    
+    echo "Global uninstall completed"
 fi
+
+echo "Uninstall completed successfully!"

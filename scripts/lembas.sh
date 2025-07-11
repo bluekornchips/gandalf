@@ -4,285 +4,280 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-GANDALF_ROOT="$(dirname "$SCRIPT_DIR")"
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly GANDALF_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+readonly TESTS_DIR="$GANDALF_ROOT/scripts/tests"
+readonly DEFAULT_TIMEOUT=300
+readonly DEFAULT_WAIT_TIME=2
+readonly LEMBAS_MIN_PYTHON_VERSION="3.10"
 
-# Ensure PYTHONPATH is set for server imports, maybe there's a better way
 export PYTHONPATH="$GANDALF_ROOT/server:${PYTHONPATH:-}"
+export GANDALF_HOME="${GANDALF_HOME:-$HOME/.gandalf}"
 
-export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
-export MCP_DEBUG="${MCP_DEBUG:-true}"
+print_header() {
+    local message="$1"
+    cat <<EOF
 
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
-TESTS_DIR="$GANDALF_ROOT/scripts"
-SCRIPTS_DIR="$GANDALF_ROOT/scripts"
+==========================================
+$message
+==========================================
+EOF
+}
 
-# Global variables for step tracking
-CURRENT_STEP=0
-TOTAL_STEPS=8
-TEST_MODE="core" # Default to core tests, quick validation
+print_info() {
+    local message="$1"
+    echo "[INFO] $message"
+}
 
-# Tracks and displays step progress with timing
-run_step() {
-    local step_name="$1"
-    local step_function="$2"
+print_error() {
+    local message="$1"
+    echo "[ERROR] $message" >&2
+}
 
-    ((CURRENT_STEP++))
-    local step_start=$(date +%s)
+show_help() {
+    cat <<EOF
+Lembas - Comprehensive Test Suite and Validation
 
-    echo "Step $CURRENT_STEP/$TOTAL_STEPS: $step_name..."
+Usage: $0 [OPTIONS]
 
-    if ! "$step_function"; then
+Options:
+    --core              Run core tests only (default)
+    --all               Run all tests (shell + python)
+    --shell-only        Run shell tests only
+    --python-only       Run python tests only
+    --timeout SECONDS   Set test timeout (default: $DEFAULT_TIMEOUT)
+    --verbose           Enable verbose output
+    --help, -h          Show this help message
+
+Examples:
+    $0                  # Run core tests
+    $0 --all            # Run all tests
+    $0 --verbose        # Run with verbose output
+    $0 --timeout 600    # Set 10-minute timeout
+
+The name 'Lembas' comes from the Elvish waybread that sustained travelers
+on long journeys, just as this test suite sustains the development process.
+
+EOF
+}
+
+check_test_environment() {
+    print_info "Checking test environment..."
+
+    local -a required_dirs=("server" "scripts/tests")
+    local -a required_files=("server/src/main.py" "scripts/tests/shell-tests-manager.sh")
+
+    for dir in "${required_dirs[@]}"; do
+        if [[ ! -d "$GANDALF_ROOT/$dir" ]]; then
+            print_error "Required directory missing: $dir"
+            return 1
+        fi
+    done
+
+    for file in "${required_files[@]}"; do
+        if [[ ! -f "$GANDALF_ROOT/$file" ]]; then
+            print_error "Required file missing: $file"
+            return 1
+        fi
+    done
+
+    if ! command -v python3 &>/dev/null; then
+        print_error "Python 3 not found"
         return 1
     fi
 
-    local step_duration=$(($(date +%s) - step_start))
-    echo "$step_name complete (${step_duration}s)"
-    return 0
-}
-
-run_tests_suite() {
-    echo "Running test suite for validation..."
-
-    case "$TEST_MODE" in
-    "core")
-        echo "Running core tests (quick validation)..."
-        if ! bash "$SCRIPTS_DIR/test-suite.sh" core; then
-            return 1
-        fi
-        ;;
-    "e2e")
-        echo "Running end-to-end tests (integration workflows and performance)..."
-        if ! bash "$SCRIPTS_DIR/test-suite.sh" e2e; then
-            return 1
-        fi
-        ;;
-    "all")
-        echo "Running all tests (shell + python)..."
-        if ! bash "$SCRIPTS_DIR/test-suite.sh" all; then
-            return 1
-        fi
-        ;;
-    *)
-        echo "Unknown test mode: $TEST_MODE"
+    local python_version
+    python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
+    if ! printf '%s\n' "$LEMBAS_MIN_PYTHON_VERSION" "$python_version" | sort -V | head -n1 | grep -q "^$LEMBAS_MIN_PYTHON_VERSION$"; then
+        print_error "Python $LEMBAS_MIN_PYTHON_VERSION+ required, found $python_version"
         return 1
-        ;;
-    esac
-}
-
-check_conversation_system() {
-    echo "Checking MCP conversation system..."
-
-    if [[ -x "$SCRIPTS_DIR/conversations.sh" ]]; then
-        if "$SCRIPTS_DIR/conversations.sh" workspaces >/dev/null 2>&1; then
-            echo "MCP conversation tools are working"
-
-            # Get workspace count for reporting
-            local workspace_count=0
-            if workspace_output=$("$SCRIPTS_DIR/conversations.sh" workspaces 2>/dev/null); then
-                workspace_count=$(echo "$workspace_output" | jq -r '.total_workspaces // 0' 2>/dev/null || echo "0")
-            fi
-            show_conversation_info "$workspace_count"
-        else
-            echo "Warning: MCP conversation tools are not responding properly"
-        fi
-    else
-        echo "Warning: conversations.sh script not found or not executable"
     fi
 
-    echo "Conversation check complete"
+    if ! command -v bats &>/dev/null; then
+        print_error "BATS not found (needed for shell tests)"
+        return 1
+    fi
+
+    print_info "Test environment verified"
     return 0
 }
 
-verify_conversation_logging() {
-    echo "Checking MCP conversation system accessibility..."
+run_shell_tests() {
+    local verbose="${1:-false}"
+    local timeout="${2:-$DEFAULT_TIMEOUT}"
 
-    # Check for session activity in MCP logs
-    local session_check_passed=false
-    local mcp_log_file="$HOME/.cursor/logs/mcp.log"
+    print_header "Running Shell Tests"
 
-    if [[ -f "$mcp_log_file" ]]; then
-        # Look for recent session activity
-        local recent_session_activity=$(tail -100 "$mcp_log_file" 2>/dev/null | grep -i "session\|conversation\|$MCP_SERVER_NAME" | tail -5 || echo "")
-        if [[ -n "$recent_session_activity" ]]; then
-            show_recent_activity "$recent_session_activity"
-            session_check_passed=true
-        else
-            echo "No recent session activity found in MCP logs"
-        fi
+    local test_args=()
+    [[ "$verbose" == "true" ]] && test_args+=("--verbose")
+
+    if timeout "$timeout" bash "$GANDALF_ROOT/scripts/test-suite.sh" --shell ${test_args[@]+"${test_args[@]}"}; then
+        print_info "Shell tests completed successfully"
+        return 0
     else
-        echo "MCP log file not found at $mcp_log_file"
+        print_error "Shell tests failed"
+        return 1
     fi
-
-    echo "Testing real-time conversation access..."
-    local conversation_system_working=false
-    if "$SCRIPTS_DIR/conversations.sh" export --summary=true >/dev/null 2>&1; then
-        conversation_system_working=true
-        echo "Real-time conversation access: WORKING"
-    else
-        echo "Real-time conversation access: NOT AVAILABLE"
-    fi
-
-    if [[ "$session_check_passed" == "true" ]] || [[ "$conversation_system_working" == "true" ]]; then
-        echo "Conversation system verification: PASSED"
-    else
-        show_conversation_warning
-    fi
-
-    echo "Verifying lembas conversation logging complete"
-    return 0
 }
 
-lembas() {
-    local repo_path=""
-    local force_flag=""
+run_python_tests() {
+    local verbose="${1:-false}"
+    local timeout="${2:-$DEFAULT_TIMEOUT}"
 
-    if [[ $# -eq 0 || "${1:-}" == -* ]]; then
-        repo_path="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+    print_header "Running Python Tests"
+
+    local test_args=()
+    [[ "$verbose" == "true" ]] && test_args+=("--verbose")
+
+    if timeout "$timeout" bash "$GANDALF_ROOT/scripts/test-suite.sh" --python ${test_args[@]+"${test_args[@]}"}; then
+        print_info "Python tests completed successfully"
+        return 0
     else
-        repo_path="$1"
-        shift
+        print_error "Python tests failed"
+        return 1
     fi
+}
+
+run_core_tests() {
+    local verbose="${1:-false}"
+    local timeout="${2:-$DEFAULT_TIMEOUT}"
+
+    print_header "Running Core Tests"
+
+    local test_args=()
+    [[ "$verbose" == "true" ]] && test_args+=("--verbose")
+
+    if timeout "$timeout" bash "$GANDALF_ROOT/scripts/test-suite.sh" core ${test_args[@]+"${test_args[@]}"}; then
+        print_info "Core tests completed successfully"
+        return 0
+    else
+        print_error "Core tests failed"
+        return 1
+    fi
+}
+
+run_all_tests() {
+    local verbose="${1:-false}"
+    local timeout="${2:-$DEFAULT_TIMEOUT}"
+
+    print_header "Running All Tests"
+
+    local test_args=()
+    [[ "$verbose" == "true" ]] && test_args+=("--verbose")
+
+    if timeout "$timeout" bash "$GANDALF_ROOT/scripts/test-suite.sh" all ${test_args[@]+"${test_args[@]}"}; then
+        print_info "All tests completed successfully"
+        return 0
+    else
+        print_error "All tests failed"
+        return 1
+    fi
+}
+
+parse_arguments() {
+    local test_type="core"
+    local verbose="false"
+    local timeout="$DEFAULT_TIMEOUT"
 
     while [[ $# -gt 0 ]]; do
-        case $1 in
-        -f | --force)
-            force_flag="-f"
-            shift
-            ;;
+        case "$1" in
         --core)
-            TEST_MODE="core"
-            shift
-            ;;
-        --e2e)
-            TEST_MODE="e2e"
+            test_type="core"
             shift
             ;;
         --all)
-            TEST_MODE="all"
+            test_type="all"
             shift
             ;;
-        *)
-            echo "Unknown argument: $1"
+        --shell-only)
+            test_type="shell"
             shift
+            ;;
+        --python-only)
+            test_type="python"
+            shift
+            ;;
+        --verbose)
+            verbose="true"
+            shift
+            ;;
+        --timeout)
+            timeout="$2"
+            if ! [[ "$timeout" =~ ^[0-9]+$ ]]; then
+                print_error "Timeout must be a positive integer"
+                return 1
+            fi
+            shift 2
+            ;;
+        --help | -h)
+            show_help
+            return 0
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_help
+            return 1
             ;;
         esac
     done
 
-    case "$TEST_MODE" in
-    "core")
-        echo "Core mode enabled: Running core test suite only (quick tests)"
+    export LEMBAS_TEST_TYPE="$test_type"
+    export LEMBAS_VERBOSE="$verbose"
+    export LEMBAS_TIMEOUT="$timeout"
+    return 0
+}
+
+main() {
+    if ! parse_arguments "$@"; then
+        exit 1
+    fi
+
+    print_header "Lembas - Comprehensive Test Suite"
+    print_info "Test type: $LEMBAS_TEST_TYPE"
+    print_info "Verbose: $LEMBAS_VERBOSE"
+    print_info "Timeout: ${LEMBAS_TIMEOUT}s"
+
+    if ! check_test_environment; then
+        exit 1
+    fi
+
+    local start_time end_time duration
+    start_time=$(date +%s)
+
+    case "$LEMBAS_TEST_TYPE" in
+    core)
+        run_core_tests "$LEMBAS_VERBOSE" "$LEMBAS_TIMEOUT"
         ;;
-    "e2e")
-        echo "End-to-end mode enabled: Running end-to-end test suite (integration workflows and performance)"
+    all)
+        run_all_tests "$LEMBAS_VERBOSE" "$LEMBAS_TIMEOUT"
         ;;
-    "all")
-        echo "All mode enabled: Running complete test suite (shell + python tests)"
+    shell)
+        run_shell_tests "$LEMBAS_VERBOSE" "$LEMBAS_TIMEOUT"
+        ;;
+    python)
+        run_python_tests "$LEMBAS_VERBOSE" "$LEMBAS_TIMEOUT"
         ;;
     *)
-        echo "Full mode enabled: Running complete test suite (shell + python tests)"
-        TEST_MODE="all"
+        print_error "Unknown test type: $LEMBAS_TEST_TYPE"
+        exit 1
         ;;
     esac
 
-    echo "Repository path: $repo_path"
+    local exit_code=$?
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
 
-    local start_time=$(date +%s)
+    if [[ $exit_code -eq 0 ]]; then
+        print_header "Lembas Complete - Journey Successful!"
+        print_info "Total time: ${duration}s"
+    else
+        print_header "Lembas Failed - Journey Interrupted"
+        print_error "Tests failed after ${duration}s"
+    fi
 
-    export LEMBAS_MODE=true
-
-    # Reset step tracking
-    CURRENT_STEP=0
-    TOTAL_STEPS=8
-
-    # Execute all steps
-    run_step "Checking system dependencies" \
-        "$GANDALF_ROOT/gandalf.sh" deps || return 1
-
-    run_step "Running initial tests" run_tests_suite || return 1
-
-    run_step "Installing MCP server with reset" \
-        "$SCRIPTS_DIR/install.sh" "$repo_path" -r --wait-time 15 ${force_flag:+"$force_flag"} || return 1
-
-    run_step "Running final tests" run_tests_suite || return 1
-
-    run_step "Checking conversation system" check_conversation_system || return 1
-
-    run_step "Verifying lembas conversation logging" verify_conversation_logging || return 1
-
-    # Clean up environment variable
-    unset LEMBAS_MODE
-
-    local total_time=$(($(date +%s) - start_time))
-
-    local mode_description="Full mode (complete validation)"
-    case "$TEST_MODE" in
-    "core")
-        mode_description="Core mode (core tests only)"
-        ;;
-    "e2e")
-        mode_description="End-to-end mode (integration workflows and performance)"
-        ;;
-    "all")
-        mode_description="All mode (complete validation)"
-        ;;
-    *)
-        mode_description="Full mode (complete validation)"
-        ;;
-    esac
-
-    cat <<EOF
-
-Lembas Complete
-===============
-All automated tests passed; system is fully validated.
-
-Execution Summary
------------------
-Total execution time: ${total_time}s
-Execution mode: $mode_description
-MCP conversation system: Real-time access enabled
-
-Next Steps
-----------
-1. Verify MCP server integration in Cursor
-2. Test real-time conversation queries via MCP tools
-3. Monitor system performance under normal usage
-EOF
-}
-
-# Show test failure message
-show_test_failure() {
-    cat <<EOF
-Tests failed. Aborting lembas.
-Fix the failing tests above and run lembas again.
-EOF
-}
-
-# Show conversation info
-show_conversation_info() {
-    local workspace_count="$1"
-    echo "Found $workspace_count Cursor workspaces accessible via MCP"
-}
-
-# Show recent activity
-show_recent_activity() {
-    local activity="$1"
-
-    cat <<EOF
-Found recent MCP session activity:
-$(echo "$activity" | sed 's/^/    /')
-EOF
-}
-
-# Show conversation logging warning
-show_conversation_warning() {
-    cat <<EOF
-Conversation logging verification: WARNING
-    Consider checking MCP server connection and auto-session configuration
-EOF
+    exit $exit_code
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    lembas "$@"
+    main "$@"
 fi
