@@ -5,23 +5,25 @@ File operations tools for the Gandalf MCP server.
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from config.constants import MAX_PROJECT_FILES
-from core.file_scoring import (
+from src.config.constants.context import (
+    HIGH_PRIORITY_DISPLAY_LIMIT,
+    LOW_PRIORITY_DISPLAY_LIMIT,
+    MAX_FILES_LIMIT,
+    MEDIUM_PRIORITY_DISPLAY_LIMIT,
+    TOP_FILES_DISPLAY_LIMIT,
+)
+from src.config.constants.limits import (
+    MAX_FILE_TYPES,
+    MAX_PROJECT_FILES,
+)
+from src.core.file_scoring import (
     clear_file_scores,
     get_files_list,
     get_files_with_scores,
 )
-from utils.access_control import AccessValidator, validate_file_types
-from utils.common import log_debug
-from utils.performance import log_operation_time, start_timer
-
-MAX_FILE_TYPES = 20
-MAX_FILE_EXTENSION_LENGTH = 10
-MAX_FILES_LIMIT = 10000
-HIGH_PRIORITY_DISPLAY_LIMIT = 50
-MEDIUM_PRIORITY_DISPLAY_LIMIT = 15
-LOW_PRIORITY_DISPLAY_LIMIT = 10
-TOP_FILES_DISPLAY_LIMIT = 15
+from src.utils.access_control import AccessValidator, validate_file_types
+from src.utils.common import log_debug
+from src.utils.performance import log_operation_time, start_timer
 
 
 def validate_max_files(max_files: int) -> tuple[bool, str]:

@@ -1,11 +1,10 @@
 """Test core server functionality."""
 
-from pathlib import Path
 from unittest import mock
 
 import pytest
 
-from src.config.constants import ErrorCodes
+from src.config.enums import ErrorCodes
 from src.core.server import GandalfMCP
 
 
@@ -25,14 +24,16 @@ class TestGandalfMCPInputValidation:
     def test_empty_project_root_raises_error(self):
         """Test that empty project root raises ValueError."""
         with pytest.raises(
-            ValueError, match="Invalid project_root.*must be at least 1 characters"
+            ValueError,
+            match="Invalid project_root.*must be at least 1 characters",
         ):
             GandalfMCP(project_root="")
 
     def test_whitespace_project_root_raises_error(self):
         """Test that whitespace-only project root raises ValueError."""
         with pytest.raises(
-            ValueError, match="Invalid project_root.*must be at least 1 characters"
+            ValueError,
+            match="Invalid project_root.*must be at least 1 characters",
         ):
             GandalfMCP(project_root="   ")
 

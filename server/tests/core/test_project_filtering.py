@@ -8,10 +8,10 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.core.project_filtering import (
-    filter_project_files,
-    get_excluded_patterns,
     _build_find_command,
     _process_find_output,
+    filter_project_files,
+    get_excluded_patterns,
 )
 
 

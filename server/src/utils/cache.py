@@ -4,7 +4,7 @@ Cache utilities for the Gandalf MCP server.
 
 from pathlib import Path
 
-from config.constants import (
+from src.config.constants.paths import (
     CACHE_ROOT_DIR,
     CONVERSATION_CACHE_DIR,
     FILE_CACHE_DIR,

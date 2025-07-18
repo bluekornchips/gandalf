@@ -3,16 +3,14 @@
 import subprocess
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-
-import pytest
+from unittest.mock import Mock, patch
 
 from src.core.git_activity import (
-    GitActivityTracker,
-    GIT_ACTIVITY_CACHE_TTL,
-    GIT_ACTIVITY_RECENT_DAYS,
-    GIT_ACTIVITY_COMMIT_LIMIT,
     CONTEXT_MIN_SCORE,
+    GIT_ACTIVITY_CACHE_TTL,
+    GIT_ACTIVITY_COMMIT_LIMIT,
+    GIT_ACTIVITY_RECENT_DAYS,
+    GitActivityTracker,
 )
 
 
@@ -83,7 +81,9 @@ class TestGitActivityTracker:
             assert score == CONTEXT_MIN_SCORE
 
         with patch.object(
-            self.tracker, "_refresh_activity_data", side_effect=OSError("System error")
+            self.tracker,
+            "_refresh_activity_data",
+            side_effect=OSError("System error"),
         ):
             score = self.tracker.get_activity_score("test_file.py")
             assert score == CONTEXT_MIN_SCORE
@@ -197,7 +197,8 @@ class TestRefreshActivityData:
     def test_refresh_activity_data_subprocess_error(self):
         """Test refresh with subprocess error."""
         with patch(
-            "subprocess.run", side_effect=subprocess.SubprocessError("Command failed")
+            "subprocess.run",
+            side_effect=subprocess.SubprocessError("Command failed"),
         ):
             with patch("src.core.git_activity.log_debug") as mock_log_debug:
                 with patch("src.core.git_activity.log_error") as mock_log_error:
@@ -378,7 +379,8 @@ class TestIntegrationScenarios:
         """Test workflow with error recovery."""
         # First call fails
         with patch(
-            "subprocess.run", side_effect=subprocess.SubprocessError("Git error")
+            "subprocess.run",
+            side_effect=subprocess.SubprocessError("Git error"),
         ):
             with patch("src.core.git_activity.log_debug"):
                 with patch("src.core.git_activity.log_error"):

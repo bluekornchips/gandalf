@@ -1,6 +1,5 @@
 """Test common utility functions for file-based logging only."""
 
-import json
 import tempfile
 import unittest.mock as mock
 from pathlib import Path
@@ -135,7 +134,8 @@ class TestLogConvenienceFunctions:
         log_info("all we have to decide is what to do with the time given us")
 
         mock_write_log.assert_called_once_with(
-            "info", "all we have to decide is what to do with the time given us"
+            "info",
+            "all we have to decide is what to do with the time given us",
         )
 
     @mock.patch("src.utils.common.write_log")
@@ -260,3 +260,29 @@ class TestLoggingEdgeCases:
 
         expected_message = "ring bearer status: Error 404: the ring is lost"
         mock_write_log.assert_called_once_with("error", expected_message)
+
+    def test_write_log_with_optional_parameters(self):
+        """Test write_log with optional logger and data parameters."""
+        import src.utils.common as common_module
+        import json
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with mock.patch("src.utils.common.GANDALF_HOME", Path(temp_dir)):
+                initialize_session_logging("test_optional_params")
+
+                test_data = {"key": "value", "count": 42}
+
+                write_log("info", "test message with extras", "test_logger", test_data)
+
+                log_file = common_module._log_file_path
+                assert log_file is not None
+                assert log_file.exists()
+
+                with open(log_file, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+                    assert len(lines) >= 2
+
+                    last_entry = json.loads(lines[-1])
+                    assert last_entry["message"] == "test message with extras"
+                    assert last_entry["logger"] == "test_logger"
+                    assert last_entry["data"] == test_data

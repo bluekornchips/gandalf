@@ -1,5 +1,6 @@
 """
-Database scanner for detecting conversation databases across different agentic tools.
+Database scanner for detecting conversation databases across different agentic
+tools.
 
 This module scans the filesystem for conversation databases from supported
 agentic tools like Cursor, Claude Code, and other supported agentic tools
@@ -14,22 +15,41 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config.constants import (
+from src.config.config_data import (
     CLAUDE_CONVERSATION_PATTERNS,
-    CLAUDE_SCANNER_PATHS,
     CURSOR_DB_PATTERNS,
-    CURSOR_SCANNER_PATHS,
     WINDSURF_DB_PATTERNS,
-    WINDSURF_SCANNER_PATHS,
-    DATABASE_OPERATION_TIMEOUT,
-    DATABASE_SCANNER_CACHE_TTL,
-    DATABASE_SCANNER_TIMEOUT,
-    SUPPORTED_AGENTIC_TOOLS,
-    AGENTIC_TOOL_CURSOR,
-    AGENTIC_TOOL_CLAUDE_CODE,
-    AGENTIC_TOOL_WINDSURF,
 )
-from utils.common import log_debug, log_error, log_info
+from src.config.constants.agentic import (
+    AGENTIC_TOOL_CLAUDE_CODE,
+    AGENTIC_TOOL_CURSOR,
+    AGENTIC_TOOL_WINDSURF,
+    SUPPORTED_AGENTIC_TOOLS,
+)
+from src.config.constants.cache import DATABASE_SCANNER_CACHE_TTL
+from src.config.constants.database import (
+    CONVERSATION_TABLE_NAMES,
+    CURSOR_KEY_AI_CONVERSATIONS,
+    CURSOR_KEY_AI_GENERATIONS,
+    CURSOR_KEY_AI_PROMPTS,
+    CURSOR_KEY_COMPOSER_DATA,
+    SQL_CHECK_ITEMTABLE_EXISTS,
+    SQL_COUNT_TABLE_ROWS,
+    SQL_CURSOR_GET_AI_CONVERSATIONS,
+    SQL_CURSOR_GET_AI_GENERATIONS,
+    SQL_CURSOR_GET_AI_PROMPTS,
+    SQL_CURSOR_GET_COMPOSER_DATA,
+)
+from src.config.constants.limits import (
+    DATABASE_OPERATION_TIMEOUT,
+    DATABASE_SCANNER_TIMEOUT,
+)
+from src.config.constants.paths import (
+    CLAUDE_HOME,
+    CURSOR_WORKSPACE_STORAGE,
+    WINDSURF_WORKSPACE_STORAGE,
+)
+from src.utils.common import log_debug, log_error, log_info
 
 
 @contextmanager
@@ -37,6 +57,7 @@ def timeout_context(seconds: int):
     """Context manager to timeout operations that might hang."""
 
     def timeout_handler(_signum, _frame):
+        """Signal handler for timeout operations."""
         raise TimeoutError(f"Operation timed out after {seconds} seconds")
 
     # Set the signal handler and a alarm
@@ -86,12 +107,18 @@ class DatabaseScanner:
                 with sqlite3.connect(str(db_path), timeout=2.0) as conn:
                     cursor = conn.cursor()
 
-                    # Try common table names for conversation counting
-                    table_names = ["conversations", "messages", "chat_sessions"]
-                    for table_name in table_names:
+                    # Check if this is a Cursor database with 'ItemTable' structure
+                    try:
+                        cursor.execute(SQL_CHECK_ITEMTABLE_EXISTS)
+                        if cursor.fetchone():
+                            return self._count_cursor_conversations(cursor)
+                    except sqlite3.OperationalError:
+                        pass
+
+                    for table_name in CONVERSATION_TABLE_NAMES:
                         try:
                             cursor.execute(
-                                f"SELECT COUNT(*) FROM {table_name}"  # nosec B608
+                                SQL_COUNT_TABLE_ROWS.format(table_name=table_name)
                             )
                             count = cursor.fetchone()[0]
                             log_debug(
@@ -115,14 +142,94 @@ class DatabaseScanner:
             log_error(e, f"counting conversations in {db_path}")
             return None
 
+    def _count_cursor_conversations(self, cursor) -> int:
+        """Count conversations in a Cursor database using ItemTable structure."""
+        import json
+
+        try:
+            # Check for composer.composerData (main conversation storage)
+            cursor.execute(SQL_CURSOR_GET_COMPOSER_DATA, (CURSOR_KEY_COMPOSER_DATA,))
+            result = cursor.fetchone()
+            if result:
+                try:
+                    composer_data = json.loads(result[0])
+                    if isinstance(composer_data, dict):
+                        all_composers = composer_data.get("allComposers", [])
+                        if all_composers:
+                            log_debug(
+                                f"Found {len(all_composers)} conversations in "
+                                f"composer.composerData"
+                            )
+                            return len(all_composers)
+                except (json.JSONDecodeError, TypeError, KeyError):
+                    pass
+
+            # Fallback: Check for aiConversations (older format)
+            cursor.execute(
+                SQL_CURSOR_GET_AI_CONVERSATIONS, (CURSOR_KEY_AI_CONVERSATIONS,)
+            )
+            result = cursor.fetchone()
+            if result:
+                try:
+                    ai_conversations = json.loads(result[0])
+                    if isinstance(ai_conversations, list):
+                        log_debug(
+                            f"Found {len(ai_conversations)} conversations in "
+                            f"aiConversations"
+                        )
+                        return len(ai_conversations)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            # Check for prompts/generations that could be reconstructed into conversations
+            cursor.execute(SQL_CURSOR_GET_AI_PROMPTS, (CURSOR_KEY_AI_PROMPTS,))
+            prompts_result = cursor.fetchone()
+            cursor.execute(SQL_CURSOR_GET_AI_GENERATIONS, (CURSOR_KEY_AI_GENERATIONS,))
+            generations_result = cursor.fetchone()
+
+            prompts_count = 0
+            generations_count = 0
+
+            if prompts_result:
+                try:
+                    prompts = json.loads(prompts_result[0])
+                    if isinstance(prompts, list):
+                        prompts_count = len(prompts)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            if generations_result:
+                try:
+                    generations = json.loads(generations_result[0])
+                    if isinstance(generations, list):
+                        generations_count = len(generations)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            # If we have prompts or generations, estimate conversations
+            if prompts_count > 0 or generations_count > 0:
+                estimated_conversations = max(
+                    1, (prompts_count + generations_count) // 4
+                )
+                log_debug(
+                    f"Estimated {estimated_conversations} conversations from "
+                    f"{prompts_count} prompts and {generations_count} generations"
+                )
+                return estimated_conversations
+
+            return 0
+
+        except (sqlite3.Error, ValueError, TypeError) as e:
+            log_debug(f"Error counting Cursor conversations: {e}")
+            return 0
+
     def _scan_cursor_databases(self) -> List[ConversationDatabase]:
         """Scan for Cursor conversation databases with timeout protection."""
         databases = []
 
         try:
             with timeout_context(self._scan_timeout):
-                # Common Cursor paths - directly to workspaceStorage
-                cursor_paths = CURSOR_SCANNER_PATHS
+                cursor_paths = CURSOR_WORKSPACE_STORAGE
 
                 for workspace_storage in cursor_paths:
                     if not workspace_storage.exists():
@@ -219,7 +326,7 @@ class DatabaseScanner:
         try:
             with timeout_context(self._scan_timeout):
                 # Common Claude Code paths
-                claude_paths = CLAUDE_SCANNER_PATHS
+                claude_paths = CLAUDE_HOME
 
                 for base_path in claude_paths:
                     if not base_path.exists():
@@ -311,7 +418,7 @@ class DatabaseScanner:
         try:
             with timeout_context(self._scan_timeout):
                 # Common Windsurf workspace paths
-                windsurf_paths = WINDSURF_SCANNER_PATHS
+                windsurf_paths = WINDSURF_WORKSPACE_STORAGE
 
                 for base_path in windsurf_paths:
                     if not base_path.exists():
@@ -333,7 +440,8 @@ class DatabaseScanner:
                                             try:
                                                 stat = db_file.stat()
 
-                                                # Try to count conversations in the database
+                                                # Try to count conversations
+                                                # in the database
                                                 conversation_count = (
                                                     self._count_conversations_sqlite(
                                                         db_file
@@ -345,13 +453,16 @@ class DatabaseScanner:
                                                     tool_type="windsurf",
                                                     size_bytes=stat.st_size,
                                                     last_modified=stat.st_mtime,
-                                                    conversation_count=conversation_count,
+                                                    conversation_count=(
+                                                        conversation_count
+                                                    ),
                                                     is_accessible=True,
                                                 )
 
                                                 databases.append(database)
                                                 log_debug(
-                                                    f"Found Windsurf database: {db_file}"
+                                                    f"Found Windsurf database: "
+                                                    f"{db_file}"
                                                 )
 
                                             except (
@@ -361,7 +472,8 @@ class DatabaseScanner:
                                             ) as e:
                                                 log_error(
                                                     e,
-                                                    f"processing Windsurf database {db_file}",
+                                                    f"processing Windsurf database "
+                                                    f"{db_file}",
                                                 )
                                                 databases.append(
                                                     ConversationDatabase(

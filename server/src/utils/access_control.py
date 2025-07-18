@@ -1,48 +1,36 @@
 """
-Access control and security validation for the Gandalf MCP server.
+Access control utilities for Gandalf MCP server.
+Provides path validation, project name sanitization, and security checks.
 """
 
-import re
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from config.constants import (
-    BLOCKED_EXTENSIONS,
-    BLOCKED_PATHS,
-    COMMON_BLOCKED_PATHS,
-    LINUX_SPECIFIC_BLOCKED_PATHS,
-    MACOS_SPECIFIC_BLOCKED_PATHS,
+from src.config.config_data import BLOCKED_EXTENSIONS
+from src.config.constants.limits import (
     MAX_ARRAY_LENGTH,
     MAX_FILE_TYPES,
     MAX_PATH_DEPTH,
     MAX_QUERY_LENGTH,
     MAX_STRING_LENGTH,
+    PROJECT_NAME_MAX_LENGTH,
+)
+from src.config.constants.security import (
+    COMMON_BLOCKED_PATHS,
+    DANGEROUS_PATTERNS,
+    FILE_EXTENSION_MAX_LENGTH,
+    FILENAME_INVALID_CHARS_PATTERN,
+    LINUX_SPECIFIC_BLOCKED_PATHS,
+    MACOS_SPECIFIC_BLOCKED_PATHS,
+    PROJECT_NAME_SANITIZE_PATTERN,
+    QUERY_SANITIZE_PATTERN,
     WSL_SPECIFIC_BLOCKED_PATHS,
 )
-from utils.common import log_debug, log_info
+from src.utils.common import log_debug, log_info
 
-# File extension validation constants
-FILE_EXTENSION_MAX_LENGTH = 10
-FILE_EXTENSION_PATTERN = r"^\.[a-z0-9]+$"
-
-# Query sanitization patterns
-QUERY_SANITIZE_PATTERN = r'[<>"\';\\]'
-
-# Project name validation constants
-PROJECT_NAME_SANITIZE_PATTERN = r"[^a-zA-Z0-9._-]"
-PROJECT_NAME_MAX_LENGTH = 100
-
-# Security threat detection patterns
-DANGEROUS_PATTERNS = [
-    r"\.\./",  # Directory traversal
-    r"<script",  # Script injection
-    r"javascript:",  # JavaScript injection
-    r"data:",  # Data URLs
-    r"file://",  # File URLs
-    r"\x00",  # Null bytes
-    r"[;&|`$()]",  # Shell metacharacters
-]
+# All other constants imported from src.config.constants.security above
 
 # Conversation-specific threat patterns
 CONVERSATION_DANGEROUS_PATTERNS = [
@@ -245,9 +233,15 @@ class AccessValidator:
             if len(path_parts) > MAX_PATH_DEPTH:
                 return False, f"{field_name} exceeds maximum depth"
 
-            for blocked_path in BLOCKED_PATHS:
-                if str(resolved_path).startswith(blocked_path):
-                    return False, f"{field_name} accesses blocked system path"
+            for blocked_path in COMMON_BLOCKED_PATHS:
+                try:
+                    # Resolve blocked path to handle symlinks, sort of?
+                    resolved_blocked_path = Path(blocked_path).resolve()
+                    if str(resolved_path).startswith(str(resolved_blocked_path)):
+                        return False, f"{field_name} accesses blocked system path"
+                except (OSError, ValueError):
+                    if str(resolved_path).startswith(blocked_path):
+                        return False, f"{field_name} accesses blocked system path"
 
         except (OSError, ValueError):
             return False, f"{field_name} is not a valid path"
@@ -276,7 +270,7 @@ class AccessValidator:
         if len(extension) > FILE_EXTENSION_MAX_LENGTH:
             return False, "File extension too long"
 
-        if not re.match(FILE_EXTENSION_PATTERN, extension):
+        if re.search(FILENAME_INVALID_CHARS_PATTERN, extension):
             return False, "File extension contains invalid characters"
 
         return True, ""
@@ -295,7 +289,7 @@ class AccessValidator:
             return ""
 
         sanitized = re.sub(QUERY_SANITIZE_PATTERN, "", query)
-        return sanitized[: cls.MAX_QUERY_LENGTH].strip()
+        return sanitized[:MAX_QUERY_LENGTH].strip()
 
     @classmethod
     def _check_for_tricks(cls, text: str) -> bool:
@@ -510,7 +504,7 @@ def validate_file_types(file_types: Any) -> Tuple[bool, str]:
     return True, ""
 
 
-def get_platform_blocked_paths(platform: str = None) -> set:
+def get_platform_blocked_paths(platform: Optional[str] = None) -> set:
     """Get platform-specific blocked paths.
 
     Args:
@@ -526,4 +520,4 @@ def get_platform_blocked_paths(platform: str = None) -> set:
     elif platform == "wsl":
         return COMMON_BLOCKED_PATHS | WSL_SPECIFIC_BLOCKED_PATHS
     else:
-        return BLOCKED_PATHS
+        return COMMON_BLOCKED_PATHS

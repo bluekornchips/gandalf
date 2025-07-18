@@ -6,86 +6,46 @@ Focuses on core conversation aggregation and project context.
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
+from src.config.weights import WeightsManager
 
-from config.constants import (
+from src.config.constants.file_system_context import FILE_SYSTEM_CONTEXT_INDICATORS
+from src.config.constants.server import (
     MCP_PROTOCOL_VERSION,
     SERVER_CAPABILITIES,
     SERVER_INFO,
-    ErrorCodes,
 )
-from tool_calls.conversation_aggregator import (
+from src.config.enums import ErrorCodes
+from src.tool_calls.aggregator import (
     CONVERSATION_AGGREGATOR_TOOL_DEFINITIONS,
     CONVERSATION_AGGREGATOR_TOOL_HANDLERS,
 )
-from tool_calls.conversation_export import (
+from src.tool_calls.export import (
     CONVERSATION_EXPORT_TOOL_DEFINITIONS,
-    handle_export_individual_conversations,
+    CONVERSATION_EXPORT_TOOL_HANDLERS,
 )
-from tool_calls.file_tools import (
-    TOOL_LIST_PROJECT_FILES,
-    handle_list_project_files,
+from src.tool_calls.file_tools import (
+    FILE_TOOL_DEFINITIONS,
+    FILE_TOOL_HANDLERS,
 )
-from tool_calls.project_operations import (
-    handle_get_project_info,
-    handle_get_server_version,
+from src.tool_calls.project_operations import (
+    PROJECT_TOOL_DEFINITIONS,
+    PROJECT_TOOL_HANDLERS,
 )
-from utils.access_control import AccessValidator
-from utils.common import log_error
-from utils.jsonrpc import (
+from src.utils.access_control import AccessValidator
+from src.utils.common import log_error, log_info
+from src.utils.jsonrpc import (
     create_error_response,
     create_success_response,
 )
-from utils.performance import log_operation_time, start_timer
+from src.utils.performance import log_operation_time, start_timer
 
 TOOL_DEFINITIONS = [
     # Core conversation aggregation
     *CONVERSATION_AGGREGATOR_TOOL_DEFINITIONS,
     # Project context
-    {
-        "name": "get_project_info",
-        "description": "Get comprehensive project information and metadata",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "include_stats": {
-                    "type": "boolean",
-                    "default": True,
-                    "description": "Include file count and size statistics",
-                }
-            },
-            "required": [],
-        },
-        "annotations": {
-            "title": "Get Project Information",
-            "readOnlyHint": True,
-            "destructiveHint": False,
-            "idempotentHint": True,
-            "openWorldHint": False,
-        },
-    },
-    {
-        "name": "get_server_version",
-        "description": "Get the current server version and protocol information",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "random_string": {
-                    "type": "string",
-                    "description": "Dummy parameter for no-parameter tools",
-                }
-            },
-            "required": ["random_string"],
-        },
-        "annotations": {
-            "title": "Get Server Version",
-            "readOnlyHint": True,
-            "destructiveHint": False,
-            "idempotentHint": True,
-            "openWorldHint": False,
-        },
-    },
+    *PROJECT_TOOL_DEFINITIONS,
     # File operations
-    TOOL_LIST_PROJECT_FILES,
+    *FILE_TOOL_DEFINITIONS,
     # Export functionality
     *CONVERSATION_EXPORT_TOOL_DEFINITIONS,
 ]
@@ -93,15 +53,18 @@ TOOL_DEFINITIONS = [
 # Tool Handlers
 TOOL_HANDLERS = {
     **CONVERSATION_AGGREGATOR_TOOL_HANDLERS,
-    "get_project_info": handle_get_project_info,
-    "get_server_version": handle_get_server_version,
-    "list_project_files": handle_list_project_files,
-    "export_individual_conversations": handle_export_individual_conversations,
+    "get_project_info": PROJECT_TOOL_HANDLERS["get_project_info"],
+    "get_server_version": PROJECT_TOOL_HANDLERS["get_server_version"],
+    "list_project_files": FILE_TOOL_HANDLERS["list_project_files"],
+    "export_individual_conversations": CONVERSATION_EXPORT_TOOL_HANDLERS[
+        "export_individual_conversations"
+    ],
 }
 
 
 class GandalfMCP:
-    """Gandalf MCP server with 6 essential tools for conversation aggregation and project context."""
+    """Gandalf MCP server with 6 essential tools for conversation aggregation
+    and project context."""
 
     def __init__(self, project_root: Optional[Path] = None):
         """Initialize the Gandalf MCP server."""
@@ -124,6 +87,48 @@ class GandalfMCP:
             "tools/call": self._tools_call,
         }
 
+        self._validate_configuration()
+
+    def _validate_configuration(self) -> None:
+        """Validate server configuration during startup."""
+        try:
+
+            weights_config = WeightsManager.get_default()
+            validation_status = weights_config.get_weights_validation_status()
+
+            if not validation_status["is_valid"]:
+                log_info("Configuration validation found issues")
+                log_info(f"Validation summary: {validation_status['summary']}")
+
+                # Log a helpful message about configuration issues
+                if validation_status["error_count"] > 0:
+                    log_info(
+                        f"gandalf-weights.yaml has "
+                        f"{validation_status['error_count']} errors "
+                        f"and {validation_status['warning_count']} warnings. "
+                        "Server will use default values for invalid settings. "
+                        "Check the logs above for detailed error information."
+                    )
+                else:
+                    log_info(
+                        f"gandalf-weights.yaml has "
+                        f"{validation_status['warning_count']} warnings. "
+                        "Server is running normally with recommended "
+                        "improvements available."
+                    )
+            else:
+                if validation_status["warning_count"] > 0:
+                    log_info(
+                        f"Configuration loaded successfully with "
+                        f"{validation_status['warning_count']} minor warnings"
+                    )
+                else:
+                    log_info("Configuration validation passed - all settings are valid")
+
+        except Exception as e:
+            log_error(e, "Error during configuration validation")
+            log_info("Configuration validation failed, continuing with defaults")
+
     def _resolve_project_root(self, explicit_root: Optional[Path] = None) -> Path:
         """Resolve project root directory with intelligent fallback logic."""
         if explicit_root:
@@ -138,13 +143,22 @@ class GandalfMCP:
                     if path_obj.exists():
                         return path_obj
 
-        # Common fallback logic
         cwd = Path.cwd()
 
         # Look for git repository indicator
         current = cwd
         while current != current.parent:
             if (current / ".git").exists():
+                return current
+            current = current.parent
+
+        # Look for common project indicators
+        current = cwd
+        while current != current.parent:
+            if any(
+                (current / indicator).exists()
+                for indicator in FILE_SYSTEM_CONTEXT_INDICATORS
+            ):
                 return current
             current = current.parent
 
@@ -288,7 +302,7 @@ class GandalfMCP:
 
     def run(self):
         """Run the server."""
-        from core.message_loop import MessageLoopHandler
+        from src.core.message_loop import MessageLoopHandler
 
         message_loop = MessageLoopHandler(self)
         message_loop.run_message_loop()

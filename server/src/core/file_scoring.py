@@ -6,10 +6,11 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from config.constants import MCP_CACHE_TTL, PRIORITY_NEUTRAL_SCORE
-from core.context_intelligence import get_context_intelligence
-from core.project_filtering import filter_project_files
-from utils.common import log_debug, log_info
+from src.config.constants.cache import MCP_CACHE_TTL
+from src.config.constants.limits import PRIORITY_NEUTRAL_SCORE
+from src.core.context_intelligence import get_context_intelligence
+from src.core.project_filtering import filter_project_files
+from src.utils.common import log_debug, log_info
 
 _file_scores_cache: Dict[str, Dict] = {}
 

@@ -360,3 +360,31 @@ class TestPerformanceEdgeCases:
         with patch("src.utils.performance.log_info") as mock_log:
             log_operation_time("zero_start", 0.0)
             mock_log.assert_called_once()
+
+    @patch("src.utils.performance.log_info")
+    def test_log_operation_time_with_extra_info(self, mock_log_info):
+        """Test log_operation_time with extra_info parameter."""
+        with patch("src.utils.performance.time.perf_counter") as mock_time:
+            mock_time.side_effect = [100.0, 100.5]  # 0.5 second operation
+
+            start_time = start_timer()
+            log_operation_time(
+                "operation_with_info", start_time, extra_info="cached result"
+            )
+
+            mock_log_info.assert_called_once_with(
+                "Performance: operation_with_info completed in 0.500s (cached result)"
+            )
+
+    @patch("src.utils.performance.log_operation_time")
+    def test_timed_operation_exception_handling(self, mock_log_operation_time):
+        """Test timed_operation context manager handles logging exceptions gracefully."""
+        # Make log_operation_time raise an exception
+        mock_log_operation_time.side_effect = OSError("Logging failed")
+
+        # Should not raise exception despite logging failure
+        with timed_operation("error_test"):
+            pass
+
+        # Should have attempted to call log_operation_time
+        mock_log_operation_time.assert_called_once()

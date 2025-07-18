@@ -1,18 +1,15 @@
 """
 Main entry point for Gandalf MCP Server.
-
-This module launches the Gandalf Model Context Protocol (MCP) server to provide intelligent code assistance for agentic tools.
-
-All communication with agentic tools is performed over stdin/stdout using the JSON-RPC protocol.
 """
 
 import argparse
+import sys
 from pathlib import Path
 
-from core.server import GandalfMCP
+from src.core.server import GandalfMCP
 
 
-def main():
+def main() -> None:
     """Run the Gandalf MCP server."""
     parser = argparse.ArgumentParser(
         description="Gandalf MCP Server - Code assistance for agentic tools"
@@ -21,21 +18,37 @@ def main():
     parser.add_argument(
         "--project-root",
         type=str,
-        help="Path to the project root (default: auto-detect from agentic tool workspace or git)",
+        help="Path to project root (default: auto-detect from workspace or git)",
         default=None,
     )
 
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
+    except SystemExit:
+        return
 
-    # Set up project root - convert to string for the server
+    # Validate and convert project root to Path
+    project_root = None
     if args.project_root:
-        project_root = str(Path(args.project_root).resolve())
-    else:
-        project_root = None
+        try:
+            project_root = Path(args.project_root).resolve()
+            # Don't exit on nonexistent project root, let individual tools handle validation
+            if project_root.exists() and not project_root.is_dir():
+                print(
+                    f"Error: Project root is not a directory: {project_root}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        except (OSError, ValueError) as e:
+            print(f"Error: Invalid project root path: {e}", file=sys.stderr)
+            sys.exit(1)
 
-    # Initialize and run the server
-    server = GandalfMCP(project_root=project_root)
-    server.run()
+    try:
+        server = GandalfMCP(project_root=project_root)
+        server.run()
+    except Exception as e:
+        print(f"Error: Failed to start server: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

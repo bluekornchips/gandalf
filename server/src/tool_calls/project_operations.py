@@ -8,14 +8,16 @@ import time
 from pathlib import Path
 from typing import Any, Dict
 
-from config.constants import (
+from src.config.constants.server import (
     GANDALF_SERVER_VERSION,
     MCP_PROTOCOL_VERSION,
+    SUBPROCESS_TIMEOUT,
 )
-from core.file_scoring import get_files_list
-from utils.access_control import AccessValidator
-from utils.common import log_debug, log_error, log_info
-from utils.performance import get_duration, start_timer
+from src.core.file_scoring import get_files_list
+from src.utils.access_control import AccessValidator
+from src.utils.common import log_debug, log_error, log_info
+from src.utils.performance import get_duration, start_timer
+from src.utils.project import ProjectContext
 
 
 def validate_project_root(project_root: Path) -> bool:
@@ -30,7 +32,7 @@ def validate_project_root(project_root: Path) -> bool:
 def get_git_info(project_root: Path) -> Dict[str, Any]:
     """Get Git repository information."""
 
-    git_info = {}
+    git_info: Dict[str, Any] = {}
 
     log_debug(f"Checking if {project_root} is a git repository")
 
@@ -40,7 +42,8 @@ def get_git_info(project_root: Path) -> Dict[str, Any]:
             cwd=project_root,
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=SUBPROCESS_TIMEOUT,
+            check=False,
         )
 
         if result.returncode == 0:
@@ -53,7 +56,8 @@ def get_git_info(project_root: Path) -> Dict[str, Any]:
                     cwd=project_root,
                     capture_output=True,
                     text=True,
-                    timeout=5,
+                    timeout=SUBPROCESS_TIMEOUT,
+                    check=False,
                 )
                 if result.returncode == 0:
                     git_info["current_branch"] = result.stdout.strip()
@@ -72,10 +76,9 @@ def get_git_info(project_root: Path) -> Dict[str, Any]:
                     cwd=project_root,
                     capture_output=True,
                     text=True,
-                    timeout=5,
+                    timeout=SUBPROCESS_TIMEOUT,
+                    check=False,
                 )
-
-                log_debug(f"Repository root: {result.stdout.strip()}")
 
                 if result.returncode == 0:
                     git_info["repo_root"] = result.stdout.strip()
@@ -86,7 +89,7 @@ def get_git_info(project_root: Path) -> Dict[str, Any]:
                 subprocess.TimeoutExpired,
                 OSError,
             ):
-                log_debug(f"Failed to get current branch for {project_root}")
+                log_debug(f"Failed to get repository root for {project_root}")
         else:
             git_info["is_git_repo"] = False
             log_info(f"Project {project_root} is not a git repository")
@@ -110,24 +113,25 @@ def _get_file_stats_fast(project_root: Path) -> Dict[str, Any]:
             ["find", str(project_root), "-type", "f"],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=SUBPROCESS_TIMEOUT,
+            check=False,
         )
 
         dir_result = subprocess.run(
             ["find", str(project_root), "-type", "d"],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=SUBPROCESS_TIMEOUT,
+            check=False,
         )
 
         if file_result.returncode == 0 and dir_result.returncode == 0:
-            file_count = len(
-                [line for line in file_result.stdout.splitlines() if line.strip()]
-            )
-            dir_count = (
-                len([line for line in dir_result.stdout.splitlines() if line.strip()])
-                - 1
-            )  # Exclude root, because it's not a file
+            lines = [line for line in file_result.stdout.splitlines() if line.strip()]
+            file_count = len(lines)
+            dir_lines = [
+                line for line in dir_result.stdout.splitlines() if line.strip()
+            ]
+            dir_count = max(0, len(dir_lines) - 1)  # Exclude root
 
             return {
                 "total_files": file_count,
@@ -169,7 +173,8 @@ def _get_file_stats_with_cache_optimization(
                 ["find", str(project_root), "-type", "d"],
                 capture_output=True,
                 text=True,
-                timeout=5,
+                timeout=SUBPROCESS_TIMEOUT,
+                check=False,
             )
 
             if dir_result.returncode == 0:
@@ -217,22 +222,18 @@ def _get_file_statistics(project_root: Path) -> Dict[str, Any]:
 
 def _create_basic_project_info(project_root: Path) -> Dict[str, Any]:
     """Create basic project information structure."""
-    raw_project_name = project_root.name
-    sanitized_project_name = AccessValidator.sanitize_project_name(raw_project_name)
+    # Use ProjectContext for consistent project name handling
+    context = ProjectContext.from_path(project_root)
 
     project_info = {
         "project_root": str(project_root),
-        "project_name": sanitized_project_name,
+        "project_name": context.sanitized_name,
         "timestamp": time.time(),
         "valid_path": validate_project_root(project_root),
     }
 
-    # Include raw name, if it was sanitized for transparency
-    if raw_project_name != sanitized_project_name:
-        project_info["raw_project_name"] = raw_project_name
-        project_info["sanitized"] = True
-    else:
-        project_info["sanitized"] = False
+    # Add transparency fields from ProjectContext
+    project_info.update(context.get_transparency_fields())
 
     return project_info
 
@@ -240,7 +241,7 @@ def _create_basic_project_info(project_root: Path) -> Dict[str, Any]:
 def get_project_info(project_root: Path) -> Dict[str, Any]:
     """
 
-    This function creates a comprehensive project information object, including:
+    Creates a comprehensive project information object, including:
     - Basic project information
     - Git information
     - File statistics
@@ -257,7 +258,7 @@ def get_project_info(project_root: Path) -> Dict[str, Any]:
 
 
 def handle_get_project_info(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
+    arguments: Dict[str, Any], project_root: Path, **_kwargs
 ) -> Dict[str, Any]:
     """Handle get_project_info tool call."""
     try:
@@ -268,13 +269,8 @@ def handle_get_project_info(
                 "include_stats must be a boolean"
             )
 
-        # Don't use AccessValidator.validate_path() here as it's too restrictive
-        # for project root paths that might contain special characters
-        if not validate_project_root(project_root):
-            return AccessValidator.create_error_response(
-                f"Project root does not exist or is not accessible: {project_root}"
-            )
-
+        # Always return project info with valid_path set appropriately
+        # rather than returning an error for nonexistent paths
         if include_stats:
             project_info = get_project_info(project_root)
         else:
@@ -305,7 +301,7 @@ def handle_get_project_info(
 
 
 def handle_get_server_version(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
+    arguments: Dict[str, Any], *, project_root: Path, **_kwargs  # noqa: ARG001
 ) -> Dict[str, Any]:
     """Handle get_server_version tool call."""
     try:

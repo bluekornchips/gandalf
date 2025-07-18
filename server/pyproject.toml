@@ -2,43 +2,65 @@
 requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.poetry]
+package-mode = false
+
 [project]
-name = "gandalf"
-version = "0.1.0"
-description = "Gandalf MCP Server - AI conversation history analysis and intelligent project context"
-authors = [{name = "Your Name", email = "your.email@example.com"}]
-license = {text = "MIT"}
+name = "gandalf-mcp"
+version = "2.2.3"
+description = "Gandalf MCP Server - Agentic Tool Integrator for Development Assistants"
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "bluekornchips", email = "bluekornchips@github.com"}
+]
+keywords = ["mcp", "model-context-protocol", "ai", "assistant", "code-analysis"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.10+",
 ]
 
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "flake8>=7.0.0",
+    "black>=23.0.0",
+    "pylint>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/bluekornchips/gandalf"
+Repository = "https://github.com/bluekornchips/gandalf"
+Issues = "https://github.com/bluekornchips/gandalf/issues"
+
 [project.scripts]
-gandalf = "src.main:main"
+gandalf-mcp = "src.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["src*"]
 
 [tool.black]
-line-length = 79
+line-length = 88
 target-version = ['py310']
 
 [tool.isort]
 profile = "black"
-line_length = 79
+line_length = 88
 
 [tool.flake8]
-max-line-length = 79
+max-line-length = 88
 extend-ignore = ["E203", "W503"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["-v", "--tb=short"] 
+addopts = ["-v", "--tb=short", "--cov=src"] 

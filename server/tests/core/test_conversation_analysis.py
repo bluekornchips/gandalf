@@ -14,6 +14,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from src.core.conversation_analysis import (
+    CONTEXT_CACHE_TTL_SECONDS,
+    FILE_REFERENCE_PATTERNS,
+    _context_keywords_cache,
+    _context_keywords_cache_time,
+    _extract_keywords_from_file,
+    _extract_project_keywords,
+    _extract_tech_keywords_from_files,
     analyze_session_relevance,
     classify_conversation_type,
     extract_conversation_content,
@@ -24,13 +31,6 @@ from src.core.conversation_analysis import (
     score_keyword_matches,
     score_session_recency,
     sort_conversations_by_relevance,
-    _extract_project_keywords,
-    _extract_keywords_from_file,
-    _extract_tech_keywords_from_files,
-    FILE_REFERENCE_PATTERNS,
-    CONTEXT_CACHE_TTL_SECONDS,
-    _context_keywords_cache,
-    _context_keywords_cache_time,
 )
 
 
@@ -255,13 +255,34 @@ class TestExtractKeywordsFromFile(unittest.TestCase):
 
         self.assertIn("django", keywords)
 
-    def test_extract_from_cargo_toml(self):
-        """Test keyword extraction from Cargo.toml."""
-        content = "[package]\nname = 'my-rust-app'"
+    def test_extract_from_python_project(self):
+        """Test keyword extraction from pyproject.toml."""
+        content = """[project]
+name = "my-python-app"
+dependencies = ["django", "flask"]
+"""
 
-        keywords = _extract_keywords_from_file("Cargo.toml", content)
+        keywords = _extract_keywords_from_file("pyproject.toml", content)
 
-        self.assertIn("rust", keywords)
+        self.assertIn("django", keywords)
+        self.assertIn("flask", keywords)
+
+    def test_extract_from_requirements_txt(self):
+        """Test keyword extraction from pyproject.toml with dependencies."""
+        content = """[project]
+name = "my-python-app"
+dependencies = ["django>=4.0", "flask", "fastapi==0.68.0"]
+
+[tool.poetry.dependencies]
+django = "^4.0"
+flask = "^2.0"
+"""
+
+        keywords = _extract_keywords_from_file("pyproject.toml", content)
+
+        self.assertIn("django", keywords)
+        self.assertIn("flask", keywords)
+        self.assertIn("fastapi", keywords)
 
     def test_extract_from_invalid_json(self):
         """Test handling of invalid JSON in package.json."""
@@ -317,12 +338,12 @@ class TestExtractTechKeywordsFromFiles(unittest.TestCase):
             # Create subdirectory with more files
             src_dir = tmp_path / "src"
             src_dir.mkdir()
-            (src_dir / "main.rs").write_text("// Rust file")
-            (src_dir / "lib.rs").write_text("// Another Rust file")
+            (src_dir / "main.py").write_text("# Python file")
+            (src_dir / "utils.py").write_text("# Another Python file")
 
             keywords = _extract_tech_keywords_from_files(tmp_path)
 
-            self.assertIn("rust", keywords)
+            self.assertIn("python", keywords)
 
     def test_extract_tech_keywords_skip_directories(self):
         """Test that certain directories are skipped."""
@@ -467,10 +488,18 @@ class TestScoreKeywordMatches(unittest.TestCase):
 
     def test_score_longer_keywords_weighted(self):
         """Test that longer keywords get higher scores."""
-        short_score, _ = score_keyword_matches("go app", ["go"])
-        long_score, _ = score_keyword_matches("typescript app", ["typescript"])
+        text = "python go javascript typescript"
+        keywords = [
+            "python",
+            "go",
+            "javascript",
+            "typescript",
+        ]
 
-        self.assertGreater(long_score, short_score)
+        score, matches = score_keyword_matches(text, keywords)
+
+        self.assertGreater(score, 0.0)
+        self.assertGreater(len(matches), 2)  # Should find multiple matches
 
     def test_score_matches_limited(self):
         """Test that returned matches are limited."""

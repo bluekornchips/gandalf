@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# Gandalf MCP Server Status Script
+
+set -euo pipefail
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+readonly GANDALF_HOME="${GANDALF_HOME:-$HOME/.gandalf}"
+
+check_dependencies() {
+    echo "Checking system dependencies..."
+
+    local failed=false
+    
+    if command -v python3 &>/dev/null; then
+        local python_version
+        python_version=$(python3 --version 2>/dev/null)
+        echo "Python $python_version found"
+        
+        # Check if we're using virtual environment
+        if [[ -n "${VIRTUAL_ENV:-}" ]]; then
+            echo "Using virtual environment: $VIRTUAL_ENV"
+        else
+            echo "Using system Python"
+        fi
+    else
+        echo "ERROR: Python 3 not found"
+        failed=true
+    fi
+
+    if command -v pip3 &>/dev/null; then
+        echo "pip3 found"
+    else
+        echo "ERROR: pip3 not found"
+        failed=true
+    fi
+
+    if command -v git &>/dev/null; then
+        echo "Git found: $(git --version | head -1)"
+    else
+        echo "ERROR: Git not found"
+        failed=true
+    fi
+
+    if command -v jq &>/dev/null; then
+        echo "jq found (optional)"
+    else
+        echo "WARNING: jq not found (optional, but recommended)"
+    fi
+
+    if command -v bats &>/dev/null; then
+        echo "BATS found (for testing)"
+    else
+        echo "WARNING: BATS not found (needed for shell tests)"
+    fi
+
+    local -a required_dirs=("server" "tools")
+    local -a required_files=("server/src/main.py" "gandalf")
+
+    for dir in "${required_dirs[@]}"; do
+        if [[ -d "$GANDALF_ROOT/$dir" ]]; then
+            echo "Directory: $dir/"
+        else
+            echo "ERROR: Missing directory: $dir/"
+            failed=true
+        fi
+    done
+
+    for file in "${required_files[@]}"; do
+        if [[ -f "$GANDALF_ROOT/$file" ]]; then
+            echo "File: $file"
+        else
+            echo "ERROR: Missing file: $file"
+            failed=true
+        fi
+    done
+
+    if [[ "$failed" == "true" ]]; then
+        echo "Some dependency checks failed"
+        return 1
+    fi
+
+    echo "All dependencies satisfied"
+    return 0
+}
+
+show_status() {
+    cat <<EOF
+
+Gandalf MCP Server Status
+=========================
+Root: $GANDALF_ROOT
+Home: $GANDALF_HOME
+Python Path: ${PYTHONPATH:-not set}
+Virtual Environment: ${VIRTUAL_ENV:-not set}
+
+EOF
+
+    if check_dependencies >/dev/null 2>&1; then
+        echo "Dependencies: ✓ All satisfied"
+    else
+        echo "Dependencies: ✗ Issues found"
+        echo "Run 'gandalf help' for dependency information"
+    fi
+
+    echo ""
+    echo "Configuration files:"
+
+    local -a config_files=(
+        "$HOME/.cursor/mcp.json"
+        "$HOME/.claude/mcp.json"
+        "$HOME/.codeium/windsurf/mcp_config.json"
+    )
+
+    for config_file in "${config_files[@]}"; do
+        if [[ -f "$config_file" ]]; then
+            echo "  ✓ $config_file"
+        else
+            echo "  ✗ $config_file"
+        fi
+    done
+}
+
+main() {
+    case "${1:-status}" in
+        --help|-h)
+            cat <<EOF
+Usage: $0 [OPTIONS]
+
+Show Gandalf MCP Server status and configuration.
+
+Options:
+    --help, -h    Show this help message
+    --deps        Show detailed dependency information
+
+EOF
+            ;;
+        --deps)
+            check_dependencies
+            ;;
+        *)
+            show_status
+            ;;
+    esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi 

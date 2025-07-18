@@ -5,16 +5,19 @@ Basic conversation export functionality.
 Use the MCP tool 'export_individual_conversations' for the primary export functionality.
 """
 
-import argparse
 from pathlib import Path
 from typing import List, Union
 
-from utils.cursor_chat_query import CursorQuery
+from src.config.constants.conversation import (
+    CONVERSATION_EXPORT_FORMATS,
+    CONVERSATION_EXPORT_FORMAT_DEFAULT,
+)
+from src.utils.cursor_chat_query import CursorQuery
 
 
 def export_conversations_simple(
     output_path: Union[str, Path],
-    format_type: str = "json",
+    format_type: str = CONVERSATION_EXPORT_FORMAT_DEFAULT,
     silent: bool = False,
 ) -> bool:
     """
@@ -30,8 +33,10 @@ def export_conversations_simple(
     Returns:
         True if export succeeded, False otherwise
     """
-    if format_type not in ["json", "markdown", "cursor"]:
-        raise ValueError("format_type must be one of: json, markdown, cursor")
+    if format_type not in CONVERSATION_EXPORT_FORMATS:
+        raise ValueError(
+            f"format_type must be one of: {', '.join(CONVERSATION_EXPORT_FORMATS)}"
+        )
 
     try:
         query_tool = CursorQuery(silent=silent)
@@ -81,29 +86,3 @@ def list_workspaces(silent: bool = False) -> List[str]:
         if not silent:
             print(f"Failed to list workspaces: {e}")
         return []
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Simple conversation export utility")
-    parser.add_argument("output_path", help="Output file path")
-    parser.add_argument(
-        "--format", choices=["json", "markdown", "cursor"], default="json"
-    )
-    parser.add_argument(
-        "--list-workspaces",
-        action="store_true",
-        help="List available workspaces and exit",
-    )
-    parser.add_argument("--silent", action="store_true", help="Suppress console output")
-
-    args = parser.parse_args()
-
-    if args.list_workspaces:
-        list_workspaces(silent=args.silent)
-    else:
-        success = export_conversations_simple(
-            output_path=args.output_path,
-            format_type=args.format,
-            silent=args.silent,
-        )
-        exit(0 if success else 1)
