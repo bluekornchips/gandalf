@@ -12,9 +12,8 @@ from src.core.conversation_analysis import (
     analyze_session_relevance,
     generate_shared_context_keywords,
 )
-from src.tool_calls.claude_code_recall import (
+from src.tool_calls.claude_code.recall import (
     handle_recall_claude_conversations,
-    handle_search_claude_conversations_enhanced,
 )
 
 
@@ -61,7 +60,7 @@ class TestClaudeCodeContextKeywords:
         """Test context keyword generation with README.md."""
         readme_content = """
         # My Project
-        
+
         This is a Python project using Django and React.
         It also uses Docker for containerization.
         """
@@ -80,7 +79,7 @@ class TestClaudeCodeContextKeywords:
         """Test context keyword generation with CLAUDE.md."""
         claude_content = """
         # Claude Instructions
-        
+
         This project uses TypeScript and Express.
         We also use Kubernetes for deployment.
         """
@@ -140,10 +139,6 @@ class TestClaudeCodeContextKeywords:
                 "django",
                 "flask",
                 "fastapi",
-                "rust",
-                "go",
-                "java",
-                "spring",
                 "docker",
                 "kubernetes",
                 "aws",
@@ -331,7 +326,7 @@ class TestClaudeCodeRecallHandlers:
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("src.core.conversation_analysis.generate_shared_context_keywords")
-    @patch("src.tool_calls.claude_code_recall.ClaudeCodeQuery")
+    @patch("src.tool_calls.claude_code.recall.ClaudeCodeQuery")
     def test_handle_recall_claude_conversations_success(
         self, mock_query_class, mock_keywords
     ):
@@ -381,7 +376,7 @@ class TestClaudeCodeRecallHandlers:
         assert len(data["context_keywords"]) > 0
 
     @patch("src.core.conversation_analysis.generate_shared_context_keywords")
-    @patch("src.tool_calls.claude_code_recall.ClaudeCodeQuery")
+    @patch("src.tool_calls.claude_code.recall.ClaudeCodeQuery")
     def test_handle_recall_claude_conversations_no_conversations(
         self, mock_query_class, mock_keywords
     ):
@@ -401,7 +396,7 @@ class TestClaudeCodeRecallHandlers:
         assert data["total_analyzed"] == 0
 
     @patch("src.core.conversation_analysis.generate_shared_context_keywords")
-    @patch("src.tool_calls.claude_code_recall.ClaudeCodeQuery")
+    @patch("src.tool_calls.claude_code.recall.ClaudeCodeQuery")
     def test_handle_recall_claude_conversations_with_filters(
         self, mock_query_class, mock_keywords
     ):
@@ -447,132 +442,7 @@ class TestClaudeCodeRecallHandlers:
         assert len(data["conversations"]) == 1
         assert data["conversations"][0]["conversation_type"] == "debugging"
 
-    @patch("src.core.conversation_analysis.generate_shared_context_keywords")
-    @patch("src.tool_calls.claude_code_recall.ClaudeCodeQuery")
-    def test_handle_search_claude_conversations_enhanced_success(
-        self, mock_query_class, mock_keywords
-    ):
-        """Test enhanced conversation search handler."""
-        mock_keywords.return_value = ["python"]
-
-        mock_query = Mock()
-        mock_query_class.return_value = mock_query
-        mock_query.search_conversations.return_value = [
-            {
-                "session": {
-                    "messages": [{"content": "Python programming", "role": "user"}],
-                    "session_metadata": {
-                        "session_id": "python-session",
-                        "start_time": datetime.now().isoformat(),
-                        "cwd": str(self.project_root),
-                    },
-                },
-                "matches": [
-                    {
-                        "snippet": "Python programming",
-                        "message": {
-                            "content": "Python programming",
-                            "timestamp": datetime.now().isoformat(),
-                            "role": "user",
-                        },
-                    }
-                ],
-                "match_count": 1,
-            }
-        ]
-
-        arguments = {"query": "Python", "limit": 20, "include_content": False}
-
-        with patch(
-            "src.core.conversation_analysis.analyze_session_relevance"
-        ) as mock_analyze:
-            mock_analyze.return_value = (
-                2.0,
-                {
-                    "keyword_matches": ["python"],
-                    "file_references": [],
-                    "recency_score": 1.0,
-                    "conversation_type": "general",
-                },
-            )
-
-            result = handle_search_claude_conversations_enhanced(
-                arguments, self.project_root
-            )
-
-        assert "isError" not in result
-        data = json.loads(result["content"][0]["text"])
-        assert data["query"] == "Python"
-        assert data["total_results"] == 1
-
-    def test_handle_search_claude_conversations_enhanced_missing_query(self):
-        """Test enhanced conversation search handler with missing query."""
-        arguments = {}
-        result = handle_search_claude_conversations_enhanced(
-            arguments, self.project_root
-        )
-
-        assert "isError" in result
-        assert "query parameter is required" in result["error"]
-
-    @patch("src.core.conversation_analysis.generate_shared_context_keywords")
-    @patch("src.tool_calls.claude_code_recall.ClaudeCodeQuery")
-    def test_handle_search_claude_conversations_enhanced_with_content(
-        self, mock_query_class, mock_keywords
-    ):
-        """Test enhanced conversation search handler with content inclusion."""
-        mock_keywords.return_value = ["python"]
-
-        mock_query = Mock()
-        mock_query_class.return_value = mock_query
-        mock_query.search_conversations.return_value = [
-            {
-                "session": {
-                    "messages": [{"content": "Full Python content", "role": "user"}],
-                    "session_metadata": {
-                        "session_id": "test-session",
-                        "start_time": datetime.now().isoformat(),
-                        "cwd": str(self.project_root),
-                    },
-                },
-                "matches": [
-                    {
-                        "snippet": "Python",
-                        "message": {
-                            "content": "Full Python content",
-                            "timestamp": datetime.now().isoformat(),
-                            "role": "user",
-                        },
-                    }
-                ],
-                "match_count": 1,
-            }
-        ]
-
-        arguments = {"query": "Python", "include_content": True}
-
-        with patch(
-            "src.core.conversation_analysis.analyze_session_relevance"
-        ) as mock_analyze:
-            mock_analyze.return_value = (
-                1.5,
-                {
-                    "keyword_matches": ["python"],
-                    "file_references": [],
-                    "recency_score": 1.0,
-                    "conversation_type": "general",
-                },
-            )
-
-            result = handle_search_claude_conversations_enhanced(
-                arguments, self.project_root
-            )
-
-        assert "isError" not in result
-        data = json.loads(result["content"][0]["text"])
-        assert data["results"][0]["matches"][0]["full_content"] == "Full Python content"
-
-    @patch("src.tool_calls.claude_code_recall.ClaudeCodeQuery")
+    @patch("src.tool_calls.claude_code.recall.ClaudeCodeQuery")
     @patch("src.core.conversation_analysis.generate_shared_context_keywords")
     def test_handle_recall_claude_conversations_exception(
         self, mock_keywords, mock_query_class
@@ -590,24 +460,3 @@ class TestClaudeCodeRecallHandlers:
 
         assert "isError" in result
         assert "Error recalling Claude Code conversations" in result["error"]
-
-    @patch("src.tool_calls.claude_code_recall.ClaudeCodeQuery")
-    @patch("src.core.conversation_analysis.generate_shared_context_keywords")
-    def test_handle_search_claude_conversations_enhanced_exception(
-        self, mock_keywords, mock_query_class
-    ):
-        """Test enhanced conversation search handler with exception."""
-        mock_keywords.return_value = ["test-project"]
-
-        # Mock the query tool to raise an exception when called
-        mock_query = Mock()
-        mock_query_class.return_value = mock_query
-        mock_query.search_conversations.side_effect = OSError("Test error")
-
-        arguments = {"query": "test"}
-        result = handle_search_claude_conversations_enhanced(
-            arguments, self.project_root
-        )
-
-        assert "isError" in result
-        assert "Error searching Claude Code conversations" in result["error"]

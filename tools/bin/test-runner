@@ -1,0 +1,306 @@
+#!/usr/bin/env bash
+set -euo pipefail
+set +x
+
+# Main Test Suite Coordinator for Gandalf MCP Server
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd -P)"
+
+cleanup_handler() {
+    echo -e "\nTest suite interrupted. Cleaning up..." >&2
+    
+    if [[ -n "${CHILD_PIDS:-}" ]]; then
+        for pid in "${CHILD_PIDS[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -TERM "$pid" 2>/dev/null || true
+            fi
+        done
+    fi
+    
+    exit 130
+}
+declare -a CHILD_PIDS=()
+trap cleanup_handler INT TERM
+
+export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
+export GANDALF_TEST_MODE="true"
+
+SHELL_MANAGER="$GANDALF_ROOT/tools/tests/shell-tests-manager.sh"
+
+# Source shell test manager to make functions available
+if [[ -f "$SHELL_MANAGER" ]]; then
+    source "$SHELL_MANAGER"
+else
+    echo "Error: Shell test manager not found: $SHELL_MANAGER" >&2
+    exit 1
+fi
+
+usage() {
+    cat <<EOF
+Test Suite Coordinator for $MCP_SERVER_NAME MCP Server
+
+USAGE:
+    test-suite.sh [OPTIONS]
+
+OPTIONS:
+    --quiet, -q         Reduce output verbosity (verbose is default)
+    --shell             Run shell tests only
+    --python            Run Python tests only
+    --help, -h          Show this help
+
+EXAMPLES:
+    test-suite.sh                   # Run all tests (shell + python) with verbose output
+    test-suite.sh --shell           # Run shell tests only with verbose output
+    test-suite.sh --python          # Run Python tests only
+    test-suite.sh --quiet           # Run all tests with reduced output
+    test-suite.sh --shell --quiet   # Run shell tests quietly
+
+"You shall not pass...if tests are failing." - Gandalf
+
+EOF
+}
+
+python_tests_exist() {
+    [[ -d "$GANDALF_ROOT/server/tests" ]]
+}
+
+run_python_tests() {
+    local verbose="${1:-true}"
+    local timing="${2:-true}"
+
+    if ! python_tests_exist; then
+        echo "Warning: Python tests not found at server/tests/" >&2
+        return 0
+    fi
+
+    echo "Running Python tests with pytest..."
+
+    local start_time end_time duration
+    start_time=$(date +%s)
+
+    cd "$GANDALF_ROOT/server"
+
+    local pytest_args=()
+    if [[ "$verbose" == "false" ]]; then
+        pytest_args+=("-q")
+    else
+        pytest_args+=("-v")
+    fi
+
+    local exit_code=0
+    if ! python3 -m pytest "${pytest_args[@]}" tests/; then
+        exit_code=1
+    fi
+
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+
+    echo "Python tests completed in ${duration}s"
+    cd "$SCRIPT_DIR"
+
+    return $exit_code
+}
+
+count_python_tests() {
+    if ! python_tests_exist; then
+        echo "0"
+        return
+    fi
+
+    cd "$GANDALF_ROOT/server"
+    local count=0
+    
+    if command -v python3 &>/dev/null; then
+        # Count actual test items instead of modules
+        local pytest_output
+        pytest_output=$(python3 -m pytest --collect-only tests/ 2>&1 | grep "collected.*items" | head -1 || echo "collected 0 items")
+        count=$(echo "$pytest_output" | grep -o '[0-9]\+' | head -1 || echo "0")
+    fi
+    cd "$SCRIPT_DIR"
+    echo "$count"
+}
+
+main() {
+    local VERBOSE=true 
+    local FORCE_SHELL=false
+    local FORCE_PYTHON=false
+    local TIMING=true
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        --quiet | -q)
+            VERBOSE=false
+            ;;
+        --shell)
+            FORCE_SHELL=true
+            ;;
+        --python)
+            FORCE_PYTHON=true
+            ;;
+        --worker-count)
+            # Ignore worker-count parameter for compatibility but don't use it
+            if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
+                shift
+            else
+                echo "Error: --worker-count requires a numeric argument" >&2
+                exit 1
+            fi
+            ;;
+        --*)
+            echo "Error: Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            echo "Error: Unexpected argument: $1" >&2
+            exit 1
+            ;;
+        esac
+        shift
+    done
+
+    # Validate conflicting flags
+    if [[ "$FORCE_SHELL" == "true" && "$FORCE_PYTHON" == "true" ]]; then
+        echo "Error: Cannot specify both --shell and --python" >&2
+        exit 1
+    fi
+
+    local shell_count python_count
+    
+    # Count shell tests directly to avoid shell function issues
+    shell_count=0
+    local tests_dir="$GANDALF_ROOT/tools/tests"
+    local -A test_suites=(
+        ["context-intelligence"]="unit/context-intelligence-tests.sh"
+        ["conversation-export"]="unit/conversation-export-tests.sh"
+        ["core"]="unit/core-tests.sh"
+        ["file"]="unit/file-tests.sh"
+        ["project"]="unit/project-tests.sh"
+        ["workspace-detection"]="unit/workspace-detection-tests.sh"
+        ["install"]="integration/install-tests.sh"
+        ["integration"]="integration/integration-tests.sh"
+        ["performance"]="integration/performance-tests.sh"
+        ["platform-compatibility"]="integration/platform-compatibility-tests.sh"
+        ["security"]="integration/security-tests.sh"
+        ["uninstall"]="integration/uninstall-tests.sh"
+    )
+    
+    for suite in "${!test_suites[@]}"; do
+        local test_file="${test_suites[$suite]}"
+        local test_path="$tests_dir/$test_file"
+        if [[ -f "$test_path" ]]; then
+            local count
+            count=$(grep -c "^@test" "$test_path" 2>/dev/null || echo "0")
+            shell_count=$((shell_count + count))
+        fi
+    done
+    
+    python_count=$(count_python_tests)
+    
+
+    cat <<EOF
+Test counts:
+    Shell tests: $shell_count
+    Python tests: $python_count
+    Total tests: $((shell_count + python_count))
+
+$MCP_SERVER_NAME Test Suite
+=========================================
+EOF
+
+    local start_time end_time duration
+    start_time=$(date +%s)
+
+    local total_passed=0
+    local total_failed=0
+    local failed_suites=()
+
+    if [[ "$FORCE_PYTHON" != "true" ]]; then
+        echo "Running shell test suites..."
+        
+        # Define test suites directly to avoid shell function issues
+        local -A test_suites=(
+            ["context-intelligence"]="unit/context-intelligence-tests.sh"
+            ["conversation-export"]="unit/conversation-export-tests.sh"
+            ["core"]="unit/core-tests.sh"
+            ["file"]="unit/file-tests.sh"
+            ["project"]="unit/project-tests.sh"
+            ["workspace-detection"]="unit/workspace-detection-tests.sh"
+            ["install"]="integration/install-tests.sh"
+            ["integration"]="integration/integration-tests.sh"
+            ["performance"]="integration/performance-tests.sh"
+            ["platform-compatibility"]="integration/platform-compatibility-tests.sh"
+            ["security"]="integration/security-tests.sh"
+            ["uninstall"]="integration/uninstall-tests.sh"
+        )
+        
+        local tests_dir="$GANDALF_ROOT/tools/tests"
+        
+        # Run each test suite directly
+        for suite in "${!test_suites[@]}"; do
+            local test_file="${test_suites[$suite]}"
+            local test_path="$tests_dir/$test_file"
+            
+            if [[ -f "$test_path" ]]; then
+                echo "Running $suite test suite..."
+                
+                # Prepare bats arguments for live output
+                local bats_args=("--pretty")
+                [[ "$VERBOSE" == "true" ]] && bats_args+=("--verbose-run")
+                [[ "$TIMING" == "true" ]] && bats_args+=("--timing")
+                
+                # Run bats directly with live output
+                if bats "${bats_args[@]}" "$test_path"; then
+                    total_passed=$((total_passed + 1))
+                    echo "$suite: PASSED"
+                else
+                    total_failed=$((total_failed + 1))
+                    failed_suites+=("$suite")
+                    echo "$suite: FAILED"
+                fi
+                echo ""
+            else
+                echo "Warning: Test file not found: $test_file"
+            fi
+        done
+    fi
+
+    if [[ "$FORCE_SHELL" != "true" ]]; then
+        if run_python_tests "$VERBOSE" "true"; then
+            total_passed=$((total_passed + 1))
+        else
+            total_failed=$((total_failed + 1))
+            failed_suites+=("python")
+        fi
+        echo ""
+    fi
+
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+
+    cat <<EOF
+=========================================
+Test Summary:
+Total test suites: $((total_passed + total_failed))
+Passed: $total_passed
+Failed: $total_failed
+Total execution time: ${duration}s
+EOF
+
+    if [[ $total_failed -gt 0 ]]; then
+        echo "Failed suites:"
+        printf "  - %s\n" "${failed_suites[@]}"
+        exit 1
+    fi
+
+    echo "All tests passed!"
+    exit 0
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

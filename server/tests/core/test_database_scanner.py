@@ -15,7 +15,6 @@ from src.core.database_scanner import (
     DatabaseScanner,
     get_available_agentic_tools,
 )
-from src.config.constants import SUPPORTED_AGENTIC_TOOLS
 
 
 class TestConversationDatabase(unittest.TestCase):
@@ -157,16 +156,14 @@ class TestDatabaseScanner(unittest.TestCase):
         finally:
             db_path.unlink(missing_ok=True)
 
-    @patch("src.core.database_scanner.CURSOR_SCANNER_PATHS")
+    @patch("src.core.database_scanner.CURSOR_WORKSPACE_STORAGE")
     def test_scan_cursor_databases_no_paths(self, mock_cursor_paths):
-        """Test scanning Cursor databases when no paths exist."""
-        mock_cursor_paths.__iter__.return_value = iter(
-            [self.temp_dir / "nonexistent1", self.temp_dir / "nonexistent2"]
-        )
+        """Test scanning when no Cursor paths exist."""
+        mock_cursor_paths.return_value = []
         databases = self.scanner._scan_cursor_databases()
         self.assertEqual(databases, [])
 
-    @patch("src.core.database_scanner.CURSOR_SCANNER_PATHS")
+    @patch("src.core.database_scanner.CURSOR_WORKSPACE_STORAGE")
     def test_scan_cursor_databases_with_files(self, mock_cursor_paths):
         """Test scanning Cursor databases with mock files."""
         workspace_storage1 = self.temp_dir / "workspace_storage1"
@@ -196,16 +193,14 @@ class TestDatabaseScanner(unittest.TestCase):
         self.assertTrue(all(db.tool_type == "cursor" for db in databases))
         self.assertTrue(all(db.conversation_count == 5 for db in databases))
 
-    @patch("src.core.database_scanner.CLAUDE_SCANNER_PATHS")
+    @patch("src.core.database_scanner.CLAUDE_HOME")
     def test_scan_claude_databases_no_paths(self, mock_claude_paths):
-        """Test scanning Claude Code databases when no paths exist."""
-        mock_claude_paths.__iter__.return_value = iter(
-            [self.temp_dir / "nonexistent1", self.temp_dir / "nonexistent2"]
-        )
+        """Test scanning when no Claude paths exist."""
+        mock_claude_paths.return_value = []
         databases = self.scanner._scan_claude_databases()
         self.assertEqual(databases, [])
 
-    @patch("src.core.database_scanner.CLAUDE_SCANNER_PATHS")
+    @patch("src.core.database_scanner.CLAUDE_HOME")
     def test_scan_claude_databases_with_files(self, mock_claude_paths):
         """Test scanning Claude Code databases with mock files."""
         claude_dir1 = self.temp_dir / "claude1"
@@ -299,7 +294,9 @@ class TestDatabaseScanner(unittest.TestCase):
                     self.scanner, "_scan_claude_databases", return_value=[]
                 ):
                     with patch.object(
-                        self.scanner, "_scan_windsurf_databases", return_value=[]
+                        self.scanner,
+                        "_scan_windsurf_databases",
+                        return_value=[],
                     ):
                         databases = self.scanner.scan(force_rescan=True)
                         self.assertEqual(databases, [])

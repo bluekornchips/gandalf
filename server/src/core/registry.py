@@ -1,33 +1,34 @@
 """
-Simple registry reader for agentic tool installations.
+Registry for agentic tools to track which tools are available and their configurations.
 """
 
 import json
 import os
+import platform
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-from config.constants import (
-    AGENTIC_TOOL_CLAUDE_CODE,
-    AGENTIC_TOOL_CURSOR,
-    AGENTIC_TOOL_WINDSURF,
+from src.config.config_data import (
     CLAUDE_CONVERSATION_PATTERNS,
     CURSOR_DB_PATTERNS,
     WINDSURF_DB_PATTERNS,
-    CURSOR_WORKSPACE_STORAGE_PATH,
-    DEFAULT_GANDALF_HOME,
-    GANDALF_HOME_ENV,
+)
+from src.config.constants.agentic import (
+    AGENTIC_TOOL_CLAUDE_CODE,
+    AGENTIC_TOOL_CURSOR,
+    AGENTIC_TOOL_WINDSURF,
     REGISTRY_FILENAME,
 )
-from utils.common import log_debug, log_error
+from src.config.constants.paths import (
+    CURSOR_WORKSPACE_STORAGE_PATH,
+    GANDALF_HOME,
+)
+from src.utils.common import log_debug, log_error
 
 
 def get_registry_path() -> Path:
     """Get the path to the registry file."""
-    gandalf_home = os.environ.get(GANDALF_HOME_ENV)
-    if gandalf_home is None:
-        gandalf_home = os.path.expanduser(DEFAULT_GANDALF_HOME)
-    return Path(gandalf_home) / REGISTRY_FILENAME
+    return GANDALF_HOME / REGISTRY_FILENAME
 
 
 def read_registry() -> Dict[str, str]:
@@ -39,11 +40,10 @@ def read_registry() -> Dict[str, str]:
         return {}
 
     try:
-        with open(registry_path, "r") as f:
+        with open(registry_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-
         if not isinstance(data, dict):
-            log_error("Registry file is not a valid JSON object")
+            log_error(ValueError("Registry file is not a valid JSON object"))
             return {}
 
         return data

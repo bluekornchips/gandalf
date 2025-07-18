@@ -9,6 +9,7 @@ from src.utils.project import (
     ProjectContext,
     get_project_names,
     get_sanitized_project_name,
+    _extract_project_names,
 )
 
 patch = mock.patch
@@ -98,6 +99,82 @@ class TestProjectContext:
         assert isinstance(context.raw_name, str)
         assert isinstance(context.sanitized_name, str)
         assert isinstance(context.was_sanitized, bool)
+
+
+class TestExtractProjectNamesHelper:
+    """Test the _extract_project_names helper function."""
+
+    def test_extract_project_names_basic(self):
+        project_path = Path("/path/to/hobbiton")
+
+        with patch(
+            "src.utils.project.AccessValidator.sanitize_project_name"
+        ) as mock_sanitize:
+            mock_sanitize.return_value = "hobbiton"
+
+            raw, sanitized, was_sanitized = _extract_project_names(project_path)
+
+            assert raw == "hobbiton"
+            assert sanitized == "hobbiton"
+            assert was_sanitized is False
+            mock_sanitize.assert_called_once_with("hobbiton")
+
+    def test_extract_project_names_with_sanitization(self):
+        project_path = Path("/path/to/bag-end$$$")
+
+        with patch(
+            "src.utils.project.AccessValidator.sanitize_project_name"
+        ) as mock_sanitize:
+            mock_sanitize.return_value = "bag-end"
+
+            raw, sanitized, was_sanitized = _extract_project_names(project_path)
+
+            assert raw == "bag-end$$$"
+            assert sanitized == "bag-end"
+            assert was_sanitized is True
+            mock_sanitize.assert_called_once_with("bag-end$$$")
+
+    def test_extract_project_names_type_error(self):
+        with pytest.raises(TypeError, match="Expected Path object"):
+            _extract_project_names("not-a-path")
+
+    def test_extract_project_names_with_os_error(self):
+        project_path = Path("/path/to/mordor")
+
+        with patch(
+            "src.utils.project.AccessValidator.sanitize_project_name"
+        ) as mock_sanitize:
+            mock_sanitize.side_effect = OSError("Path operation failed")
+
+            with pytest.raises(ValueError, match="Failed to extract project names"):
+                _extract_project_names(project_path)
+
+    def test_extract_project_names_with_attribute_error(self):
+        project_path = Path("/path/to/weathertop")
+
+        # Mock the AccessValidator to raise AttributeError
+        with patch(
+            "src.utils.project.AccessValidator.sanitize_project_name"
+        ) as mock_sanitize:
+            mock_sanitize.side_effect = AttributeError("No name attribute")
+
+            with pytest.raises(ValueError, match="Failed to extract project names"):
+                _extract_project_names(project_path)
+
+    def test_extract_project_names_consistency(self):
+        project_path = Path("/path/to/rivendell")
+
+        with patch(
+            "src.utils.project.AccessValidator.sanitize_project_name"
+        ) as mock_sanitize:
+            mock_sanitize.return_value = "rivendell-safe"
+
+            # Call multiple times to ensure consistency
+            result1 = _extract_project_names(project_path)
+            result2 = _extract_project_names(project_path)
+
+            assert result1 == result2
+            assert result1 == ("rivendell", "rivendell-safe", True)
 
 
 class TestProjectUtilityFunctions:
@@ -260,14 +337,8 @@ class TestProjectSecurityIntegration:
         ) as mock_sanitize:
             mock_sanitize.return_value = "orthanc-clean"
 
-            # Test ProjectContext.from_path
             ProjectContext.from_path(Path("/path/to/orthanc"))
             assert mock_sanitize.call_count == 1
-
-            # Test get_project_names
-            project_name_1 = get_project_names(Path("/path/to/orthanc"))
-            project_name_2 = get_project_names(Path("/path/to/orthanc"))
-            project_name_3 = get_sanitized_project_name(Path("/path/to/orthanc"))
 
             for call in mock_sanitize.call_args_list:
                 assert call[0][0] == "orthanc"
@@ -304,6 +375,60 @@ class TestProjectSecurityIntegration:
 
                 result = get_sanitized_project_name(test_path)
                 assert result == sanitized_name
+
+
+class TestEnhancedErrorHandling:
+    """Test enhanced error handling in refactored code."""
+
+    def test_helper_function_type_validation(self):
+        invalid_inputs = [None, 123, "string", [], {}]
+
+        for invalid_input in invalid_inputs:
+            with pytest.raises(TypeError, match="Expected Path object"):
+                _extract_project_names(invalid_input)
+
+    def test_utility_functions_preserve_type_errors(self):
+        with pytest.raises(TypeError, match="Expected Path object"):
+            get_project_names("not-a-path")
+
+        with pytest.raises(TypeError, match="Expected Path object"):
+            get_sanitized_project_name(123)
+
+    def test_helper_function_error_message_quality(self):
+        try:
+            _extract_project_names("invalid")
+        except TypeError as e:
+            assert "Expected Path object" in str(e)
+            assert "str" in str(e)
+
+    def test_project_context_error_handling_preserves_type_errors(self):
+        with pytest.raises(TypeError, match="Expected Path object"):
+            ProjectContext.from_path(None)
+
+        with pytest.raises(TypeError, match="Expected Path object"):
+            ProjectContext.from_path("string-path")
+
+    def test_value_error_handling_with_valid_types(self):
+        project_path = Path("/path/to/fangorn")
+
+        with patch(
+            "src.utils.project.AccessValidator.sanitize_project_name"
+        ) as mock_sanitize:
+            mock_sanitize.side_effect = OSError("Sanitization failed")
+
+            with pytest.raises(ValueError, match="Failed to extract project names"):
+                _extract_project_names(project_path)
+
+            with pytest.raises(ValueError, match="Failed to get project names"):
+                get_project_names(project_path)
+
+            with pytest.raises(
+                ValueError, match="Failed to get sanitized project name"
+            ):
+                get_sanitized_project_name(project_path)
+
+            with pytest.raises(ValueError, match="Failed to create ProjectContext"):
+                ProjectContext.from_path(project_path)
 
 
 class TestProjectErrorHandling:

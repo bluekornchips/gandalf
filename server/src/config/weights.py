@@ -1,63 +1,94 @@
 """
 Scoring weights configuration for Gandalf MCP server.
-Loads weights from gandalf-weights.yaml with clean dictionary access.
+Uses custom schema validation for robust YAML validation.
 """
 
-import yaml
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from config.constants import CONTEXT_MIN_SCORE
+import yaml
+
+from src.config.constants.limits import CONTEXT_MIN_SCORE
+from src.utils.common import log_debug, log_error
+from src.utils.schema_validation import (
+    apply_schema_defaults,
+    get_weights_file_path,
+    get_weights_schema,
+    validate_weights_config,
+)
 
 
 class WeightsConfig:
-    """Clean weights configuration loader."""
+    """Schema-validated weights configuration using custom validation."""
 
-    def __init__(self, config_dir: Optional[Path] = None):
+    def __init__(self, config_dir: Optional[Path] = None, validate: bool = True):
         """Initialize the weights configuration.
 
         Args:
-            config_dir: Directory containing gandalf-weights.yaml. Defaults to gandalf spec.
+            config_dir: Directory containing gandalf-weights.yaml.
+                        Defaults to using the global weights file system.
+            validate: Whether to validate configuration on load (default: True)
         """
-        if config_dir is None:
-            # Go up to the gandalf root, then to spec directory
-            config_dir = Path(__file__).parent.parent.parent.parent / "spec"
-
         self.config_dir = config_dir
-        self._config = self._load_config()
+        self.validation_errors: List[str] = []
+        self.is_valid = True
 
-    def _load_config(self) -> Dict[str, Any]:
-        """Load the weights configuration from YAML file."""
+        # Load and validate configuration using the fallback system
+        if validate:
+            # Get the appropriate weights file (override, spec, or default)
+            if config_dir is not None:
+                weights_file = get_weights_file_path(config_dir)
+            else:
+                weights_file = get_weights_file_path()
+            raw_config = self._load_config_from_file(weights_file)
+            self.is_valid, self.validation_errors, self._config = (
+                validate_weights_config(raw_config)
+            )
+        else:
+            # Load from specified directory or use global system
+            if config_dir is not None:
+                weights_file = config_dir / "gandalf-weights.yaml"
+            else:
+                weights_file = get_weights_file_path()
+            raw_config = self._load_config_from_file(weights_file)
+            self._config = apply_schema_defaults(get_weights_schema(), raw_config)
+
+    def _load_config_from_file(self, weights_file: Path) -> Dict[str, Any]:
+        """Load the weights configuration from a specific YAML file."""
         try:
-            weights_file = self.config_dir / "gandalf-weights.yaml"
             if weights_file.exists():
-                with open(weights_file, "r") as f:
+                with open(weights_file, "r", encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}
-        except (OSError, IOError, yaml.YAMLError, PermissionError):
-            pass
+            else:
+                log_debug(f"No weights file found at {weights_file}, using defaults")
+        except (OSError, IOError, yaml.YAMLError, PermissionError) as e:
+            log_error(e, f"loading weights configuration from {weights_file}")
 
         return {}
 
-    def get(self, path: str) -> Any:
+    def get(self, path: str, default: Any = None) -> Any:
         """Get a value from the config using dot notation.
 
         Args:
             path: Dot-separated path
-            default: Default value if not found, 'CONTEXT_MIN_SCORE'
+            default: Default value if not found (defaults to CONTEXT_MIN_SCORE)
 
         Returns:
-            The value or CONTEXT_MIN_SCORE
+            The value, default, or CONTEXT_MIN_SCORE if default is None
         """
+        if default is None:
+            default = CONTEXT_MIN_SCORE
+
         value = self._config
         for key in path.split("."):
             if isinstance(value, dict) and key in value:
                 value = value[key]
             else:
-                return CONTEXT_MIN_SCORE
+                return default
         return value
 
     def get_dict(self, path: str) -> Dict[str, Any]:
-        """Get a dictionary from the config.
+        """Get a dictionary from the config using dot notation.
 
         Args:
             path: Dot-separated path to dictionary
@@ -68,66 +99,85 @@ class WeightsConfig:
         value = self.get(path)
         return value if isinstance(value, dict) else {}
 
+    def has_validation_errors(self) -> bool:
+        """Check if configuration has validation errors."""
+        return not self.is_valid
 
-# Global weights configuration
-_weights = WeightsConfig()
+    def get_validation_errors(self) -> List[str]:
+        """Get list of validation errors."""
+        return self.validation_errors
 
-# Core weights dictionaries
-CONTEXT_WEIGHTS = _weights.get_dict("weights")
-CONVERSATION_WEIGHTS = _weights.get_dict("conversation")
+    def get_file_extension_weights(self) -> Dict[str, float]:
+        """Get file extension priority weights with dot prefixes.
 
-# Individual weight constants
-CONVERSATION_KEYWORD_WEIGHT = _weights.get("conversation.keyword_weight")
-CONVERSATION_FILE_REF_SCORE = _weights.get("conversation.file_ref_score")
-ACTIVITY_SCORE_RECENCY_BOOST = _weights.get("context.activity_score_recency_boost")
-CONVERSATION_EARLY_TERMINATION_MULTIPLIER = _weights.get(
-    "processing.conversation_early_termination_multiplier"
-)
-EARLY_TERMINATION_LIMIT_MULTIPLIER = _weights.get(
-    "processing.early_termination_limit_multiplier"
-)
+        Returns:
+            Dictionary mapping file extensions to weight values
+        """
+        weights_dict = self.get_dict("file_extensions")
+        # Add dot prefixes and convert to float
+        return {f".{ext}": float(weight) for ext, weight in weights_dict.items()}
 
-# Recency thresholds
-CONVERSATION_RECENCY_THRESHOLDS = _weights.get_dict("recency_thresholds")
+    def get_directory_priority_weights(self) -> Dict[str, float]:
+        """Get directory importance scores.
 
-# Activity scoring constants
-ACTIVITY_SCORE_MAX_DURATION = 30  # days
+        Returns:
+            Dictionary mapping directory names to weight values
+        """
+        weights_dict = self.get_dict("directories")
+        # Convert to float
+        return {dir_name: float(weight) for dir_name, weight in weights_dict.items()}
 
-# Context file size constants
-CONTEXT_FILE_SIZE_ACCEPTABLE_MULTIPLIER = _weights.get(
-    "context.file_size.acceptable_multiplier"
-)
-CONTEXT_FILE_SIZE_LARGE_MULTIPLIER = _weights.get("context.file_size.large_multiplier")
-CONTEXT_FILE_SIZE_OPTIMAL_MAX = _weights.get("context.file_size.optimal_max")
-CONTEXT_FILE_SIZE_OPTIMAL_MIN = _weights.get("context.file_size.optimal_min")
+    def get_weights_validation_status(self) -> Dict[str, Any]:
+        """Get validation status of the weights configuration.
 
-# Context recent modification constants
-CONTEXT_RECENT_DAY_MULTIPLIER = _weights.get(
-    "context.recent_modifications.day_multiplier"
-)
-CONTEXT_RECENT_DAY_THRESHOLD = _weights.get(
-    "context.recent_modifications.day_threshold"
-)
-CONTEXT_RECENT_HOUR_THRESHOLD = _weights.get(
-    "context.recent_modifications.hour_threshold"
-)
-CONTEXT_RECENT_WEEK_MULTIPLIER = _weights.get(
-    "context.recent_modifications.week_multiplier"
-)
-CONTEXT_RECENT_WEEK_THRESHOLD = _weights.get(
-    "context.recent_modifications.week_threshold"
-)
+        Returns:
+            Dictionary with validation status information
+        """
+        has_errors = self.has_validation_errors()
+        error_count = len(self.validation_errors)
 
+        if has_errors:
+            message = f"Configuration has {error_count} validation errors"
+        else:
+            message = "Configuration is valid"
 
-def get_file_extension_weights() -> Dict[str, float]:
-    """Get file extension priority weights with dot prefixes."""
-    weights_dict = _weights.get_dict("file_extensions")
-    # Add dot prefixes and convert to float
-    return {f".{ext}": float(weight) for ext, weight in weights_dict.items()}
+        return {
+            "has_errors": has_errors,
+            "error_count": error_count,
+            "status": "invalid" if has_errors else "valid",
+            "message": message,
+        }
+
+    def get_schema(self) -> Dict[str, Any]:
+        """Get the schema for weights configuration."""
+        return get_weights_schema()
 
 
-def get_directory_priority_weights() -> Dict[str, float]:
-    """Get directory importance scores."""
-    weights_dict = _weights.get_dict("directories")
-    # Convert to float
-    return {dir_name: float(weight) for dir_name, weight in weights_dict.items()}
+class WeightsManager:
+    """Manages weights configuration instances with dependency injection."""
+
+    _default_instance: Optional[WeightsConfig] = None
+
+    @classmethod
+    def get_default(cls) -> WeightsConfig:
+        """Get the default weights configuration instance."""
+        if cls._default_instance is None:
+            cls._default_instance = WeightsConfig()
+        return cls._default_instance
+
+    @classmethod
+    def set_default(cls, config: WeightsConfig) -> None:
+        """Set the default weights configuration instance."""
+        cls._default_instance = config
+
+    @classmethod
+    def create_instance(
+        cls, config_dir: Optional[Path] = None, validate: bool = True
+    ) -> WeightsConfig:
+        """Create a new weights configuration instance."""
+        return WeightsConfig(config_dir=config_dir, validate=validate)
+
+    @classmethod
+    def reset_default(cls) -> None:
+        """Reset the default instance (useful for testing)."""
+        cls._default_instance = None

@@ -6,10 +6,10 @@ import json
 import sys
 from typing import Any, Dict, TextIO
 
-from config.constants import ErrorCodes
-from core.server import GandalfMCP
-from utils.common import log_error, log_info
-from utils.jsonrpc import create_error_response
+from src.config.enums import ErrorCodes
+from src.core.server import GandalfMCP
+from src.utils.common import log_error, log_info
+from src.utils.jsonrpc import create_error_response
 
 
 class MessageLoopHandler:

@@ -6,13 +6,15 @@ import subprocess
 from pathlib import Path
 from typing import List
 
-from config.constants import (
+from src.config.config_data import (
+    EXCLUDE_DIRECTORIES,
+    EXCLUDE_FILE_PATTERNS,
+)
+from src.config.constants.limits import (
     FIND_COMMAND_TIMEOUT,
-    FIND_EXCLUDE_DIRS,
-    FIND_EXCLUDE_PATTERNS,
     MAX_PROJECT_FILES,
 )
-from utils.common import log_debug, log_error
+from src.utils.common import log_debug, log_error
 
 
 def filter_project_files(project_root: Path) -> List[str]:
@@ -63,11 +65,11 @@ def _build_find_command(project_root: Path) -> List[str]:
     find_cmd = ["find", str(project_root), "-type", "f"]
 
     # Exclude directories
-    for exclude_dir in FIND_EXCLUDE_DIRS:
+    for exclude_dir in EXCLUDE_DIRECTORIES:
         find_cmd.extend(["-not", "-path", f"*/{exclude_dir}/*"])
 
     # Exclude file patterns
-    for exclude_pattern in FIND_EXCLUDE_PATTERNS:
+    for exclude_pattern in EXCLUDE_FILE_PATTERNS:
         find_cmd.extend(["-not", "-name", exclude_pattern])
 
     return find_cmd
@@ -81,8 +83,8 @@ def _process_find_output(stdout: str) -> List[str]:
 def get_excluded_patterns() -> dict:
     """Get current exclusion patterns for debugging and testing purposes."""
     return {
-        "directories": list(FIND_EXCLUDE_DIRS),
-        "file_patterns": list(FIND_EXCLUDE_PATTERNS),
+        "directories": list(EXCLUDE_DIRECTORIES),
+        "file_patterns": list(EXCLUDE_FILE_PATTERNS),
         "max_files": MAX_PROJECT_FILES,
         "timeout": FIND_COMMAND_TIMEOUT,
     }

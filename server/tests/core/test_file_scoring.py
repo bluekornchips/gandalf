@@ -2,18 +2,17 @@
 
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-import pytest
-
-from src.config.constants import MCP_CACHE_TTL, PRIORITY_NEUTRAL_SCORE
+from src.config.constants.cache import MCP_CACHE_TTL
+from src.config.constants.limits import PRIORITY_NEUTRAL_SCORE
 from src.core.file_scoring import (
-    get_files_with_scores,
-    get_files_list,
     _compute_relevance_scores,
-    clear_file_scores,
-    get_scoring_info,
     _file_scores_cache,
+    clear_file_scores,
+    get_files_list,
+    get_files_with_scores,
+    get_scoring_info,
 )
 
 
@@ -36,7 +35,8 @@ class TestGetFilesWithScores:
         ]
 
         with patch(
-            "src.core.file_scoring.filter_project_files", return_value=mock_files
+            "src.core.file_scoring.filter_project_files",
+            return_value=mock_files,
         ):
             with patch(
                 "src.core.file_scoring._compute_relevance_scores",
@@ -101,7 +101,8 @@ class TestGetFilesWithScores:
         }
 
         with patch(
-            "src.core.file_scoring.filter_project_files", return_value=["new_file.py"]
+            "src.core.file_scoring.filter_project_files",
+            return_value=["new_file.py"],
         ):
             with patch(
                 "src.core.file_scoring._compute_relevance_scores",
@@ -356,7 +357,8 @@ class TestIntegrationScenarios:
         ]
 
         with patch(
-            "src.core.file_scoring.filter_project_files", return_value=mock_files
+            "src.core.file_scoring.filter_project_files",
+            return_value=mock_files,
         ):
             with patch(
                 "src.core.file_scoring._compute_relevance_scores",
@@ -376,7 +378,10 @@ class TestIntegrationScenarios:
 
                         # Get file list (should extract from cached scores)
                         file_list = get_files_list(self.project_root)
-                        assert file_list == ["galadriel_file.py", "celeborn_file.py"]
+                        assert file_list == [
+                            "galadriel_file.py",
+                            "celeborn_file.py",
+                        ]
 
     def test_cache_expiration_and_refresh(self):
         """Test cache expiration and automatic refresh."""
@@ -392,7 +397,8 @@ class TestIntegrationScenarios:
         }
 
         with patch(
-            "src.core.file_scoring.filter_project_files", return_value=new_files
+            "src.core.file_scoring.filter_project_files",
+            return_value=new_files,
         ):
             with patch(
                 "src.core.file_scoring._compute_relevance_scores",
@@ -410,7 +416,8 @@ class TestIntegrationScenarios:
         mock_files = ["error_file.py", "another_file.py"]
 
         with patch(
-            "src.core.file_scoring.filter_project_files", return_value=mock_files
+            "src.core.file_scoring.filter_project_files",
+            return_value=mock_files,
         ):
             with patch(
                 "src.core.file_scoring.get_context_intelligence",
@@ -430,7 +437,8 @@ class TestIntegrationScenarios:
 
         # Populate cache
         with patch(
-            "src.core.file_scoring.filter_project_files", return_value=["cache_file.py"]
+            "src.core.file_scoring.filter_project_files",
+            return_value=["cache_file.py"],
         ):
             with patch(
                 "src.core.file_scoring._compute_relevance_scores",

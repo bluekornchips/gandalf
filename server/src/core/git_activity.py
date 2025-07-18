@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Dict
 
-from utils.common import log_debug, log_error, log_info
+from src.utils.common import log_debug, log_error, log_info
 
 # Git activity constants (not in system config yet)
 GIT_ACTIVITY_CACHE_TTL = 3600  # 1 hour cache

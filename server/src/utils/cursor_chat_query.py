@@ -14,19 +14,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# Database file names to search for in workspace directories
-CURSOR_DATABASE_FILES = [
-    "state.vscdb",
-    "workspace.db",
-    "storage.db",
-    "cursor.db",
-]
+from src.config.constants.database import CURSOR_DATABASE_FILES
 
 
 def is_running_in_wsl() -> bool:
     """Check if we're running in Windows Subsystem for Linux."""
     try:
-        with open("/proc/version", "r") as f:
+        with open("/proc/version", "r", encoding="utf-8") as f:
             return "microsoft" in f.read().lower()
     except (OSError, IOError):
         return False
@@ -129,7 +123,7 @@ def get_default_cursor_path() -> Path:
 
 def get_wsl_additional_paths() -> List[Path]:
     """Get additional Cursor paths for WSL environments."""
-    additional_paths = []
+    additional_paths: List[Path] = []
     users_dir = Path("/mnt/c/Users")
 
     if not users_dir.exists():
@@ -215,7 +209,7 @@ class CursorQuery:
 
     def find_workspace_databases(self) -> List[Path]:
         """Find all workspace database files in the Cursor data directory."""
-        databases = []
+        databases: List[Path] = []
         workspace_storage_path = self.cursor_data_path / "workspaceStorage"
 
         if not workspace_storage_path.exists():
@@ -246,7 +240,12 @@ class CursorQuery:
                 cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
                 result = cursor.fetchone()
                 if result:
-                    return json.loads(result[0])
+                    data = json.loads(result[0])
+                    # Explicitly close to ensure cleanup
+                    cursor.close()
+                    return data
+                # Explicitly close to ensure cleanup
+                cursor.close()
                 return None
         except (sqlite3.Error, json.JSONDecodeError, OSError) as e:
             if not self.silent:
@@ -264,7 +263,7 @@ class CursorQuery:
 
         # Fall back to old format if new format doesn't exist
         if not conversations:
-            conversations = self.get_data_from_db(db_path, "aiConversations")
+            conversations = self.get_data_from_db(db_path, "aiConversations") or []
 
         # Try new key names first (current Cursor format)
         prompts = self.get_data_from_db(db_path, "aiService.prompts")
@@ -332,16 +331,11 @@ class CursorQuery:
             conv_id = f"reconstructed_{hash(str(all_items[:5]))}"
 
             conversation: Dict[str, Any] = {
-                # New format fields
                 "id": conv_id,
                 "messages": all_items,
                 "created_at": min_timestamp,
                 "updated_at": max_timestamp,
                 "message_count": len(all_items),
-                # Legacy compatibility fields for MCP recall handler
-                "composerId": conv_id,
-                "createdAt": min_timestamp,
-                "lastUpdatedAt": max_timestamp,
                 "name": "Reconstructed Conversation",
             }
             conversations.append(conversation)
@@ -380,7 +374,7 @@ class CursorQuery:
         self, prompts: List[Dict], generations: List[Dict]
     ) -> Dict[str, Dict[str, List]]:
         """Create a mapping of conversation IDs to their messages."""
-        message_map = {}
+        message_map: Dict[str, Dict[str, List]] = {}
 
         for prompt in prompts:
             conv_id = prompt.get("conversationId")
