@@ -1,13 +1,12 @@
 format:
 	black src/
 	isort src/
+
+lint:
 	flake8 src/
 
 test:
 	pytest --cov=src
-
-lint:
-	flake8 src/
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
