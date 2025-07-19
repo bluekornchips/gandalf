@@ -21,26 +21,24 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
           cd server
-          pip install -r requirements.txt
+          pip install -e .[dev]
 
-      - name: Code formatting check (black)
+      - name: Lint and format (ruff)
         run: |
           cd server
-          black --check --diff .
-
-      - name: Import sorting check (isort)
-        run: |
-          cd server
-          isort --check-only --diff .
-
-      - name: PEP8 compliance check (flake8)
-        run: |
-          cd server
-          flake8 .
+          make lint
+          make format
 
       - name: Run tests
         run: |
