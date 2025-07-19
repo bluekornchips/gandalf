@@ -46,33 +46,33 @@ jobs:
           pytest --cov=src --cov-report=term --cov-report=xml > result.log
           tail -n 30 result.log > coverage-summary.txt
 
-- name: Read coverage summary
-  id: coverage
-  run: |
-    echo 'content<<EOF' >> $GITHUB_OUTPUT
-    cat server/coverage-summary.txt >> $GITHUB_OUTPUT
-    echo 'EOF' >> $GITHUB_OUTPUT
+      - name: Read coverage summary
+        id: coverage
+        run: |
+          echo 'content<<EOF' >> $GITHUB_OUTPUT
+          cat server/coverage-summary.txt >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
 
-- name: Read lint results
-  id: lint
-  run: |
-    echo 'content<<EOF' >> $GITHUB_OUTPUT
-    cat server/lint-result.txt >> $GITHUB_OUTPUT
-    echo 'EOF' >> $GITHUB_OUTPUT
+      - name: Read lint results
+        id: lint
+        run: |
+          echo 'content<<EOF' >> $GITHUB_OUTPUT
+          cat server/lint-result.txt >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
 
-- name: Post coverage and lint results as PR comment
-  if: github.event_name == 'pull_request'
-  uses: peter-evans/create-or-update-comment@v4
-  with:
-    token: ${{ secrets.GH_PR_COMMENT_TOKEN }}
-    issue-number: ${{ github.event.pull_request.number }}
-    body: |
-      ## 🧪 Test Coverage Summary
-      ```
-      ${{ steps.coverage.outputs.content }}
-      ```
+      - name: Post coverage and lint results as PR comment
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GH_PR_COMMENT_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## 🧪 Test Coverage Summary
+            ```
+            ${{ steps.coverage.outputs.content }}
+            ```
 
-      ## 🧹 Ruff Lint Results
-      ```
-      ${{ steps.lint.outputs.content }}
-      ```
+            ## 🧹 Ruff Lint Results
+            ```
+            ${{ steps.lint.outputs.content }}
+            ```
