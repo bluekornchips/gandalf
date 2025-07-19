@@ -374,7 +374,7 @@ class TestMiddleEarthConfigurations:
                 "file_reference_score": 0.25,
                 "type_bonuses": {
                     "debugging": 0.3,
-                    "architecture": 0.4,  # Emphasize architecture in Rivendell
+                    "architecture": 0.4,
                     "testing": 0.2,
                     "code_discussion": 0.15,
                     "problem_solving": 0.2,

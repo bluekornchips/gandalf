@@ -2,7 +2,7 @@
 
 Model Context Protocol (MCP) Server for Agentic Development Tools
 
-[![Version](https://img.shields.io/badge/version-2.2.3-blue.svg)](https://github.com/bluekornchips/gandalf/releases)
+[![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](https://github.com/bluekornchips/gandalf/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![MCP](https://img.shields.io/badge/protocol-MCP-purple.svg)](https://modelcontextprotocol.io)
@@ -18,7 +18,7 @@ In the Lord of the Rings, Gandalf is a powerful wizard, but he is not omnipotent
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.12+
 - Git
 - IDE: Cursor, Claude Code, or Windsurf with MCP support
 

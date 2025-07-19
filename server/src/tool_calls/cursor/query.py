@@ -4,7 +4,7 @@ Cursor query tool for accessing Cursor IDE conversation data.
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from src.utils.access_control import AccessValidator
 from src.utils.common import log_error, log_info
@@ -12,8 +12,8 @@ from src.utils.cursor_chat_query import CursorQuery, list_cursor_workspaces
 
 
 def handle_query_cursor_conversations(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """Query cursor conversations with comprehensive data retrieval."""
     try:
         # Get parameters
@@ -104,8 +104,8 @@ def handle_query_cursor_conversations(
 
 
 def handle_list_cursor_workspaces(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """List available Cursor workspace databases."""
     try:
         result = list_cursor_workspaces()
@@ -120,8 +120,7 @@ def handle_list_cursor_workspaces(
 TOOL_QUERY_CURSOR_CONVERSATIONS = {
     "name": "query_cursor_conversations",
     "description": (
-        "Query conversations directly from Cursor IDE databases "
-        "for AI context analysis"
+        "Query conversations directly from Cursor IDE databases for AI context analysis"
     ),
     "inputSchema": {
         "type": "object",

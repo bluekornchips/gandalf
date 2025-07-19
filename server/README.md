@@ -17,11 +17,11 @@ src/
 
 ```bash
 # Setup
-pip install -r requirements.txt
+pip install -e .
 
 # Test with coverage
 pytest --cov=src --cov-report=html
 
 # Format
-black src/ && isort src/ && flake8 src/
+ruff check src/ && ruff format src/
 ```

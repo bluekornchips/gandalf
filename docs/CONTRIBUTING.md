@@ -4,9 +4,9 @@ Development guidelines for the Gandalf MCP Server.
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.12+
 - Git
-- Development tools: pytest, bats, shellcheck, black, isort
+- Development tools: pytest, bats, shellcheck, ruff
 
 ## Development Workflow
 
@@ -20,7 +20,7 @@ git checkout -b feature/descriptive-name
 
 # Install dependencies
 cd gandalf/server
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### 2. Development
@@ -59,7 +59,7 @@ isort src/
 
 ## Code Standards
 
-- **Python**: PEP 8, black, isort, flake8
+- **Python**: PEP 8, ruff
 - **Shell**: shellcheck validation
 - **Testing**: 90% coverage minimum
 - **Documentation**: Update relevant docs for changes

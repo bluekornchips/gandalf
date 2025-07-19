@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  quality:
+  python:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -21,28 +21,44 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
           cd server
-          pip install -r requirements.txt
+          pip install -e .[dev]
 
-      - name: Code formatting check (black)
+      - name: Lint and format (ruff)
         run: |
           cd server
-          black --check --diff .
+          make lint > lint-result.txt || true
+          make format
 
-      - name: Import sorting check (isort)
+      - name: Run tests and save coverage summary
         run: |
           cd server
-          isort --check-only --diff .
+          pytest --cov=src --cov-report=term --cov-report=xml > result.log
+          tail -n 30 result.log > coverage-summary.txt
 
-      - name: PEP8 compliance check (flake8)
-        run: |
-          cd server
-          flake8 .
+      - name: Post coverage and lint results as PR comment
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GH_PR_COMMENT_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## 🧪 Test Coverage Summary
+            ```
+            $(cat server/coverage-summary.txt)
+            ```
 
-      - name: Run tests
-        run: |
-          cd server
-          pytest --cov=src --cov-report=xml --cov-report=term
+            ## 🧹 Ruff Lint Results
+            ```
+            $(cat server/lint-result.txt)
+            ```

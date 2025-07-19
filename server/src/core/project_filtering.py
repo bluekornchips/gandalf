@@ -4,7 +4,6 @@ Project filtering and ignore patterns for the Gandalf MCP server.
 
 import subprocess
 from pathlib import Path
-from typing import List
 
 from src.config.config_data import (
     EXCLUDE_DIRECTORIES,
@@ -17,7 +16,7 @@ from src.config.constants.limits import (
 from src.utils.common import log_debug, log_error
 
 
-def filter_project_files(project_root: Path) -> List[str]:
+def filter_project_files(project_root: Path) -> list[str]:
     """Get filtered list of files using find command with exclusion patterns."""
     if not isinstance(project_root, Path):
         raise TypeError("project_root must be a Path object")
@@ -60,7 +59,7 @@ def filter_project_files(project_root: Path) -> List[str]:
         return []
 
 
-def _build_find_command(project_root: Path) -> List[str]:
+def _build_find_command(project_root: Path) -> list[str]:
     """Build the find command with comprehensive exclusion patterns."""
     find_cmd = ["find", str(project_root), "-type", "f"]
 
@@ -75,7 +74,7 @@ def _build_find_command(project_root: Path) -> List[str]:
     return find_cmd
 
 
-def _process_find_output(stdout: str) -> List[str]:
+def _process_find_output(stdout: str) -> list[str]:
     """Process find command output into a clean list of file paths."""
     return [line.strip() for line in stdout.splitlines() if line.strip()]
 

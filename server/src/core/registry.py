@@ -3,10 +3,7 @@ Registry for agentic tools to track which tools are available and their configur
 """
 
 import json
-import os
-import platform
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 from src.config.config_data import (
     CLAUDE_CONVERSATION_PATTERNS,
@@ -31,7 +28,7 @@ def get_registry_path() -> Path:
     return GANDALF_HOME / REGISTRY_FILENAME
 
 
-def read_registry() -> Dict[str, str]:
+def read_registry() -> dict[str, str]:
     """Read the registry file and return agentic tool name to path mapping."""
     registry_path = get_registry_path()
 
@@ -40,7 +37,7 @@ def read_registry() -> Dict[str, str]:
         return {}
 
     try:
-        with open(registry_path, "r", encoding="utf-8") as f:
+        with open(registry_path, encoding="utf-8") as f:
             data = json.load(f)
         if not isinstance(data, dict):
             log_error(ValueError("Registry file is not a valid JSON object"))
@@ -51,24 +48,24 @@ def read_registry() -> Dict[str, str]:
     except json.JSONDecodeError as e:
         log_error(e, "parsing registry file")
         return {}
-    except (OSError, IOError, PermissionError) as e:
+    except (OSError, PermissionError) as e:
         log_error(e, "reading registry file")
         return {}
 
 
-def get_agentic_tool_path(tool_name: str) -> Optional[str]:
+def get_agentic_tool_path(tool_name: str) -> str | None:
     """Get the installation path for a specific agentic tool."""
     registry = read_registry()
     return registry.get(tool_name)
 
 
-def get_registered_agentic_tools() -> List[str]:
+def get_registered_agentic_tools() -> list[str]:
     """Get list of registered agentic tool names."""
     registry = read_registry()
     return list(registry.keys())
 
 
-def find_cursor_conversations(cursor_path: str) -> List[str]:
+def find_cursor_conversations(cursor_path: str) -> list[str]:
     """Find conversation databases for Cursor installation."""
     conversations = []
 
@@ -90,7 +87,7 @@ def find_cursor_conversations(cursor_path: str) -> List[str]:
     return conversations
 
 
-def find_claude_conversations(claude_path: str) -> List[str]:
+def find_claude_conversations(claude_path: str) -> list[str]:
     """Find conversation files for Claude Code installation."""
     conversations = []
 
@@ -107,7 +104,7 @@ def find_claude_conversations(claude_path: str) -> List[str]:
     return conversations
 
 
-def find_windsurf_conversations(windsurf_path: str) -> List[str]:
+def find_windsurf_conversations(windsurf_path: str) -> list[str]:
     """Find conversation databases for Windsurf installation."""
     conversations = []
 
@@ -133,7 +130,7 @@ def find_windsurf_conversations(windsurf_path: str) -> List[str]:
     return conversations
 
 
-def get_all_conversations() -> Dict[str, List[str]]:
+def get_all_conversations() -> dict[str, list[str]]:
     """Get all conversation files for all registered agentic tools."""
     registry = read_registry()
     all_conversations = {}

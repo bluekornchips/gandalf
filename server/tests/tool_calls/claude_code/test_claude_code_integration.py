@@ -37,8 +37,7 @@ class TestClaudeCodeIntegration:
         self.project_root = self.temp_dir / "rivendell-project"
         self.project_root.mkdir()
 
-        # Create encoded project directory (this is how Claude Code stores conversations)
-        # TODO: How do we know this? Can we provide a doc link for this?
+        # Create encoded project directory (Claude Code encodes project paths by replacing '/' with '-')
         self.encoded_project = str(self.project_root).replace("/", "-")
         self.project_sessions_dir = self.projects_dir / self.encoded_project
         self.project_sessions_dir.mkdir()

@@ -9,7 +9,7 @@ and Claude Code patterns.
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from src.config.config_data import (
     CONVERSATION_TYPES,
@@ -43,8 +43,8 @@ from src.utils.performance import get_duration, start_timer
 
 
 def create_lightweight_conversation(
-    conversation: Dict[str, Any],
-) -> Dict[str, Any]:
+    conversation: dict[str, Any],
+) -> dict[str, Any]:
     """Create lightweight conversation format for Windsurf."""
     conv_id = conversation.get("id", conversation.get("chat_session_id", ""))
     title = conversation.get(
@@ -73,10 +73,10 @@ def create_lightweight_conversation(
 
 
 def standardize_conversation(
-    conversation: Dict[str, Any],
-    context_keywords: List[str],
+    conversation: dict[str, Any],
+    context_keywords: list[str],
     lightweight: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Standardize Windsurf conversation format."""
     try:
         if lightweight:
@@ -129,8 +129,8 @@ def standardize_conversation(
 
 
 def handle_recall_windsurf_conversations(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """
     Intelligent conversation recall for Windsurf IDE with relevance analysis.
 

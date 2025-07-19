@@ -302,7 +302,7 @@ Installation Options:
 
 2. Minimal Installation:
     Install missing tools manually:
-    - Python 3.10+: brew install python3 (macOS) or apt install python3 (Linux)
+    - Python 3.12+: brew install python3 (macOS) or apt install python3 (Linux)
     - Git: brew install git (macOS) or apt install git (Linux)
 
 3. Python Dependencies Only:

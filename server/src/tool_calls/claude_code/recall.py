@@ -7,7 +7,7 @@ allowing retrieval and analysis of conversation data from Claude Code sessions.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from src.config.config_data import (
     CONVERSATION_TYPES,
@@ -39,8 +39,8 @@ from src.utils.performance import get_duration, start_timer
 
 
 def create_lightweight_conversation(
-    conversation: Dict[str, Any],
-) -> Dict[str, Any]:
+    conversation: dict[str, Any],
+) -> dict[str, Any]:
     """Create lightweight conversation format for Claude Code."""
     conv_id = conversation.get("id", conversation.get("session_id", ""))
     title = conversation.get(
@@ -69,10 +69,10 @@ def create_lightweight_conversation(
 
 
 def standardize_conversation(
-    conversation: Dict[str, Any],
-    context_keywords: List[str],
+    conversation: dict[str, Any],
+    context_keywords: list[str],
     lightweight: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Standardize Claude Code conversation format."""
     try:
         # token optimized response
@@ -131,8 +131,8 @@ def standardize_conversation(
 
 
 def handle_recall_claude_conversations(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """Recall and analyze Claude Code conversations for context."""
     try:
         # Get parameters

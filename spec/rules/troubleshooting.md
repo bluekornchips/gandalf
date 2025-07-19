@@ -10,12 +10,12 @@ alwaysApply: true
 
 ## Quick Fixes
 
-| Problem               | Solution                                    |
-| --------------------- | ------------------------------------------- |
+| Problem               | Solution                                 |
+| --------------------- | ---------------------------------------- |
 | Tools not appearing   | Restart IDE; `./gandalf install --force` |
 | Server not responding | `./gandalf test`; check dependencies     |
-| Empty results         | Restart IDE; check permissions              |
-| Slow performance      | Use `fast_mode=true`; reduce limits         |
+| Empty results         | Restart IDE; check permissions           |
+| Slow performance      | Use `fast_mode=true`; reduce limits      |
 
 ## Common Issues
 

@@ -1,19 +1,18 @@
 format:
-	black src/
-	isort src/
-	flake8 src/
+	ruff check --fix --unsafe-fixes src/
+	ruff format src/
+
+lint:
+	ruff check src/
+
+fix:
+	ruff check --fix src/
 
 test:
 	pytest --cov=src
 
-lint:
-	flake8 src/
-
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	rm -rf .pytest_cache .coverage htmlcov
-
-run:
-	../gandalf-cli run
 
 all: format lint test 

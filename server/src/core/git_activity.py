@@ -5,7 +5,6 @@ Git activity tracking for intelligent file scoring.
 import subprocess
 import time
 from pathlib import Path
-from typing import Dict
 
 from src.utils.common import log_debug, log_error, log_info
 
@@ -97,7 +96,7 @@ class GitActivityTracker:
         self._last_update = 0
         log_debug(f"Cleared git activity data for {self.project_root}")
 
-    def get_activity_info(self) -> Dict:
+    def get_activity_info(self) -> dict:
         """Get activity information for debugging."""
         current_time = time.time()
         data_age = current_time - self._last_update

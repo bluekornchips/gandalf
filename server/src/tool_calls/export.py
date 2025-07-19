@@ -7,7 +7,7 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.config.constants.database import TIMESTAMP_MILLISECOND_THRESHOLD
 from src.config.constants.paths import GANDALF_HOME
@@ -20,7 +20,7 @@ from src.utils.common import log_debug, log_info
 from src.utils.cursor_chat_query import CursorQuery, list_cursor_workspaces
 
 
-def format_timestamp(timestamp: Optional[float] = None) -> str:
+def format_timestamp(timestamp: float | None = None) -> str:
     """Format timestamp for filenames and content.
 
     Args:
@@ -64,8 +64,8 @@ def sanitize_filename(filename: str) -> str:
 
 
 def handle_export_individual_conversations(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """Export individual conversations to files.
 
     Args:
@@ -195,20 +195,14 @@ def handle_export_individual_conversations(
             )
         )
 
-    except (
-        OSError,
-        IOError,
-        json.JSONDecodeError,
-        KeyError,
-        AttributeError,
-    ) as e:
+    except (OSError, json.JSONDecodeError, KeyError, AttributeError) as e:
         log_debug(f"Error in export_individual_conversations: {e}")
         return AccessValidator.create_error_response(f"Export failed: {str(e)}")
 
 
 def handle_list_cursor_workspaces(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """List available Cursor workspaces.
 
     Args:
@@ -230,12 +224,12 @@ def handle_list_cursor_workspaces(
             )
         )
 
-    except (OSError, IOError, KeyError, AttributeError) as e:
+    except (OSError, KeyError, AttributeError) as e:
         log_debug(f"Error in list_cursor_workspaces: {e}")
         return AccessValidator.create_error_response(str(e))
 
 
-def _format_conversation_markdown(conversation: Dict[str, Any]) -> str:
+def _format_conversation_markdown(conversation: dict[str, Any]) -> str:
     """Format conversation as Markdown."""
     name = conversation.get("name", "Unnamed Conversation")
     created = conversation.get("created_at")
@@ -256,7 +250,7 @@ def _format_conversation_markdown(conversation: Dict[str, Any]) -> str:
     return content
 
 
-def _format_conversation_text(conversation: Dict[str, Any]) -> str:
+def _format_conversation_text(conversation: dict[str, Any]) -> str:
     """Format conversation as plain text."""
     name = conversation.get("name", "Unnamed Conversation")
     created = conversation.get("created_at")
@@ -281,8 +275,7 @@ def _format_conversation_text(conversation: Dict[str, Any]) -> str:
 TOOL_EXPORT_INDIVIDUAL_CONVERSATIONS = {
     "name": "export_individual_conversations",
     "description": (
-        "Export individual conversations to separate files in the "
-        "specified directory."
+        "Export individual conversations to separate files in the specified directory."
     ),
     "inputSchema": {
         "type": "object",

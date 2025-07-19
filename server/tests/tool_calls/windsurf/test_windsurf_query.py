@@ -17,13 +17,15 @@ from src.config.constants.conversation import (
 from src.config.constants.database import (
     WINDSURF_KEY_CHAT_SESSION_STORE,
 )
-from src.tool_calls.windsurf.query import (
-    TOOL_QUERY_WINDSURF_CONVERSATIONS,
+from src.config.constants.windsurf import (
     WINDSURF_CONTENT_KEYS,
     WINDSURF_CONVERSATION_PATTERNS,
     WINDSURF_FALSE_POSITIVE_INDICATORS,
     WINDSURF_MESSAGE_INDICATORS,
     WINDSURF_STRONG_CONVERSATION_INDICATORS,
+)
+from src.tool_calls.windsurf.query import (
+    TOOL_QUERY_WINDSURF_CONVERSATIONS,
     ConversationExtractor,
     ConversationValidator,
     DatabaseReader,

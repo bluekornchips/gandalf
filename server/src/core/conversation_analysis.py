@@ -10,7 +10,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from src.config.config_data import (
     CONTEXT_SKIP_DIRECTORIES,
@@ -36,7 +36,7 @@ _context_keywords_cache = {}
 _context_keywords_cache_time = {}
 
 
-def generate_shared_context_keywords(project_root: Path) -> List[str]:
+def generate_shared_context_keywords(project_root: Path) -> list[str]:
     """Generate context keywords with intelligent caching and weighting."""
     project_root_str = str(project_root)
 
@@ -92,7 +92,7 @@ def generate_shared_context_keywords(project_root: Path) -> List[str]:
     return keywords
 
 
-def _extract_project_keywords(project_root: Path) -> List[str]:
+def _extract_project_keywords(project_root: Path) -> list[str]:
     """Extract keywords from project files and structure."""
     keywords = []
 
@@ -139,7 +139,7 @@ def _extract_project_keywords(project_root: Path) -> List[str]:
         return [project_name] if "project_name" in locals() else []
 
 
-def _extract_keywords_from_file(file_name: str, content: str) -> List[str]:
+def _extract_keywords_from_file(file_name: str, content: str) -> list[str]:
     """Extract keywords from specific file types."""
     keywords = []
 
@@ -199,7 +199,7 @@ def _extract_keywords_from_file(file_name: str, content: str) -> List[str]:
     return keywords
 
 
-def _extract_tech_keywords_from_files(project_root: Path) -> List[str]:
+def _extract_tech_keywords_from_files(project_root: Path) -> list[str]:
     """Extract technology keywords based on file extensions in project."""
     keywords = []
 
@@ -265,11 +265,11 @@ def _extract_tech_keywords_from_files(project_root: Path) -> List[str]:
 
 def analyze_session_relevance(
     session_content: str,
-    context_keywords: List[str],
-    session_metadata: Dict[str, Any],
+    context_keywords: list[str],
+    session_metadata: dict[str, Any],
     include_detailed_analysis: bool = False,
-    weights_config: Optional[Any] = None,
-) -> Tuple[float, Dict[str, Any]]:
+    weights_config: Any | None = None,
+) -> tuple[float, dict[str, Any]]:
     """Analyze session relevance with configurable weights."""
     try:
         # Return 0 score for empty content
@@ -321,8 +321,8 @@ def analyze_session_relevance(
 
 
 def score_keyword_matches(
-    text: str, keywords: List[str], weights_config: Optional[Any] = None
-) -> Tuple[float, List[str]]:
+    text: str, keywords: list[str], weights_config: Any | None = None
+) -> tuple[float, list[str]]:
     """Score text based on keyword matches with configurable weights."""
     matches = []
     score = 0.0
@@ -341,8 +341,8 @@ def score_keyword_matches(
 
 
 def score_file_references(
-    text: str, weights_config: Optional[Any] = None
-) -> Tuple[float, List[str]]:
+    text: str, weights_config: Any | None = None
+) -> tuple[float, list[str]]:
     """Score based on file references using standardized patterns."""
     refs = []
     score = 0.0
@@ -361,7 +361,7 @@ def score_file_references(
 
 
 def score_session_recency(
-    session_metadata: Dict[str, Any], weights_config: Optional[Any] = None
+    session_metadata: dict[str, Any], weights_config: Any | None = None
 ) -> float:
     """Score based on session recency using standardized thresholds."""
     try:
@@ -411,7 +411,7 @@ def score_session_recency(
 
 
 def classify_conversation_type(
-    text_content: str, keyword_matches: List[str], file_references: List[str]
+    text_content: str, keyword_matches: list[str], file_references: list[str]
 ) -> str:
     """Classify conversation type using standardized patterns."""
 
@@ -451,7 +451,7 @@ def classify_conversation_type(
 
 
 def get_conversation_type_bonus(
-    conversation_type: str, weights_config: Optional[Any] = None
+    conversation_type: str, weights_config: Any | None = None
 ) -> float:
     """Get scoring bonus based on conversation type."""
     weights = weights_config or WeightsManager.get_default()
@@ -471,7 +471,7 @@ def get_conversation_type_bonus(
     return type_bonuses.get(conversation_type, 0.0)
 
 
-def extract_conversation_content(
+def extract_conversation_content(  # noqa: C901
     conversation_data: Any, max_chars: int = CONVERSATION_TEXT_EXTRACTION_LIMIT
 ) -> str:
     """Extract text content from conversation data (IDE-agnostic)."""
@@ -537,10 +537,10 @@ def extract_conversation_content(
 
 
 def filter_conversations_by_date(
-    conversations: List[Dict[str, Any]],
+    conversations: list[dict[str, Any]],
     days_lookback: int,
-    date_field_mappings: Dict[str, str] = None,
-) -> List[Dict[str, Any]]:
+    date_field_mappings: dict[str, str] = None,
+) -> list[dict[str, Any]]:
     """Filter conversations by date with IDE-agnostic date field handling."""
     if not conversations or days_lookback <= 0:
         return conversations
@@ -577,7 +577,7 @@ def filter_conversations_by_date(
             # Direct timestamp field
             elif "timestamp" in conv:
                 ts = conv["timestamp"]
-                if isinstance(ts, (int, float)):
+                if isinstance(ts, int | float):
                     timestamp = datetime.fromtimestamp(ts)
                 elif isinstance(ts, str):
                     timestamp = datetime.fromisoformat(ts.replace("Z", "+00:00"))
@@ -594,8 +594,8 @@ def filter_conversations_by_date(
 
 
 def sort_conversations_by_relevance(
-    conversations: List[Dict[str, Any]], relevance_key: str = "relevance_score"
-) -> List[Dict[str, Any]]:
+    conversations: list[dict[str, Any]], relevance_key: str = "relevance_score"
+) -> list[dict[str, Any]]:
     """Sort conversations by relevance score in descending order."""
     try:
         return sorted(

@@ -9,7 +9,7 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.config.constants.conversation import (
     CONVERSATION_CONTENT_KEYS,
@@ -28,99 +28,11 @@ from src.config.constants.paths import (
     WINDSURF_GLOBAL_STORAGE,
     WINDSURF_WORKSPACE_STORAGE,
 )
+from src.config.constants.windsurf import (
+    WINDSURF_CONVERSATION_PATTERNS,
+)
 from src.utils.access_control import AccessValidator
 from src.utils.common import log_error
-
-# Windsurf-specific constants (different from generic database constants)
-WINDSURF_CONVERSATION_PATTERNS = {
-    "chat",
-    "conversation",
-    "message",
-    "session",
-    "dialog",
-    "ai",
-    "assistant",
-    "windsurf",
-    "cascade",
-    "codeium",
-    "history",
-    "input",
-    "output",
-    "response",
-    "query",
-    "prompt",
-    "brain",
-    "config",
-}
-
-WINDSURF_STRONG_CONVERSATION_INDICATORS = {
-    "messages",
-    "content",
-    "text",
-    "input",
-    "output",
-    "prompt",
-    "response",
-    "user",
-    "assistant",
-    "ai",
-    "human",
-    "question",
-    "answer",
-    "chat",
-    "conversation",
-    "brain",
-    "config",
-    "session",
-    "entries",
-}
-
-WINDSURF_FALSE_POSITIVE_INDICATORS = {
-    "workbench",
-    "panel",
-    "view",
-    "container",
-    "storage",
-    "settings",
-    "layout",
-    "editor",
-    "terminal",
-    "debug",
-    "extension",
-    "plugin",
-    "theme",
-    "color",
-    "font",
-    "keybinding",
-    "menu",
-    "toolbar",
-    "statusbar",
-    "sidebar",
-    "explorer",
-    "search",
-}
-
-WINDSURF_CONTENT_KEYS = {
-    "messages",
-    "content",
-    "text",
-    "input",
-    "output",
-    "body",
-    "message",
-    "entries",
-    "data",
-}
-
-WINDSURF_MESSAGE_INDICATORS = {
-    "message",
-    "content",
-    "text",
-    "user",
-    "assistant",
-    "conversation",
-    "chat",
-}
 
 
 class ConversationValidator:
@@ -129,7 +41,7 @@ class ConversationValidator:
     @staticmethod
     def is_valid_conversation(data: Any) -> bool:
         """Check if data represents a valid conversation with strict validation."""
-        if not isinstance(data, (dict, list)):
+        if not isinstance(data, dict | list):
             return False
 
         # Limit string analysis for performance
@@ -166,7 +78,7 @@ class ConversationValidator:
         return False
 
     @staticmethod
-    def _validate_dict_structure(data: Dict[str, Any]) -> bool:
+    def _validate_dict_structure(data: dict[str, Any]) -> bool:
         """Validate dictionary structure for conversation content."""
         # Check for direct content keys at top level
         has_content = any(key in data for key in CONVERSATION_CONTENT_KEYS)
@@ -180,7 +92,7 @@ class ConversationValidator:
                         and len(content.strip()) > CONVERSATION_MIN_CONTENT_LENGTH
                     ):
                         return True
-                    elif isinstance(content, (list, dict)) and content:
+                    elif isinstance(content, list | dict) and content:
                         return True
 
         for key, value in data.items():
@@ -197,7 +109,7 @@ class ConversationValidator:
         return False
 
     @staticmethod
-    def _validate_list_structure(data: List[Any]) -> bool:
+    def _validate_list_structure(data: list[Any]) -> bool:
         """Validate list structure for conversation messages."""
         if not data:
             return False
@@ -224,7 +136,7 @@ class DatabaseReader:
     def __init__(self, silent: bool = False):
         self.silent = silent
 
-    def get_data(self, db_path: Path, key: str) -> Optional[Any]:
+    def get_data(self, db_path: Path, key: str) -> Any | None:
         """Extract data from database using a specific key."""
         try:
             with sqlite3.connect(str(db_path)) as conn:
@@ -237,7 +149,7 @@ class DatabaseReader:
                 log_error(e, f"reading from database {db_path}")
             return None
 
-    def get_all_keys(self, db_path: Path) -> List[str]:
+    def get_all_keys(self, db_path: Path) -> list[str]:
         """Get all keys from a database."""
         try:
             with sqlite3.connect(str(db_path)) as conn:
@@ -249,7 +161,7 @@ class DatabaseReader:
                 log_error(e, f"reading keys from database {db_path}")
             return []
 
-    def find_conversation_keys(self, db_path: Path) -> List[str]:
+    def find_conversation_keys(self, db_path: Path) -> list[str]:
         """Find database keys that might contain conversation data."""
         all_keys = self.get_all_keys(db_path)
         return [
@@ -272,7 +184,7 @@ class ConversationExtractor:
         self.validator = validator
         self.query_instance = query_instance
 
-    def extract_from_chat_sessions(self, db_path: Path) -> List[Dict[str, Any]]:
+    def extract_from_chat_sessions(self, db_path: Path) -> list[dict[str, Any]]:
         """Extract conversations from Windsurf chat session store."""
         if self.query_instance:
             chat_sessions = self.query_instance.get_data_from_db(
@@ -304,7 +216,7 @@ class ConversationExtractor:
 
         return conversations
 
-    def extract_from_database_keys(self, db_path: Path) -> List[Dict[str, Any]]:
+    def extract_from_database_keys(self, db_path: Path) -> list[dict[str, Any]]:
         """Extract conversations from database keys that might contain conversation data."""
         conversation_keys = self.db_reader.find_conversation_keys(db_path)
         conversations = []
@@ -324,7 +236,7 @@ class ConversationExtractor:
 
     def _extract_from_data_structure(
         self, key: str, data: Any, db_path: Path
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Extract conversations from various data structures."""
         conversations = []
 
@@ -340,8 +252,8 @@ class ConversationExtractor:
         return conversations
 
     def _extract_from_dict(
-        self, key: str, data: Dict[str, Any], db_path: Path
-    ) -> List[Dict[str, Any]]:
+        self, key: str, data: dict[str, Any], db_path: Path
+    ) -> list[dict[str, Any]]:
         """Extract conversations from dictionary data."""
         conversations = []
 
@@ -403,8 +315,8 @@ class ConversationExtractor:
         return conversations
 
     def _extract_from_list(
-        self, key: str, data: List[Any], db_path: Path
-    ) -> List[Dict[str, Any]]:
+        self, key: str, data: list[Any], db_path: Path
+    ) -> list[dict[str, Any]]:
         """Extract conversations from list data."""
         conversations = []
 
@@ -428,7 +340,7 @@ class ConversationExtractor:
 
     def _create_conversation_entry(
         self, conv_id: str, data: Any, source: str, db_path: Path, **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a standardized conversation entry."""
         entry = {
             "id": conv_id,
@@ -460,7 +372,7 @@ class WindsurfQuery:
         self.validator = ConversationValidator()
         self.extractor = ConversationExtractor(self.db_reader, self.validator, self)
 
-    def get_data_from_db(self, db_path: Path, key: str) -> Optional[Any]:
+    def get_data_from_db(self, db_path: Path, key: str) -> Any | None:
         """Extract data from database using a specific key."""
         try:
             return self.db_reader.get_data(db_path, key)
@@ -469,11 +381,11 @@ class WindsurfQuery:
                 log_error(e, f"querying database {db_path}")
             return None
 
-    def find_workspace_databases(self) -> List[Path]:
+    def find_workspace_databases(self) -> list[Path]:
         """Find all workspace and global database files."""
         return self._find_workspace_databases()
 
-    def query_conversations_from_db(self, db_path: Path) -> Dict[str, Any]:
+    def query_conversations_from_db(self, db_path: Path) -> dict[str, Any]:
         """Query all conversation data from a single database."""
         # Try chat sessions first (most reliable)
         conversations = self.extractor.extract_from_chat_sessions(db_path)
@@ -484,7 +396,7 @@ class WindsurfQuery:
 
         return self._create_db_response(conversations, db_path)
 
-    def query_all_conversations(self) -> Dict[str, Any]:
+    def query_all_conversations(self) -> dict[str, Any]:
         """Query conversations from all database sources."""
         all_conversations = []
         databases = self._find_workspace_databases()
@@ -506,15 +418,15 @@ class WindsurfQuery:
         }
 
     def search_conversations(
-        self, query: str, project_root: Optional[Path] = None, limit: int = 20
-    ) -> List[Dict[str, Any]]:
+        self, query: str, project_root: Path | None = None, limit: int = 20
+    ) -> list[dict[str, Any]]:
         """Search conversations for specific content."""
         all_data = self.query_all_conversations()
         conversations = all_data.get("conversations", [])
 
         return self._search_in_conversations(conversations, query, limit)
 
-    def _find_workspace_databases(self) -> List[Path]:
+    def _find_workspace_databases(self) -> list[Path]:
         """Find all workspace and global database files."""
         databases = []
 
@@ -549,8 +461,8 @@ class WindsurfQuery:
         return databases
 
     def _create_db_response(
-        self, conversations: List[Dict[str, Any]], db_path: Path
-    ) -> Dict[str, Any]:
+        self, conversations: list[dict[str, Any]], db_path: Path
+    ) -> dict[str, Any]:
         """Create a standardized database response."""
         chat_sessions = self.db_reader.get_data(
             db_path, WINDSURF_KEY_CHAT_SESSION_STORE
@@ -568,8 +480,8 @@ class WindsurfQuery:
         }
 
     def _search_in_conversations(
-        self, conversations: List[Dict[str, Any]], query: str, limit: int
-    ) -> List[Dict[str, Any]]:
+        self, conversations: list[dict[str, Any]], query: str, limit: int
+    ) -> list[dict[str, Any]]:
         """Search for query string in conversation data."""
         matching_conversations = []
         query_lower = query.lower()
@@ -591,8 +503,8 @@ class WindsurfQuery:
         return matching_conversations
 
     def _find_matches_in_conversation(
-        self, conv: Dict[str, Any], query_lower: str
-    ) -> List[Dict[str, str]]:
+        self, conv: dict[str, Any], query_lower: str
+    ) -> list[dict[str, str]]:
         """Find all matches for a query in a single conversation."""
         matches = []
 
@@ -619,7 +531,7 @@ class WindsurfQuery:
 
     def _search_in_field(
         self, field_value: Any, field_name: str, query_lower: str
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """Search for query in a specific field."""
         matches = []
 
@@ -630,7 +542,7 @@ class WindsurfQuery:
                     "content": self._truncate_content(field_value, 200),
                 }
             )
-        elif isinstance(field_value, (list, dict)):
+        elif isinstance(field_value, list | dict):
             field_text = json.dumps(field_value, default=str).lower()
             if query_lower in field_text:
                 matches.append(
@@ -649,8 +561,8 @@ class WindsurfQuery:
 
 
 def handle_query_windsurf_conversations(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """Query Windsurf conversations with comprehensive data retrieval."""
     try:
         # Extract and validate parameters
@@ -685,7 +597,7 @@ def handle_query_windsurf_conversations(
         )
 
 
-def _format_response(data: Dict[str, Any], format_type: str) -> str:
+def _format_response(data: dict[str, Any], format_type: str) -> str:
     """Format response data according to specified format."""
     conversations = data.get("conversations", [])
 

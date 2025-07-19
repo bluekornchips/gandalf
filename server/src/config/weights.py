@@ -4,7 +4,7 @@ Uses custom schema validation for robust YAML validation.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
@@ -21,7 +21,7 @@ from src.utils.schema_validation import (
 class WeightsConfig:
     """Schema-validated weights configuration using custom validation."""
 
-    def __init__(self, config_dir: Optional[Path] = None, validate: bool = True):
+    def __init__(self, config_dir: Path | None = None, validate: bool = True):
         """Initialize the weights configuration.
 
         Args:
@@ -30,7 +30,7 @@ class WeightsConfig:
             validate: Whether to validate configuration on load (default: True)
         """
         self.config_dir = config_dir
-        self.validation_errors: List[str] = []
+        self.validation_errors: list[str] = []
         self.is_valid = True
 
         # Load and validate configuration using the fallback system
@@ -53,15 +53,15 @@ class WeightsConfig:
             raw_config = self._load_config_from_file(weights_file)
             self._config = apply_schema_defaults(get_weights_schema(), raw_config)
 
-    def _load_config_from_file(self, weights_file: Path) -> Dict[str, Any]:
+    def _load_config_from_file(self, weights_file: Path) -> dict[str, Any]:
         """Load the weights configuration from a specific YAML file."""
         try:
             if weights_file.exists():
-                with open(weights_file, "r", encoding="utf-8") as f:
+                with open(weights_file, encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}
             else:
                 log_debug(f"No weights file found at {weights_file}, using defaults")
-        except (OSError, IOError, yaml.YAMLError, PermissionError) as e:
+        except (OSError, yaml.YAMLError, PermissionError) as e:
             log_error(e, f"loading weights configuration from {weights_file}")
 
         return {}
@@ -87,7 +87,7 @@ class WeightsConfig:
                 return default
         return value
 
-    def get_dict(self, path: str) -> Dict[str, Any]:
+    def get_dict(self, path: str) -> dict[str, Any]:
         """Get a dictionary from the config using dot notation.
 
         Args:
@@ -103,11 +103,11 @@ class WeightsConfig:
         """Check if configuration has validation errors."""
         return not self.is_valid
 
-    def get_validation_errors(self) -> List[str]:
+    def get_validation_errors(self) -> list[str]:
         """Get list of validation errors."""
         return self.validation_errors
 
-    def get_file_extension_weights(self) -> Dict[str, float]:
+    def get_file_extension_weights(self) -> dict[str, float]:
         """Get file extension priority weights with dot prefixes.
 
         Returns:
@@ -117,7 +117,7 @@ class WeightsConfig:
         # Add dot prefixes and convert to float
         return {f".{ext}": float(weight) for ext, weight in weights_dict.items()}
 
-    def get_directory_priority_weights(self) -> Dict[str, float]:
+    def get_directory_priority_weights(self) -> dict[str, float]:
         """Get directory importance scores.
 
         Returns:
@@ -127,7 +127,7 @@ class WeightsConfig:
         # Convert to float
         return {dir_name: float(weight) for dir_name, weight in weights_dict.items()}
 
-    def get_weights_validation_status(self) -> Dict[str, Any]:
+    def get_weights_validation_status(self) -> dict[str, Any]:
         """Get validation status of the weights configuration.
 
         Returns:
@@ -148,7 +148,7 @@ class WeightsConfig:
             "message": message,
         }
 
-    def get_schema(self) -> Dict[str, Any]:
+    def get_schema(self) -> dict[str, Any]:
         """Get the schema for weights configuration."""
         return get_weights_schema()
 
@@ -156,7 +156,7 @@ class WeightsConfig:
 class WeightsManager:
     """Manages weights configuration instances with dependency injection."""
 
-    _default_instance: Optional[WeightsConfig] = None
+    _default_instance: WeightsConfig | None = None
 
     @classmethod
     def get_default(cls) -> WeightsConfig:
@@ -172,7 +172,7 @@ class WeightsManager:
 
     @classmethod
     def create_instance(
-        cls, config_dir: Optional[Path] = None, validate: bool = True
+        cls, config_dir: Path | None = None, validate: bool = True
     ) -> WeightsConfig:
         """Create a new weights configuration instance."""
         return WeightsConfig(config_dir=config_dir, validate=validate)

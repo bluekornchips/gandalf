@@ -6,7 +6,7 @@ set -euo pipefail
 
 load '../../lib/test-helpers.sh'
 
-# Helper function to execute and validate tool call
+
 execute_tool_call() {
     local tool_name="$1"
     local arguments="$2"
@@ -21,7 +21,7 @@ execute_tool_call() {
     fi
 }
 
-# Helper function to validate tool call response
+
 validate_tool_response() {
     local output="$1"
     local expected_pattern="${2:-}"
@@ -46,7 +46,7 @@ validate_tool_response() {
     echo "$content"
 }
 
-# Helper function to validate JSON field
+
 validate_json_field() {
     local content="$1"
     local field_path="$2"
@@ -65,7 +65,7 @@ validate_json_field() {
     fi
 }
 
-# Helper function to validate file presence in listing
+
 validate_file_in_listing() {
     local content="$1"
     local file_pattern="$2"
@@ -76,7 +76,7 @@ validate_file_in_listing() {
     fi
 }
 
-# Helper function to validate file absence in listing
+
 validate_file_not_in_listing() {
     local content="$1"
     local file_pattern="$2"
@@ -87,7 +87,7 @@ validate_file_not_in_listing() {
     fi
 }
 
-# Helper function to create secondary project
+
 create_secondary_project() {
     local project_name="$1"
     local project_dir="$TEST_HOME/$project_name"
@@ -108,7 +108,7 @@ create_secondary_project() {
     echo "$project_dir"
 }
 
-# Helper function to validate workflow step
+
 validate_workflow_step() {
     local step_name="$1"
     local status="$2"
@@ -123,7 +123,7 @@ validate_workflow_step() {
     echo "✓ $step_name completed successfully"
 }
 
-# Helper function to validate conversation tool response
+
 validate_conversation_response() {
     local output="$1"
     local tool_name="$2"

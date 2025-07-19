@@ -28,9 +28,9 @@ spec/rules/troubleshooting.md  # Error recovery
 
 Rules are deployed differently per tool:
 
-| Tool            | Location                            | Format                     |
-| --------------- | ----------------------------------- | -------------------------- |
-| Cursor      | `~/.cursor/rules/gandalf-rules.mdc` | Smart activation           |
+| Tool        | Location                            | Format                     |
+| ----------- | ----------------------------------- | -------------------------- |
+| Cursor      | `~/.cursor/rule./gandalf-rules.mdc` | Smart activation           |
 | Claude Code | `~/.claude/global_settings.json`    | `gandalfRules` property    |
 | Windsurf    | `~/.windsurf/global_rules.md`       | Combined (6000 char limit) |
 

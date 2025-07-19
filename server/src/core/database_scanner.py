@@ -7,13 +7,13 @@ agentic tools like Cursor, Claude Code, and other supported agentic tools
 without requiring them to be running.
 """
 
+import json
 import signal
 import sqlite3
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from src.config.config_data import (
     CLAUDE_CONVERSATION_PATTERNS,
@@ -35,10 +35,7 @@ from src.config.constants.database import (
     CURSOR_KEY_COMPOSER_DATA,
     SQL_CHECK_ITEMTABLE_EXISTS,
     SQL_COUNT_TABLE_ROWS,
-    SQL_CURSOR_GET_AI_CONVERSATIONS,
-    SQL_CURSOR_GET_AI_GENERATIONS,
-    SQL_CURSOR_GET_AI_PROMPTS,
-    SQL_CURSOR_GET_COMPOSER_DATA,
+    SQL_GET_VALUE_BY_KEY,
 )
 from src.config.constants.limits import (
     DATABASE_OPERATION_TIMEOUT,
@@ -80,18 +77,18 @@ class ConversationDatabase:
     tool_type: str
     size_bytes: int
     last_modified: float
-    conversation_count: Optional[int] = None
+    conversation_count: int | None = None
     is_accessible: bool = True
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class DatabaseScanner:
     """Scanner for detecting conversation databases across agentic tools."""
 
-    def __init__(self, project_root: Optional[Path] = None):
+    def __init__(self, project_root: Path | None = None):
         self.project_root = project_root or Path.cwd()
-        self.databases: List[ConversationDatabase] = []
-        self._scan_cache: Dict[str, List[ConversationDatabase]] = {}
+        self.databases: list[ConversationDatabase] = []
+        self._scan_cache: dict[str, list[ConversationDatabase]] = {}
         self._last_scan_time: float = 0.0
         self._cache_ttl: float = DATABASE_SCANNER_CACHE_TTL
         self._scan_timeout: int = DATABASE_SCANNER_TIMEOUT
@@ -100,7 +97,7 @@ class DatabaseScanner:
         """Determine if a rescan is needed based on cache age."""
         return time.time() - self._last_scan_time > self._cache_ttl
 
-    def _count_conversations_sqlite(self, db_path: Path) -> Optional[int]:
+    def _count_conversations_sqlite(self, db_path: Path) -> int | None:
         """Count conversations in a SQLite database safely."""
         try:
             with timeout_context(DATABASE_OPERATION_TIMEOUT):
@@ -142,13 +139,11 @@ class DatabaseScanner:
             log_error(e, f"counting conversations in {db_path}")
             return None
 
-    def _count_cursor_conversations(self, cursor) -> int:
+    def _count_cursor_conversations(self, cursor) -> int:  # noqa: C901
         """Count conversations in a Cursor database using ItemTable structure."""
-        import json
 
         try:
-            # Check for composer.composerData (main conversation storage)
-            cursor.execute(SQL_CURSOR_GET_COMPOSER_DATA, (CURSOR_KEY_COMPOSER_DATA,))
+            cursor.execute(SQL_GET_VALUE_BY_KEY, (CURSOR_KEY_COMPOSER_DATA,))
             result = cursor.fetchone()
             if result:
                 try:
@@ -165,9 +160,7 @@ class DatabaseScanner:
                     pass
 
             # Fallback: Check for aiConversations (older format)
-            cursor.execute(
-                SQL_CURSOR_GET_AI_CONVERSATIONS, (CURSOR_KEY_AI_CONVERSATIONS,)
-            )
+            cursor.execute(SQL_GET_VALUE_BY_KEY, (CURSOR_KEY_AI_CONVERSATIONS,))
             result = cursor.fetchone()
             if result:
                 try:
@@ -182,9 +175,9 @@ class DatabaseScanner:
                     pass
 
             # Check for prompts/generations that could be reconstructed into conversations
-            cursor.execute(SQL_CURSOR_GET_AI_PROMPTS, (CURSOR_KEY_AI_PROMPTS,))
+            cursor.execute(SQL_GET_VALUE_BY_KEY, (CURSOR_KEY_AI_PROMPTS,))
             prompts_result = cursor.fetchone()
-            cursor.execute(SQL_CURSOR_GET_AI_GENERATIONS, (CURSOR_KEY_AI_GENERATIONS,))
+            cursor.execute(SQL_GET_VALUE_BY_KEY, (CURSOR_KEY_AI_GENERATIONS,))
             generations_result = cursor.fetchone()
 
             prompts_count = 0
@@ -223,7 +216,7 @@ class DatabaseScanner:
             log_debug(f"Error counting Cursor conversations: {e}")
             return 0
 
-    def _scan_cursor_databases(self) -> List[ConversationDatabase]:
+    def _scan_cursor_databases(self) -> list[ConversationDatabase]:  # noqa: C901
         """Scan for Cursor conversation databases with timeout protection."""
         databases = []
 
@@ -319,7 +312,7 @@ class DatabaseScanner:
 
         return databases
 
-    def _scan_claude_databases(self) -> List[ConversationDatabase]:
+    def _scan_claude_databases(self) -> list[ConversationDatabase]:
         """Scan for Claude Code conversation files with timeout protection."""
         databases = []
 
@@ -411,7 +404,7 @@ class DatabaseScanner:
 
         return databases
 
-    def _scan_windsurf_databases(self) -> List[ConversationDatabase]:
+    def _scan_windsurf_databases(self) -> list[ConversationDatabase]:
         """Scan for Windsurf conversation databases with timeout protection."""
         databases = []
 
@@ -506,7 +499,7 @@ class DatabaseScanner:
 
         return databases
 
-    def scan(self, force_rescan: bool = False) -> List[ConversationDatabase]:
+    def scan(self, force_rescan: bool = False) -> list[ConversationDatabase]:
         """Scan for conversation databases across all supported agentic tools."""
         if not force_rescan and not self._should_rescan() and self.databases:
             log_debug("Using cached database scan results")
@@ -561,14 +554,14 @@ class DatabaseScanner:
 
         return all_databases
 
-    def get_databases_by_tool(self, tool_type: str) -> List[ConversationDatabase]:
+    def get_databases_by_tool(self, tool_type: str) -> list[ConversationDatabase]:
         """Get databases filtered by agentic tool type."""
         if not self.databases:
             self.scan()
 
         return [db for db in self.databases if db.tool_type == tool_type]
 
-    def get_summary(self) -> Dict[str, any]:
+    def get_summary(self) -> dict[str, any]:
         """Get a summary of discovered databases."""
         if not self.databases:
             self.scan()
@@ -601,7 +594,7 @@ class DatabaseScanner:
         return summary
 
 
-def get_available_agentic_tools(silent: bool = False) -> List[str]:
+def get_available_agentic_tools(silent: bool = False) -> list[str]:
     """Get list of agentic tools that have conversation databases available."""
     try:
         with timeout_context(45):  # 45 second timeout for the full operation

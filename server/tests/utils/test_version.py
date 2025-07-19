@@ -13,21 +13,21 @@ class TestVersionUtility(unittest.TestCase):
     def test_get_version_success(self):
         """Test successful version retrieval from VERSION file."""
         with patch("pathlib.Path.read_text") as mock_read_text:
-            mock_read_text.return_value = "2.2.3\n"
+            mock_read_text.return_value = "2.3.0\n"
 
             result = get_version()
 
-            assert result == "2.2.3"
+            assert result == "2.3.0"
             mock_read_text.assert_called_once()
 
     def test_get_version_strips_whitespace(self):
         """Test that version string is properly stripped of whitespace."""
         with patch("pathlib.Path.read_text") as mock_read_text:
-            mock_read_text.return_value = "  2.2.3  \n  "
+            mock_read_text.return_value = "  2.3.0  \n  "
 
             result = get_version()
 
-            assert result == "2.2.3"
+            assert result == "2.3.0"
 
     def test_get_version_file_not_found(self):
         """Test FileNotFoundError when VERSION file is missing."""
@@ -42,7 +42,7 @@ class TestVersionUtility(unittest.TestCase):
     def test_get_version_file_path_construction(self):
         """Test that the correct path is constructed for VERSION file."""
         with patch("pathlib.Path.read_text") as mock_read_text:
-            mock_read_text.return_value = "2.2.3"
+            mock_read_text.return_value = "2.3.0"
 
             get_version()
 

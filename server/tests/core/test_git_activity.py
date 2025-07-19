@@ -415,7 +415,7 @@ class TestIntegrationScenarios:
         # Expire cache
         self.tracker._last_update = time.time() - GIT_ACTIVITY_CACHE_TTL - 1
 
-        # New data after cache expiration (completely different files)
+        # Data after cache expiration (completely different files)
         mock_result2 = Mock()
         mock_result2.returncode = 0
         mock_result2.stdout = "new_file.py\n"
@@ -425,7 +425,7 @@ class TestIntegrationScenarios:
                 score2 = self.tracker.get_activity_score("new_file.py")
                 score3 = self.tracker.get_activity_score("old_file.py")
 
-        # New file should have score, old file should be gone from new data
+        # File should have score, old file should be gone from data
         assert score2 == 1.0
         # Note: old_file.py is not in the new git output, so it gets min score
         assert score3 == CONTEXT_MIN_SCORE

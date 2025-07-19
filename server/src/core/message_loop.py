@@ -4,7 +4,7 @@ JSON-RPC message loop handler for Gandalf MCP server.
 
 import json
 import sys
-from typing import Any, Dict, TextIO
+from typing import Any, TextIO
 
 from src.config.enums import ErrorCodes
 from src.core.server import GandalfMCP
@@ -70,7 +70,7 @@ class MessageLoopHandler:
             log_error(e, "Server main loop")
             raise
 
-    def _send_response(self, response: Dict[str, Any]) -> None:
+    def _send_response(self, response: dict[str, Any]) -> None:
         """Send JSON-RPC response to output stream."""
         print(json.dumps(response), file=self.output_stream)
         self.output_stream.flush()

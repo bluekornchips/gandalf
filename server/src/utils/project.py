@@ -4,12 +4,12 @@ Project utilities for the Gandalf MCP server.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from src.utils.access_control import AccessValidator
 
 
-def _extract_project_names(project_root: Path) -> Tuple[str, str, bool]:
+def _extract_project_names(project_root: Path) -> tuple[str, str, bool]:
     """Extract raw and sanitized project names from a Path."""
     if not isinstance(project_root, Path):
         raise TypeError(f"Expected Path object, got {type(project_root)}")
@@ -58,9 +58,9 @@ class ProjectContext:
                 f"Failed to create ProjectContext from {project_root}: {e}"
             )
 
-    def get_transparency_fields(self) -> Dict[str, Any]:
+    def get_transparency_fields(self) -> dict[str, Any]:
         """Get transparency fields for project info responses."""
-        fields: Dict[str, Any] = {"sanitized": self.was_sanitized}
+        fields: dict[str, Any] = {"sanitized": self.was_sanitized}
 
         if self.was_sanitized:
             fields["raw_project_name"] = self.raw_name
@@ -68,7 +68,7 @@ class ProjectContext:
         return fields
 
 
-def get_project_names(project_root: Path) -> Tuple[str, str, bool]:
+def get_project_names(project_root: Path) -> tuple[str, str, bool]:
     """Get raw and sanitized project names, with sanitization flag."""
     try:
         return _extract_project_names(project_root)

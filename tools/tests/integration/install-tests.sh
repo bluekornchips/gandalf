@@ -6,7 +6,7 @@ set -euo pipefail
 
 load '../../lib/test-helpers.sh'
 
-# Helper functions for directory creation and validation
+
 create_tool_directories() {
     mkdir -p "$TEST_HOME/.cursor/rules"
     mkdir -p "$TEST_HOME/.claude"

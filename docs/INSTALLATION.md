@@ -4,7 +4,7 @@ Setup instructions for Gandalf MCP Server.
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.12+
 - Git
 - IDE: Cursor, Claude Code, or Windsurf with MCP support
 
@@ -142,7 +142,7 @@ GANDALF_DEBUG=true ./gandalf run
 ./gandalf install --force
 
 # Check dependencies
-cd gandalf/server && pip install -r requirements.txt
+cd gandalf/server && pip install -e .
 ```
 
 ## Uninstallation

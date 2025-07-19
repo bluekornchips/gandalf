@@ -5,7 +5,7 @@ Focuses on core conversation aggregation and project context.
 
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.config.constants.file_system_context import FILE_SYSTEM_CONTEXT_INDICATORS
 from src.config.constants.server import (
@@ -66,7 +66,7 @@ class GandalfMCP:
     """Gandalf MCP server with 6 essential tools for conversation aggregation
     and project context."""
 
-    def __init__(self, project_root: Optional[Path] = None):
+    def __init__(self, project_root: Path | None = None):
         """Initialize the Gandalf MCP server."""
         # Validate project_root if provided as string
         if isinstance(project_root, str):
@@ -92,7 +92,6 @@ class GandalfMCP:
     def _validate_configuration(self) -> None:
         """Validate server configuration during startup."""
         try:
-
             weights_config = WeightsManager.get_default()
             validation_status = weights_config.get_weights_validation_status()
 
@@ -129,7 +128,7 @@ class GandalfMCP:
             log_error(e, "Error during configuration validation")
             log_info("Configuration validation failed, continuing with defaults")
 
-    def _resolve_project_root(self, explicit_root: Optional[Path] = None) -> Path:
+    def _resolve_project_root(self, explicit_root: Path | None = None) -> Path:
         """Resolve project root directory with intelligent fallback logic."""
         if explicit_root:
             return explicit_root.resolve()
@@ -171,7 +170,7 @@ class GandalfMCP:
 
         return cwd
 
-    def _initialize(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    def _initialize(self, request: dict[str, Any]) -> dict[str, Any]:
         """Handle initialization request."""
         return {
             "protocolVersion": MCP_PROTOCOL_VERSION,
@@ -179,7 +178,7 @@ class GandalfMCP:
             "serverInfo": SERVER_INFO,
         }
 
-    def _notifications_initialized(self, request: Dict[str, Any]) -> None:
+    def _notifications_initialized(self, request: dict[str, Any]) -> None:
         """Handle initialized notification."""
         if self.is_ready:
             return None
@@ -187,12 +186,12 @@ class GandalfMCP:
         self.is_ready = True
         return None
 
-    def _tools_list(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    def _tools_list(self, request: dict[str, Any]) -> dict[str, Any]:
         """Handle tools list request."""
         response = {"tools": self.tool_definitions}
         return response
 
-    def _tools_call(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    def _tools_call(self, request: dict[str, Any]) -> dict[str, Any]:
         """Handle tool call request."""
         # Check for missing params
         if "params" not in request:
@@ -243,7 +242,7 @@ class GandalfMCP:
                 f"Error executing {tool_name}: {str(e)}"
             )
 
-    def handle_request(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
         """Handle incoming MCP requests with validation and error handling."""
         # Input validation
         if not isinstance(request, dict):

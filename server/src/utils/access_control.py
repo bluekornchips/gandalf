@@ -6,7 +6,7 @@ Provides path validation, project name sanitization, and security checks.
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from src.config.config_data import BLOCKED_EXTENSIONS
 from src.config.constants.limits import (
@@ -19,6 +19,7 @@ from src.config.constants.limits import (
 )
 from src.config.constants.security import (
     COMMON_BLOCKED_PATHS,
+    CONVERSATION_DANGEROUS_PATTERNS,
     DANGEROUS_PATTERNS,
     FILE_EXTENSION_MAX_LENGTH,
     FILENAME_INVALID_CHARS_PATTERN,
@@ -30,17 +31,6 @@ from src.config.constants.security import (
 )
 from src.utils.common import log_debug, log_info
 
-# All other constants imported from src.config.constants.security above
-
-# Conversation-specific threat patterns
-CONVERSATION_DANGEROUS_PATTERNS = [
-    r"<script[^>]*>.*</script>",  # Complete script tags
-    r"javascript:[^\"'\s]+",  # JavaScript URLs
-    r"data:text/html",  # HTML data URLs
-    r"vbscript:",  # VBScript URLs
-    r"\${.*}",  # Template injection patterns
-]
-
 
 class AccessValidator:
     """Centralized access control and validation for MCP tools."""
@@ -51,9 +41,9 @@ class AccessValidator:
         value: Any,
         field_name: str,
         min_length: int = 1,
-        max_length: Optional[int] = None,
+        max_length: int | None = None,
         required: bool = True,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Validate string input with length and content constraints.
 
         Args:
@@ -95,10 +85,10 @@ class AccessValidator:
         cls,
         value: Any,
         field_name: str,
-        max_items: Optional[int] = None,
-        item_type: Optional[type] = None,
+        max_items: int | None = None,
+        item_type: type | None = None,
         required: bool = True,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Validate array input with type and size constraints.
 
         Args:
@@ -139,10 +129,10 @@ class AccessValidator:
         cls,
         value: Any,
         field_name: str,
-        min_value: Optional[int] = None,
-        max_value: Optional[int] = None,
+        min_value: int | None = None,
+        max_value: int | None = None,
         required: bool = True,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Validate integer input with range constraints.
 
         Args:
@@ -177,9 +167,9 @@ class AccessValidator:
         cls,
         value: Any,
         field_name: str,
-        valid_values: List[str],
+        valid_values: list[str],
         required: bool = True,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Validate enum input against allowed values.
 
         Args:
@@ -210,8 +200,8 @@ class AccessValidator:
 
     @classmethod
     def validate_path(
-        cls, path: Union[str, Path], field_name: str = "path"
-    ) -> Tuple[bool, str]:
+        cls, path: str | Path, field_name: str = "path"
+    ) -> tuple[bool, str]:
         """Validate file path for security.
 
         Args:
@@ -249,7 +239,7 @@ class AccessValidator:
         return True, ""
 
     @classmethod
-    def validate_file_extension(cls, extension: str) -> Tuple[bool, str]:
+    def validate_file_extension(cls, extension: str) -> tuple[bool, str]:
         """Validate file extension for security using blocklist approach.
 
         Args:
@@ -277,14 +267,7 @@ class AccessValidator:
 
     @classmethod
     def sanitize_query(cls, query: str) -> str:
-        """Sanitize search query input.
-
-        Args:
-            query: Query string to sanitize
-
-        Returns:
-            Sanitized query string
-        """
+        """Sanitize search query input."""
         if not query:
             return ""
 
@@ -296,15 +279,6 @@ class AccessValidator:
         """Check for potentially dangerous patterns in user input.
 
         Tricksy hobbits!
-
-        Detects common attack vectors including directory traversal,
-        script injection, and shell metacharacters.
-
-        Args:
-            text: Input text to validate
-
-        Returns:
-            bool: True if dangerous patterns are found, False otherwise
         """
         text_lower = text.lower()
 
@@ -320,7 +294,7 @@ class AccessValidator:
         return False
 
     @classmethod
-    def create_error_response(cls, message: str) -> Dict[str, Any]:
+    def create_error_response(cls, message: str) -> dict[str, Any]:
         """Create a standardized MCP error response.
 
         Args:
@@ -336,7 +310,7 @@ class AccessValidator:
         }
 
     @classmethod
-    def create_success_response(cls, text: str) -> Dict[str, Any]:
+    def create_success_response(cls, text: str) -> dict[str, Any]:
         """Create a standardized MCP success response.
 
         Args:
@@ -353,9 +327,9 @@ class AccessValidator:
         value: Any,
         field_name: str,
         min_length: int = 1,
-        max_length: Optional[int] = None,
+        max_length: int | None = None,
         required: bool = True,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Validate conversation content with enhanced security checks.
 
         Args:
@@ -440,12 +414,12 @@ class AccessValidator:
         return sanitized
 
     @staticmethod
-    def create_json_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_json_response(data: dict[str, Any]) -> dict[str, Any]:
         """Create a standardized JSON success response."""
         return AccessValidator.create_success_response(json.dumps(data, indent=2))
 
 
-def validate_conversation_id(conv_id: Any) -> Tuple[bool, str]:
+def validate_conversation_id(conv_id: Any) -> tuple[bool, str]:
     """Validate conversation ID with specific rules.
 
     Args:
@@ -459,7 +433,7 @@ def validate_conversation_id(conv_id: Any) -> Tuple[bool, str]:
     )
 
 
-def validate_search_query(query: Any) -> Tuple[bool, str]:
+def validate_search_query(query: Any) -> tuple[bool, str]:
     """Validate search query with specific rules.
 
     Args:
@@ -476,7 +450,7 @@ def validate_search_query(query: Any) -> Tuple[bool, str]:
     )
 
 
-def validate_file_types(file_types: Any) -> Tuple[bool, str]:
+def validate_file_types(file_types: Any) -> tuple[bool, str]:
     """Validate file types array with extension validation.
 
     Args:
@@ -504,7 +478,7 @@ def validate_file_types(file_types: Any) -> Tuple[bool, str]:
     return True, ""
 
 
-def get_platform_blocked_paths(platform: Optional[str] = None) -> set:
+def get_platform_blocked_paths(platform: str | None = None) -> set:
     """Get platform-specific blocked paths.
 
     Args:

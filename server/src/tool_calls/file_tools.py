@@ -3,7 +3,7 @@ File operations tools for the Gandalf MCP server.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from src.config.constants.context import (
     HIGH_PRIORITY_DISPLAY_LIMIT,
@@ -75,9 +75,9 @@ TOOL_LIST_PROJECT_FILES = {
 }
 
 
-def handle_list_project_files(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+def handle_list_project_files(  # noqa: C901
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """Handle list_project_files tool call with enhanced security and error handling."""
     start_time = start_timer()
 
@@ -232,7 +232,7 @@ def handle_list_project_files(
 
 
 def _validate_cache_security(
-    project_root: Path, scored_files: List[Tuple[str, float]]
+    project_root: Path, scored_files: list[tuple[str, float]]
 ) -> bool:
     """Validate that cached files are still within project boundaries."""
     try:

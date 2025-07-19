@@ -6,7 +6,6 @@ Use the MCP tool 'export_individual_conversations' for the primary export functi
 """
 
 from pathlib import Path
-from typing import List, Union
 
 from src.config.constants.conversation import (
     CONVERSATION_EXPORT_FORMAT_DEFAULT,
@@ -16,7 +15,7 @@ from src.utils.cursor_chat_query import CursorQuery
 
 
 def export_conversations_simple(
-    output_path: Union[str, Path],
+    output_path: str | Path,
     format_type: str = CONVERSATION_EXPORT_FORMAT_DEFAULT,
     silent: bool = False,
 ) -> bool:
@@ -51,13 +50,13 @@ def export_conversations_simple(
 
         return True
 
-    except (OSError, IOError, ValueError, TypeError, KeyError) as e:
+    except (OSError, ValueError, TypeError, KeyError) as e:
         if not silent:
             print(f"Export failed: {e}")
         return False
 
 
-def list_workspaces(silent: bool = False) -> List[str]:
+def list_workspaces(silent: bool = False) -> list[str]:
     """
     List available workspace hashes.
 
@@ -82,7 +81,7 @@ def list_workspaces(silent: bool = False) -> List[str]:
 
         return hashes
 
-    except (OSError, IOError, ValueError, TypeError, KeyError) as e:
+    except (OSError, ValueError, TypeError, KeyError) as e:
         if not silent:
             print(f"Failed to list workspaces: {e}")
         return []

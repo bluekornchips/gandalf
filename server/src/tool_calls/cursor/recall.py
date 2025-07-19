@@ -11,7 +11,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from src.config.config_data import (
     CONVERSATION_TYPES,
@@ -56,12 +56,10 @@ from src.config.weights import WeightsManager
 from src.core.conversation_analysis import (
     classify_conversation_type,
     generate_shared_context_keywords,
+    score_keyword_matches,
 )
 from src.core.conversation_analysis import (
     score_file_references as _score_file_references,
-)
-from src.core.conversation_analysis import (
-    score_keyword_matches,
 )
 from src.utils.access_control import AccessValidator
 from src.utils.common import log_debug, log_error, log_info
@@ -76,8 +74,8 @@ _conversation_cache_time = {}
 
 
 def create_lightweight_conversation(
-    conversation: Dict[str, Any],
-) -> Dict[str, Any]:
+    conversation: dict[str, Any],
+) -> dict[str, Any]:
     """Create lightweight conversation format for Cursor."""
     conv_id = conversation.get("id", conversation.get("conversation_id", ""))
     title = conversation.get("title", conversation.get("name", ""))
@@ -104,10 +102,10 @@ def create_lightweight_conversation(
 
 
 def standardize_conversation(
-    conversation: Dict[str, Any],
-    context_keywords: List[str],
+    conversation: dict[str, Any],
+    context_keywords: list[str],
     lightweight: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Standardize Cursor conversation format."""
     try:
         if lightweight:
@@ -157,7 +155,7 @@ def standardize_conversation(
         return {}
 
 
-def get_project_cache_hash(project_root: Path, context_keywords: List[str]) -> str:
+def get_project_cache_hash(project_root: Path, context_keywords: list[str]) -> str:
     """Generate a cache hash based on project state and keywords."""
     try:
         # Include project path and keywords in hash
@@ -189,14 +187,14 @@ def get_project_cache_hash(project_root: Path, context_keywords: List[str]) -> s
         return hashlib.md5(f"{project_root}{time.time()}".encode()).hexdigest()[:16]
 
 
-def is_cache_valid(project_root: Path, context_keywords: List[str]) -> bool:
+def is_cache_valid(project_root: Path, context_keywords: list[str]) -> bool:
     """Check if cached conversation data is still valid."""
     try:
         cache_metadata_path = project_root / CONVERSATION_CACHE_METADATA_FILE
         if not cache_metadata_path.exists():
             return False
 
-        with open(cache_metadata_path, "r") as f:
+        with open(cache_metadata_path) as f:
             metadata = json.load(f)
 
         # Check cache age
@@ -212,7 +210,7 @@ def is_cache_valid(project_root: Path, context_keywords: List[str]) -> bool:
         return False
 
 
-def load_cached_conversations(project_root: Path) -> Optional[Dict[str, Any]]:
+def load_cached_conversations(project_root: Path) -> dict[str, Any] | None:
     """Load cached conversation data if valid."""
     try:
         # Use project-specific cache file, not global cache
@@ -220,7 +218,7 @@ def load_cached_conversations(project_root: Path) -> Optional[Dict[str, Any]]:
         if not cache_file_path.exists():
             return None
 
-        with open(cache_file_path, "r") as f:
+        with open(cache_file_path) as f:
             return json.load(f)
 
     except (OSError, ValueError, json.JSONDecodeError):
@@ -229,9 +227,9 @@ def load_cached_conversations(project_root: Path) -> Optional[Dict[str, Any]]:
 
 def save_conversations_to_cache(
     project_root: Path,
-    conversations: List[Dict[str, Any]],
-    context_keywords: List[str],
-    metadata: Dict[str, Any],
+    conversations: list[dict[str, Any]],
+    context_keywords: list[str],
+    metadata: dict[str, Any],
 ) -> bool:
     """Save conversation data to cache."""
     try:
@@ -270,7 +268,7 @@ def save_conversations_to_cache(
 generate_context_keywords = generate_shared_context_keywords
 
 
-def _get_tech_category_from_extension(extension: str) -> Optional[str]:
+def _get_tech_category_from_extension(extension: str) -> str | None:
     """Get technology category from file extension."""
     ext_mapping = {
         ".py": "python",
@@ -293,7 +291,7 @@ def _get_tech_category_from_extension(extension: str) -> Optional[str]:
     return ext_mapping.get(extension.lower())
 
 
-def _extract_keywords_from_content(file_name: str, content: str) -> List[str]:
+def _extract_keywords_from_content(file_name: str, content: str) -> list[str]:
     """Extract keywords from file content."""
     keywords = []
 
@@ -318,9 +316,9 @@ def _extract_keywords_from_content(file_name: str, content: str) -> List[str]:
 
 
 def extract_conversation_text_lazy(
-    conversation: Dict[str, Any],
-    prompts: List[Dict[str, Any]],
-    generations: List[Dict[str, Any]],
+    conversation: dict[str, Any],
+    prompts: list[dict[str, Any]],
+    generations: list[dict[str, Any]],
     max_chars: int = CONVERSATION_TEXT_EXTRACTION_LIMIT,
 ) -> str:
     """Extract conversation text with lazy loading and length limits."""
@@ -364,8 +362,8 @@ def extract_conversation_text_lazy(
 
 
 def score_keyword_matches_optimized(
-    text: str, keywords: List[str]
-) -> Tuple[float, List[str]]:
+    text: str, keywords: list[str]
+) -> tuple[float, list[str]]:
     """Optimized keyword matching with early termination."""
     matches = []
     score = 0.0
@@ -392,9 +390,9 @@ def score_keyword_matches_optimized(
 
 
 def quick_conversation_filter(
-    conversation: Dict[str, Any],
+    conversation: dict[str, Any],
     cutoff_date: datetime,
-    context_keywords: List[str],
+    context_keywords: list[str],
     min_exchanges: int = 2,
 ) -> bool:
     """Quick filter to eliminate obviously irrelevant conversations."""
@@ -434,13 +432,13 @@ def quick_conversation_filter(
 
 
 def analyze_conversation_relevance_optimized(
-    conversation: Dict[str, Any],
-    prompts: List[Dict[str, Any]],
-    generations: List[Dict[str, Any]],
-    context_keywords: List[str],
+    conversation: dict[str, Any],
+    prompts: list[dict[str, Any]],
+    generations: list[dict[str, Any]],
+    context_keywords: list[str],
     project_root: Path,
     include_detailed_analysis: bool = False,
-) -> Tuple[float, Dict[str, Any]]:
+) -> tuple[float, dict[str, Any]]:
     """Optimized conversation relevance analysis with early termination."""
     try:
         # Quick extraction with limits
@@ -490,9 +488,9 @@ def analyze_conversation_relevance_optimized(
 
 
 def extract_conversation_text(
-    conversation: Dict[str, Any],
-    prompts: List[Dict[str, Any]],
-    generations: List[Dict[str, Any]],
+    conversation: dict[str, Any],
+    prompts: list[dict[str, Any]],
+    generations: list[dict[str, Any]],
 ) -> str:
     """Extract conversation text for analysis."""
     text_parts = []
@@ -519,7 +517,7 @@ def extract_conversation_text(
     return " ".join(text_parts).lower()
 
 
-def score_recency(conversation: Dict[str, Any]) -> float:
+def score_recency(conversation: dict[str, Any]) -> float:
     """Score based on conversation recency."""
     try:
         last_updated = conversation.get("lastUpdatedAt", 0)
@@ -551,10 +549,10 @@ def score_recency(conversation: Dict[str, Any]) -> float:
 
 def score_pattern_matches(
     text: str,
-    patterns: List[str],
+    patterns: list[str],
     score_per_match: float,
     max_matches: int = CONVERSATION_PATTERN_MATCHES_LIMIT,
-) -> Tuple[float, List[str]]:
+) -> tuple[float, list[str]]:
     """Score based on pattern matches in text."""
     matches = []
     score = 0.0
@@ -569,13 +567,13 @@ def score_pattern_matches(
 
 
 def analyze_conversation_relevance(
-    conversation: Dict[str, Any],
-    prompts: List[Dict[str, Any]],
-    generations: List[Dict[str, Any]],
-    context_keywords: List[str],
+    conversation: dict[str, Any],
+    prompts: list[dict[str, Any]],
+    generations: list[dict[str, Any]],
+    context_keywords: list[str],
     project_root: Path,
     include_detailed_analysis: bool = False,
-) -> Tuple[float, Dict[str, Any]]:
+) -> tuple[float, dict[str, Any]]:
     """Analyze conversation relevance using only context keywords for fast,
     targeted scoring."""
 
@@ -651,9 +649,9 @@ def extract_snippet(text: str, query: str) -> str:
     return snippet
 
 
-def handle_recall_cursor_conversations(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+def handle_recall_cursor_conversations(  # noqa: C901
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """Recall and analyze relevant conversations with intelligent caching."""
     try:
         # Get argument values
@@ -674,7 +672,7 @@ def handle_recall_cursor_conversations(
         else:
             limit = max(1, min(limit, CONVERSATION_MAX_LIMIT))
 
-        if not isinstance(min_relevance_score, (int, float)):
+        if not isinstance(min_relevance_score, int | float):
             min_relevance_score = CONVERSATION_DEFAULT_MIN_SCORE
         else:
             min_relevance_score = max(0.0, min_relevance_score)
@@ -961,12 +959,12 @@ def handle_recall_cursor_conversations(
 
 
 def handle_fast_conversation_extraction(
-    data: Dict[str, Any],
+    data: dict[str, Any],
     limit: int,
     days_lookback: int,
-    conversation_types: List[str],
+    conversation_types: list[str],
     extraction_time: float,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Ultra-fast conversation extraction with minimal processing."""
     start_time = start_timer()
 
@@ -1173,7 +1171,7 @@ CONVERSATION_RECALL_TOOL_DEFINITIONS = [
 ]
 
 
-def score_file_references(text: str, project_root: Path) -> Tuple[float, List[str]]:
+def score_file_references(text: str, project_root: Path) -> tuple[float, list[str]]:
     """Score based on file references that exist in current project."""
     # Use the core function but add project root validation
     score, refs = _score_file_references(text)

@@ -97,14 +97,13 @@ Virtual Environment: ${VIRTUAL_ENV:-not set}
 EOF
 
     if check_dependencies >/dev/null 2>&1; then
-        echo "Dependencies: ✓ All satisfied"
+        echo "Dependencies: + All satisfied"
     else
-        echo "Dependencies: ✗ Issues found"
+        echo "Dependencies: X Issues found"
         echo "Run 'gandalf help' for dependency information"
     fi
 
-    echo ""
-    echo "Configuration files:"
+    echo -e "\nConfiguration files:"
 
     local -a config_files=(
         "$HOME/.cursor/mcp.json"
@@ -114,9 +113,9 @@ EOF
 
     for config_file in "${config_files[@]}"; do
         if [[ -f "$config_file" ]]; then
-            echo "  ✓ $config_file"
+            echo " + $config_file"
         else
-            echo "  ✗ $config_file"
+            echo " X $config_file"
         fi
     done
 }

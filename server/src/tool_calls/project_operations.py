@@ -6,7 +6,7 @@ import json
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from src.config.constants.server import (
     GANDALF_SERVER_VERSION,
@@ -29,10 +29,10 @@ def validate_project_root(project_root: Path) -> bool:
         return False
 
 
-def get_git_info(project_root: Path) -> Dict[str, Any]:
+def get_git_info(project_root: Path) -> dict[str, Any]:
     """Get Git repository information."""
 
-    git_info: Dict[str, Any] = {}
+    git_info: dict[str, Any] = {}
 
     log_debug(f"Checking if {project_root} is a git repository")
 
@@ -106,7 +106,7 @@ def get_git_info(project_root: Path) -> Dict[str, Any]:
     return git_info
 
 
-def _get_file_stats_fast(project_root: Path) -> Dict[str, Any]:
+def _get_file_stats_fast(project_root: Path) -> dict[str, Any]:
     """Get file statistics using fast shell 'find' commands."""
     try:
         file_result = subprocess.run(
@@ -161,7 +161,7 @@ def _get_file_stats_fast(project_root: Path) -> Dict[str, Any]:
 
 def _get_file_stats_with_cache_optimization(
     project_root: Path,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get file statistics with cache optimization for performance."""
     try:
         # Try to get cached files first for optimization
@@ -203,7 +203,7 @@ def _get_file_stats_with_cache_optimization(
         return _get_file_stats_fast(project_root)
 
 
-def _get_file_statistics(project_root: Path) -> Dict[str, Any]:
+def _get_file_statistics(project_root: Path) -> dict[str, Any]:
     """Get file statistics using the most efficient method available."""
     if not project_root.exists():
         return {
@@ -220,7 +220,7 @@ def _get_file_statistics(project_root: Path) -> Dict[str, Any]:
         return _get_file_stats_fast(project_root)
 
 
-def _create_basic_project_info(project_root: Path) -> Dict[str, Any]:
+def _create_basic_project_info(project_root: Path) -> dict[str, Any]:
     """Create basic project information structure."""
     # Use ProjectContext for consistent project name handling
     context = ProjectContext.from_path(project_root)
@@ -238,7 +238,7 @@ def _create_basic_project_info(project_root: Path) -> Dict[str, Any]:
     return project_info
 
 
-def get_project_info(project_root: Path) -> Dict[str, Any]:
+def get_project_info(project_root: Path) -> dict[str, Any]:
     """
 
     Creates a comprehensive project information object, including:
@@ -258,8 +258,8 @@ def get_project_info(project_root: Path) -> Dict[str, Any]:
 
 
 def handle_get_project_info(
-    arguments: Dict[str, Any], project_root: Path, **_kwargs
-) -> Dict[str, Any]:
+    arguments: dict[str, Any], project_root: Path, **_kwargs
+) -> dict[str, Any]:
     """Handle get_project_info tool call."""
     try:
         include_stats = arguments.get("include_stats", True)
@@ -301,8 +301,11 @@ def handle_get_project_info(
 
 
 def handle_get_server_version(
-    arguments: Dict[str, Any], *, project_root: Path, **_kwargs  # noqa: ARG001
-) -> Dict[str, Any]:
+    arguments: dict[str, Any],
+    *,
+    project_root: Path,
+    **_kwargs,  # noqa: ARG001
+) -> dict[str, Any]:
     """Handle get_server_version tool call."""
     try:
         log_debug("Getting server version")

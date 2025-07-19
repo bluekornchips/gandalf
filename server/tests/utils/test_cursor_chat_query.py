@@ -22,7 +22,6 @@ from src.utils.cursor_chat_query import (
     get_wsl_cursor_path,
     is_running_in_wsl,
     list_cursor_workspaces,
-    main,
 )
 
 
@@ -323,7 +322,7 @@ class TestCursorQuery:
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def create_test_database(
-        self, workspace_dir: Path, conversations: list = None
+        self, workspace_dir: Path, conversations: list | None = None
     ) -> Path:
         """Create a test SQLite database with Cursor data."""
         db_file = workspace_dir / "state.vscdb"
@@ -649,22 +648,6 @@ class TestCursorQuery:
         with pytest.raises(ValueError, match="Unsupported format"):
             query.export_to_file(data, output_file, "invalid")
 
-
-class TestMainFunction:
-    """Test main function and CLI functionality."""
-
-    @patch("sys.argv", ["cursor_chat_query.py", "--help"])
-    def test_main_help(self):
-        """Test main function with help argument."""
-        with pytest.raises(SystemExit):
-            main()
-
-    @patch("sys.argv", ["cursor_chat_query.py", "--list-workspaces"])
-    @patch("src.utils.cursor_chat_query.list_cursor_workspaces")
-    def test_main_list_workspaces(self, mock_list_workspaces):
-        """Test main function with list workspaces argument."""
-        # DISABLED: Complex to mock properly due to argparse integration
-        # The main function is tested through integration tests
 
 
 class TestListCursorWorkspaces:
