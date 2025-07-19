@@ -263,8 +263,9 @@ class TestLoggingEdgeCases:
 
     def test_write_log_with_optional_parameters(self):
         """Test write_log with optional logger and data parameters."""
-        import src.utils.common as common_module
         import json
+
+        import src.utils.common as common_module
 
         with tempfile.TemporaryDirectory() as temp_dir:
             with mock.patch("src.utils.common.GANDALF_HOME", Path(temp_dir)):

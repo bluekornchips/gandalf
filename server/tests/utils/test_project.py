@@ -7,9 +7,9 @@ import pytest
 
 from src.utils.project import (
     ProjectContext,
+    _extract_project_names,
     get_project_names,
     get_sanitized_project_name,
-    _extract_project_names,
 )
 
 patch = mock.patch

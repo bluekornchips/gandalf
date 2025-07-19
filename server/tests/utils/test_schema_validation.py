@@ -20,6 +20,9 @@ from src.config.constants.schema_defaults import (
 from src.utils.schema_validation import (
     WEIGHTS_SCHEMA,
     ValidationError,
+    _create_dict_field,
+    _create_integer_field,
+    _create_number_field,
     apply_schema_defaults,
     create_default_weights_file,
     create_validator,
@@ -27,9 +30,6 @@ from src.utils.schema_validation import (
     get_weights_file_path,
     get_weights_schema,
     validate_weights_config,
-    _create_number_field,
-    _create_integer_field,
-    _create_dict_field,
 )
 
 
@@ -482,8 +482,9 @@ class TestGandalfSchemaValidatorErrorHandling:
 
     def test_validate_with_invalid_schema_structure(self):
         """Test validator with schema that causes internal errors."""
-        from src.utils.schema_validation import GandalfSchemaValidator
         from unittest.mock import Mock
+
+        from src.utils.schema_validation import GandalfSchemaValidator
 
         # Create a normal schema
         schema = {
@@ -576,8 +577,9 @@ class TestFileOperationsErrorHandling:
 
     def test_create_default_weights_file_io_error(self, tmp_path, monkeypatch):
         """Test create_default_weights_file with IO errors."""
-        from src.utils.schema_validation import create_default_weights_file
         import yaml
+
+        from src.utils.schema_validation import create_default_weights_file
 
         # Mock DEFAULT_WEIGHTS_FILE to point to a path we can't write to
         unwritable_path = tmp_path / "unwritable.yaml"
@@ -597,8 +599,9 @@ class TestFileOperationsErrorHandling:
 
     def test_create_default_weights_file_yaml_error(self, tmp_path, monkeypatch):
         """Test create_default_weights_file with YAML errors."""
-        from src.utils.schema_validation import create_default_weights_file
         import yaml
+
+        from src.utils.schema_validation import create_default_weights_file
 
         # Mock yaml.dump to raise a YAMLError
         def mock_yaml_dump(*args, **kwargs):
@@ -727,8 +730,9 @@ directories:
 
     def test_get_weights_file_path_io_error_on_spec(self, tmp_path, monkeypatch):
         """Test get_weights_file_path with IO error when reading spec file."""
-        from src.utils.schema_validation import get_weights_file_path
         import builtins
+
+        from src.utils.schema_validation import get_weights_file_path
 
         spec_file = tmp_path / "spec_weights.yaml"
         spec_file.write_text("weights: {}")

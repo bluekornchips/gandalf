@@ -1,6 +1,6 @@
 """Schema default values for configuration validation."""
 
-from typing import Dict, Any, Final
+from typing import Any, Dict, Final
 
 # Basic default values
 DEFAULT_WEIGHT_VALUE: Final[float] = 1.0

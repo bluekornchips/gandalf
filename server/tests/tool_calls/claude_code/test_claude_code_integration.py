@@ -441,11 +441,14 @@ class TestClaudeCodeRegressionTests:
 
         with patch.dict("os.environ", {"CLAUDE_HOME": str(self.claude_home)}):
             # Mock the registry to include claude-code
-            with patch(
-                "src.core.registry.get_registered_agentic_tools"
-            ) as mock_registry, patch(
-                "src.tool_calls.aggregator.get_registered_agentic_tools"
-            ) as mock_aggregator_registry:
+            with (
+                patch(
+                    "src.core.registry.get_registered_agentic_tools"
+                ) as mock_registry,
+                patch(
+                    "src.tool_calls.aggregator.get_registered_agentic_tools"
+                ) as mock_aggregator_registry,
+            ):
                 mock_registry.return_value = ["claude-code"]
                 mock_aggregator_registry.return_value = ["claude-code"]
 

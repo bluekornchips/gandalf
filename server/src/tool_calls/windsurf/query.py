@@ -11,18 +11,18 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from src.config.constants.database import (
-    WINDSURF_KEY_CHAT_SESSION_STORE,
-)
 from src.config.constants.conversation import (
+    CONVERSATION_CONTENT_KEYS,
+    CONVERSATION_FALSE_POSITIVE_INDICATORS,
     CONVERSATION_FALSE_POSITIVE_RATIO_THRESHOLD,
     CONVERSATION_MAX_ANALYSIS_LENGTH,
     CONVERSATION_MAX_LIST_ITEMS_TO_CHECK,
+    CONVERSATION_MESSAGE_INDICATORS,
     CONVERSATION_MIN_CONTENT_LENGTH,
     CONVERSATION_STRONG_INDICATORS,
-    CONVERSATION_FALSE_POSITIVE_INDICATORS,
-    CONVERSATION_CONTENT_KEYS,
-    CONVERSATION_MESSAGE_INDICATORS,
+)
+from src.config.constants.database import (
+    WINDSURF_KEY_CHAT_SESSION_STORE,
 )
 from src.config.constants.paths import (
     WINDSURF_GLOBAL_STORAGE,
