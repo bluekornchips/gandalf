@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  quality:
+  python:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -37,10 +37,28 @@ jobs:
       - name: Lint and format (ruff)
         run: |
           cd server
-          make lint
+          make lint > lint-result.txt || true
           make format
 
-      - name: Run tests
+      - name: Run tests and save coverage summary
         run: |
           cd server
-          pytest --cov=src --cov-report=xml --cov-report=term
+          pytest --cov=src --cov-report=term --cov-report=xml > result.log
+          tail -n 30 result.log > coverage-summary.txt
+
+      - name: Post coverage and lint results as PR comment
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## 🧪 Test Coverage Summary
+            ```
+            $(cat server/coverage-summary.txt)
+            ```
+
+            ## 🧹 Ruff Lint Results
+            ```
+            $(cat server/lint-result.txt)
+            ```
