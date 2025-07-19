@@ -154,3 +154,4 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 ## TODO:
 - Convert to flask server to serve requests.
 - Add ability to send notifications to the IDE
+- semgrep, random automations?

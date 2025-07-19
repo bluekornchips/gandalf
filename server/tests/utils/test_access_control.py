@@ -53,10 +53,9 @@ class TestAccessValidator:
 
     def test_validate_path_valid(self):
         """Test valid path validation."""
-        valid, error = AccessValidator.validate_path(
-            "/private/etc/passwd", "shire_path"
-        )
-        # Should be invalid because /etc is blocked (resolves to /private/etc on macOS)
+        # Test platform-specific blocked path that should be blocked on all platforms
+        valid, error = AccessValidator.validate_path("/etc/passwd", "shire_path")
+        # Should be invalid because /etc is in COMMON_BLOCKED_PATHS
         assert valid is False
         assert "blocked system path" in error
 

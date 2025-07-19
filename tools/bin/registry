@@ -25,20 +25,23 @@ detect_agentic_tool() {
         return 0
     fi
 
-    # Check for running processes
-    if pgrep -f "claude" >/dev/null 2>&1; then
-        echo "claude-code"
-        return 0
-    fi
+    if command -v pgrep >/dev/null 2>&1; then
+        if pgrep -f "claude" >/dev/null 2>&1 || pgrep -i "claude" >/dev/null 2>&1; then
+            echo "claude-code"
+            return 0
+        fi
 
-    if pgrep -f "Cursor" >/dev/null 2>&1; then
-        echo "cursor"
-        return 0
-    fi
+        # Cursor might appear as "Cursor", "cursor", or "cursor.exe" on different platforms
+        if pgrep -f "Cursor" >/dev/null 2>&1 || pgrep -f "cursor" >/dev/null 2>&1 || pgrep -i "cursor" >/dev/null 2>&1; then
+            echo "cursor"
+            return 0
+        fi
 
-    if pgrep -f "Windsurf" >/dev/null 2>&1; then
-        echo "windsurf"
-        return 0
+        # Windsurf might appear differently on different platforms
+        if pgrep -f "Windsurf" >/dev/null 2>&1 || pgrep -f "windsurf" >/dev/null 2>&1 || pgrep -i "windsurf" >/dev/null 2>&1; then
+            echo "windsurf"
+            return 0
+        fi
     fi
 
     # Check for configuration directories

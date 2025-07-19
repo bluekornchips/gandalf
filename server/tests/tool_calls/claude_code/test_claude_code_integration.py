@@ -443,8 +443,11 @@ class TestClaudeCodeRegressionTests:
             # Mock the registry to include claude-code
             with patch(
                 "src.core.registry.get_registered_agentic_tools"
-            ) as mock_registry:
+            ) as mock_registry, patch(
+                "src.tool_calls.aggregator.get_registered_agentic_tools"
+            ) as mock_aggregator_registry:
                 mock_registry.return_value = ["claude-code"]
+                mock_aggregator_registry.return_value = ["claude-code"]
 
                 # This should pass project_root through to Claude Code handlers
                 result = handle_recall_conversations(
