@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import List, Union
 
 from src.config.constants.conversation import (
-    CONVERSATION_EXPORT_FORMATS,
     CONVERSATION_EXPORT_FORMAT_DEFAULT,
+    CONVERSATION_EXPORT_FORMATS,
 )
 from src.utils.cursor_chat_query import CursorQuery
 

@@ -8,22 +8,22 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.config.constants.database import (
-    WINDSURF_KEY_CHAT_SESSION_STORE,
-)
 from src.config.constants.conversation import (
     CONVERSATION_FALSE_POSITIVE_RATIO_THRESHOLD,
     CONVERSATION_MAX_ANALYSIS_LENGTH,
     CONVERSATION_MAX_LIST_ITEMS_TO_CHECK,
     CONVERSATION_MIN_CONTENT_LENGTH,
 )
+from src.config.constants.database import (
+    WINDSURF_KEY_CHAT_SESSION_STORE,
+)
 from src.tool_calls.windsurf.query import (
+    TOOL_QUERY_WINDSURF_CONVERSATIONS,
     WINDSURF_CONTENT_KEYS,
     WINDSURF_CONVERSATION_PATTERNS,
     WINDSURF_FALSE_POSITIVE_INDICATORS,
     WINDSURF_MESSAGE_INDICATORS,
     WINDSURF_STRONG_CONVERSATION_INDICATORS,
-    TOOL_QUERY_WINDSURF_CONVERSATIONS,
     ConversationExtractor,
     ConversationValidator,
     DatabaseReader,

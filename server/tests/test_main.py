@@ -5,10 +5,11 @@ lotr-info: Tests the main entry point for the Gandalf MCP server using
 Hobbiton and Rivendell as test project directories.
 """
 
-import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from src.main import main
 

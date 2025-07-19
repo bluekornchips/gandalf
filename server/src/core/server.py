@@ -6,7 +6,6 @@ Focuses on core conversation aggregation and project context.
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
-from src.config.weights import WeightsManager
 
 from src.config.constants.file_system_context import FILE_SYSTEM_CONTEXT_INDICATORS
 from src.config.constants.server import (
@@ -15,6 +14,7 @@ from src.config.constants.server import (
     SERVER_INFO,
 )
 from src.config.enums import ErrorCodes
+from src.config.weights import WeightsManager
 from src.tool_calls.aggregator import (
     CONVERSATION_AGGREGATOR_TOOL_DEFINITIONS,
     CONVERSATION_AGGREGATOR_TOOL_HANDLERS,
