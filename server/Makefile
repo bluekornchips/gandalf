@@ -1,12 +1,12 @@
 format:
-	.venv/bin/ruff check --fix --unsafe-fixes src/
-	.venv/bin/ruff format src/
+	ruff check --fix --unsafe-fixes src/
+	ruff format src/
 
 lint:
-	.venv/bin/ruff check src/
+	ruff check src/
 
 fix:
-	.venv/bin/ruff check --fix src/
+	ruff check --fix src/
 
 test:
 	pytest --cov=src
