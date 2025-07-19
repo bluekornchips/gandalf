@@ -7,7 +7,7 @@ package-mode = false
 
 [project]
 name = "gandalf-mcp"
-version = "2.2.3"
+version = "2.3.0"
 description = "Gandalf MCP Server - Agentic Tool Integrator for Development Assistants"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -32,9 +32,7 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
-    "flake8>=7.0.0",
-    "black>=23.0.0",
-    "pylint>=3.0.0",
+    "ruff>=0.1.0",
 ]
 
 [project.urls]
@@ -49,17 +47,36 @@ gandalf-mcp = "src.main:main"
 where = ["."]
 include = ["src*"]
 
-[tool.black]
+[tool.ruff]
 line-length = 88
-target-version = ['py312']
+target-version = "py312"
 
-[tool.isort]
-profile = "black"
-line_length = 88
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E203", "E501"]
+fixable = ["ALL"]
+unfixable = []
 
-[tool.flake8]
-max-line-length = 88
-extend-ignore = ["E203", "W503"]
+[tool.ruff.lint.mccabe]
+max-complexity = 20
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/test_*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]
+
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

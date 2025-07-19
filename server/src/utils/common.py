@@ -3,13 +3,13 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.config.constants.paths import GANDALF_HOME
 from src.config.constants.server import MCP_SERVER_NAME
 
-_log_file_path: Optional[Path] = None
-_session_id: Optional[str] = None
+_log_file_path: Path | None = None
+_session_id: str | None = None
 
 
 def initialize_session_logging(session_id: str) -> None:
@@ -33,8 +33,8 @@ def initialize_session_logging(session_id: str) -> None:
 def write_log(
     level: str,
     message: str,
-    logger: Optional[str] = None,
-    data: Optional[dict] = None,
+    logger: str | None = None,
+    data: dict | None = None,
 ) -> None:
     """Write log entry to session-specific log file only."""
     if not _log_file_path:
@@ -42,7 +42,7 @@ def write_log(
 
     try:
         timestamp = datetime.now().isoformat()
-        log_entry: Dict[str, Any] = {
+        log_entry: dict[str, Any] = {
             "timestamp": timestamp,
             "level": level,
             "message": message,
@@ -57,7 +57,7 @@ def write_log(
         with open(_log_file_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(log_entry) + "\n")
 
-    except (OSError, IOError, UnicodeEncodeError, TypeError):
+    except (OSError, UnicodeEncodeError, TypeError):
         # Avoid recursion by not logging this error
         pass
 

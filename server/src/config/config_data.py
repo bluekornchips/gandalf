@@ -3,9 +3,7 @@ Configuration data structures for Gandalf MCP server.
 Contains mappings, exclusion sets, and other structured configuration data.
 """
 
-# =============================================================================
-# FILE FILTERING CONFIGURATION
-# =============================================================================
+# File filtering configuration
 
 # Directory Exclusions
 EXCLUDE_DIRECTORIES = {
@@ -59,9 +57,7 @@ EXCLUDE_FILE_PATTERNS = {
     ".jar",
 }
 
-# =============================================================================
-# SECURITY CONFIGURATION
-# =============================================================================
+# Security configuration
 
 # Security: Blocked Extensions
 BLOCKED_EXTENSIONS = {
@@ -150,9 +146,7 @@ BLOCKED_PATHS = {
     "/mnt/c/System Volume Information",
 }
 
-# =============================================================================
-# TECHNOLOGY MAPPING CONFIGURATION
-# =============================================================================
+# Technology mapping configuration
 
 TECHNOLOGY_KEYWORD_MAPPING = {
     "python": [
@@ -198,9 +192,7 @@ TECHNOLOGY_KEYWORD_MAPPING = {
     ],
 }
 
-# =============================================================================
-# AGENTIC TOOL CONFIGURATION
-# =============================================================================
+# Agentic tool configuration
 
 # Database Patterns
 CURSOR_DB_PATTERNS = ["*.vscdb", "*.db"]
@@ -212,9 +204,7 @@ CLAUDE_CONVERSATION_PATTERNS = [
 ]
 WINDSURF_DB_PATTERNS = ["*.vscdb", "*.db"]
 
-# =============================================================================
-# CONVERSATION TYPES
-# =============================================================================
+# Conversation types
 
 CONVERSATION_TYPES = [
     "architecture",
@@ -225,9 +215,7 @@ CONVERSATION_TYPES = [
     "general",
 ]
 
-# =============================================================================
-# CONTEXT SKIP DIRECTORIES
-# =============================================================================
+# Context skip directories
 
 CONTEXT_SKIP_DIRECTORIES = {
     ".git",
@@ -249,9 +237,7 @@ CONTEXT_SKIP_DIRECTORIES = {
     "temp",
 }
 
-# =============================================================================
-# FILE REFERENCE PATTERNS
-# =============================================================================
+# File reference patterns
 
 FILE_REFERENCE_PATTERNS = [
     r"([a-zA-Z0-9_\-/]+\.[a-zA-Z0-9]{1,4})",  # Basic file pattern

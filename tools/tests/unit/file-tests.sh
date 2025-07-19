@@ -49,7 +49,7 @@ EOF
     git commit -m "Initial commit" >/dev/null 2>&1
 }
 
-# Helper function to validate file listing response
+
 validate_file_listing_response() {
     local output="$1"
     
@@ -65,20 +65,20 @@ validate_file_listing_response() {
     echo "$content"
 }
 
-# Helper function to count file references in output
+
 count_file_references() {
     local content="$1"
     echo "$content" | grep -c "\\.py\|\\.js\|\\.md\|\\.json\|\\.css" || echo "0"
 }
 
-# Helper function to check if file exists in listing
+
 check_file_in_listing() {
     local content="$1"
     local filename="$2"
     echo "$content" | grep -q "$filename"
 }
 
-# Helper function to check if file does NOT exist in listing
+
 check_file_not_in_listing() {
     local content="$1"
     local filename="$2"

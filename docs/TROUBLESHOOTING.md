@@ -40,13 +40,13 @@ Solutions:
 
    ```bash
    cd gandalf/server
-   pip install -r requirements.txt
+   pip install -e .
    ```
 
 2. Verify Python version:
 
    ```bash
-   python3 --version  # Should be 3.10+
+   python3 --version  # Should be 3.12+
    ```
 
 3. Test server directly:
@@ -156,7 +156,7 @@ Solutions:
 
    ```bash
    cd gandalf/server
-   pip install -r requirements.txt
+   pip install -e .
    ```
 
 3. Verify all required tools are installed:
@@ -193,7 +193,7 @@ Common MCP log errors:
 
 - "Command not found": Check absolute paths in configuration
 - "Permission denied": `chmod +x gandalf`
-- "Module not found": `pip install -r gandalf/server/requirements.txt`
+- "Module not found": `cd gandalf/server && pip install -e .`
 
 Database access issues:
 
@@ -251,7 +251,7 @@ python3 --version
 
 # Install dependencies
 cd gandalf/server
-pip install -r requirements.txt
+pip install -e .
 
 # Test dependencies
 python3 -c "import yaml, sqlite3, json, pathlib; print('Dependencies OK')"

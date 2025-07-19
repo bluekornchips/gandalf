@@ -5,28 +5,37 @@ A tool for querying and retrieving chat conversations from Cursor IDE's SQLite d
 Provides comprehensive access to conversation history, user prompts, and AI responses.
 """
 
-import argparse
 import json
 import os
 import platform
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from src.config.constants.database import CURSOR_DATABASE_FILES
+from src.config.constants.database import (
+    CURSOR_CONVERSATION_KEYS,
+    CURSOR_DATABASE_FILES,
+    CURSOR_KEY_AI_CONVERSATIONS,
+    CURSOR_KEY_AI_GENERATIONS,
+    CURSOR_KEY_AI_PROMPTS,
+    CURSOR_KEY_COMPOSER_DATA,
+    CURSOR_KEY_USER_GENERATIONS,
+    CURSOR_KEY_USER_PROMPTS,
+    SQL_GET_VALUE_BY_KEY,
+)
 
 
 def is_running_in_wsl() -> bool:
     """Check if we're running in Windows Subsystem for Linux."""
     try:
-        with open("/proc/version", "r", encoding="utf-8") as f:
+        with open("/proc/version", encoding="utf-8") as f:
             return "microsoft" in f.read().lower()
-    except (OSError, IOError):
+    except OSError:
         return False
 
 
-def get_windows_username() -> Optional[str]:
+def get_windows_username() -> str | None:
     """Get Windows username for WSL environments."""
     windows_username = os.getenv("WINDOWS_USERNAME")
     if windows_username:
@@ -44,13 +53,13 @@ def get_windows_username() -> Optional[str]:
         for user_dir in users_dir.iterdir():
             if user_dir.name.lower() not in default_users:
                 return user_dir.name
-    except (OSError, IOError):
+    except OSError:
         pass
 
     return None
 
 
-def get_wsl_cursor_path() -> Optional[Path]:
+def get_wsl_cursor_path() -> Path | None:
     """Get Cursor path for WSL environment if available."""
     windows_username = get_windows_username()
     if not windows_username:
@@ -121,9 +130,9 @@ def get_default_cursor_path() -> Path:
         return Path.home() / ".config" / "Cursor" / "User"
 
 
-def get_wsl_additional_paths() -> List[Path]:
+def get_wsl_additional_paths() -> list[Path]:
     """Get additional Cursor paths for WSL environments."""
-    additional_paths: List[Path] = []
+    additional_paths: list[Path] = []
     users_dir = Path("/mnt/c/Users")
 
     if not users_dir.exists():
@@ -137,13 +146,13 @@ def get_wsl_additional_paths() -> List[Path]:
                 windows_path = user_dir / "AppData/Roaming/Cursor/User"
                 if windows_path.exists():
                     additional_paths.append(windows_path)
-    except (OSError, IOError):
+    except OSError:
         pass
 
     return additional_paths
 
 
-def find_all_cursor_paths() -> List[Path]:
+def find_all_cursor_paths() -> list[Path]:
     """Find all possible Cursor data paths for database discovery across supported platforms."""
     paths = []
     system = platform.system().lower()
@@ -207,9 +216,9 @@ class CursorQuery:
         """Public method to set Cursor data path."""
         self._set_cursor_data_path(path)
 
-    def find_workspace_databases(self) -> List[Path]:
+    def find_workspace_databases(self) -> list[Path]:
         """Find all workspace database files in the Cursor data directory."""
-        databases: List[Path] = []
+        databases: list[Path] = []
         workspace_storage_path = self.cursor_data_path / "workspaceStorage"
 
         if not workspace_storage_path.exists():
@@ -232,7 +241,7 @@ class CursorQuery:
 
         return databases
 
-    def get_data_from_db(self, db_path: Path, key: str) -> Optional[Any]:
+    def get_data_from_db(self, db_path: Path, key: str) -> Any | None:
         """Extract data from database using a specific key."""
         try:
             with sqlite3.connect(str(db_path)) as conn:
@@ -241,64 +250,85 @@ class CursorQuery:
                 result = cursor.fetchone()
                 if result:
                     data = json.loads(result[0])
-                    # Explicitly close to ensure cleanup
-                    cursor.close()
                     return data
-                # Explicitly close to ensure cleanup
-                cursor.close()
                 return None
         except (sqlite3.Error, json.JSONDecodeError, OSError) as e:
             if not self.silent:
                 print(f"Error reading from database {db_path}: {e}")
             return None
 
-    def query_conversations_from_db(self, db_path: Path) -> Dict[str, Any]:
+    def query_conversations_from_db(self, db_path: Path) -> dict[str, Any]:
         """Query all conversation data from a single database."""
-        composer_data = self.get_data_from_db(db_path, "composer.composerData")
-        conversations = []
+        try:
+            with sqlite3.connect(str(db_path)) as conn:
+                cursor = conn.cursor()
 
-        if composer_data and isinstance(composer_data, dict):
-            # Extract conversations from allComposers array
-            conversations = composer_data.get("allComposers", [])
+                # Query all keys in one go to minimize database connections
+                data_results = {}
+                for key in CURSOR_CONVERSATION_KEYS:
+                    cursor.execute(SQL_GET_VALUE_BY_KEY, (key,))
+                    result = cursor.fetchone()
+                    if result:
+                        try:
+                            data_results[key] = json.loads(result[0])
+                        except json.JSONDecodeError:
+                            data_results[key] = None
+                    else:
+                        data_results[key] = None
 
-        # Fall back to old format if new format doesn't exist
-        if not conversations:
-            conversations = self.get_data_from_db(db_path, "aiConversations") or []
+                conversations = []
+                composer_data = data_results.get(CURSOR_KEY_COMPOSER_DATA)
+                if composer_data and isinstance(composer_data, dict):
+                    conversations = composer_data.get("allComposers", [])
 
-        # Try new key names first (current Cursor format)
-        prompts = self.get_data_from_db(db_path, "aiService.prompts")
-        generations = self.get_data_from_db(db_path, "aiService.generations")
+                # Fall back to old format if new format doesn't exist
+                if not conversations:
+                    conversations = data_results.get(CURSOR_KEY_AI_CONVERSATIONS) or []
 
-        # Fall back to old key names if new ones don't exist
-        if not prompts:
-            prompts = self.get_data_from_db(db_path, "userPrompts")
-        if not generations:
-            generations = self.get_data_from_db(db_path, "aiGenerations")
+                # Get prompts and generations with fallbacks
+                prompts = (
+                    data_results.get(CURSOR_KEY_AI_PROMPTS)
+                    or data_results.get(CURSOR_KEY_USER_PROMPTS)
+                    or []
+                )
+                generations = (
+                    data_results.get(CURSOR_KEY_AI_GENERATIONS)
+                    or data_results.get(CURSOR_KEY_USER_GENERATIONS)
+                    or []
+                )
 
-        prompts = prompts or []
-        generations = generations or []
+                # If no conversations but we have prompts/generations, reconstruct conversations
+                if not conversations and (prompts or generations):
+                    conversations = (
+                        self._reconstruct_conversations_from_prompts_generations(
+                            prompts, generations
+                        )
+                    )
 
-        # If no conversations but we have prompts/generations, reconstruct conversations
-        if not conversations and (prompts or generations):
-            conversations = self._reconstruct_conversations_from_prompts_generations(
-                prompts, generations
-            )
+                return {
+                    "conversations": conversations or [],
+                    "prompts": prompts,
+                    "generations": generations,
+                }
 
-        return {
-            "conversations": conversations or [],
-            "prompts": prompts,
-            "generations": generations,
-        }
+        except (sqlite3.Error, OSError) as e:
+            if not self.silent:
+                print(f"Error reading from database {db_path}: {e}")
+            return {
+                "conversations": [],
+                "prompts": [],
+                "generations": [],
+            }
 
     def _reconstruct_conversations_from_prompts_generations(
-        self, prompts: List[Dict[str, Any]], generations: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, prompts: list[dict[str, Any]], generations: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Reconstruct conversations from prompts and generations."""
         if not prompts and not generations:
             return []
 
-        conversations: List[Dict[str, Any]] = []
-        all_items: List[Dict[str, Any]] = []
+        conversations: list[dict[str, Any]] = []
+        all_items: list[dict[str, Any]] = []
 
         for prompt in prompts:
             if isinstance(prompt, dict) and "text" in prompt:
@@ -330,7 +360,7 @@ class CursorQuery:
             max_timestamp = max(item.get("timestamp", 0) for item in all_items)
             conv_id = f"reconstructed_{hash(str(all_items[:5]))}"
 
-            conversation: Dict[str, Any] = {
+            conversation: dict[str, Any] = {
                 "id": conv_id,
                 "messages": all_items,
                 "created_at": min_timestamp,
@@ -342,7 +372,7 @@ class CursorQuery:
 
         return conversations
 
-    def query_all_conversations(self) -> Dict[str, Any]:
+    def query_all_conversations(self) -> dict[str, Any]:
         """Query conversations from all available workspace databases."""
         all_databases = self.find_workspace_databases()
         workspaces = []
@@ -371,10 +401,10 @@ class CursorQuery:
         return datetime.fromtimestamp(timestamp / 1000).strftime("%Y-%m-%d %H:%M:%S")
 
     def _create_message_map(
-        self, prompts: List[Dict], generations: List[Dict]
-    ) -> Dict[str, Dict[str, List]]:
+        self, prompts: list[dict], generations: list[dict]
+    ) -> dict[str, dict[str, list]]:
         """Create a mapping of conversation IDs to their messages."""
-        message_map: Dict[str, Dict[str, List]] = {}
+        message_map: dict[str, dict[str, list]] = {}
 
         for prompt in prompts:
             conv_id = prompt.get("conversationId")
@@ -392,7 +422,7 @@ class CursorQuery:
 
         return message_map
 
-    def format_as_cursor_markdown(self, data: Dict[str, Any]) -> str:
+    def format_as_cursor_markdown(self, data: dict[str, Any]) -> str:
         """Format conversation data as Cursor-style markdown."""
         output = []
         output.append("# Cursor Conversations Export")
@@ -462,7 +492,7 @@ class CursorQuery:
 
         return "\n".join(output)
 
-    def format_as_markdown(self, data: Dict[str, Any]) -> str:
+    def format_as_markdown(self, data: dict[str, Any]) -> str:
         """Format conversation data as simple markdown."""
         output = []
         output.append("# Conversations Export")
@@ -479,7 +509,7 @@ class CursorQuery:
 
     def export_to_file(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         output_path: Path,
         format_type: str = "json",
     ) -> None:
@@ -504,63 +534,13 @@ class CursorQuery:
             if not self.silent:
                 print(f"Data exported to: {output_path}")
 
-        except (OSError, IOError, ValueError, TypeError) as e:
+        except (OSError, ValueError, TypeError) as e:
             if not self.silent:
                 print(f"Export failed: {e}")
             raise
 
 
-def main() -> int:
-    """Main function for command-line usage."""
-    parser = argparse.ArgumentParser(description="Query Cursor chat conversations")
-    parser.add_argument("--output", "-o", help="Output file path (optional)")
-    parser.add_argument(
-        "--format",
-        "-f",
-        choices=["json", "markdown", "cursor"],
-        default="json",
-    )
-    parser.add_argument("--cursor-path", help="Custom Cursor data path")
-    parser.add_argument(
-        "--list-workspaces",
-        action="store_true",
-        help="List available workspaces",
-    )
-    parser.add_argument(
-        "--silent", action="store_true", help="Suppress output messages"
-    )
-
-    args = parser.parse_args()
-
-    try:
-        query_tool = CursorQuery(silent=args.silent)
-
-        if args.cursor_path:
-            query_tool.set_cursor_data_path(Path(args.cursor_path))
-
-        if args.list_workspaces:
-            data = query_tool.query_all_conversations()
-            for workspace in data.get("workspaces", []):
-                print(f"Workspace: {workspace.get('workspace_hash')}")
-                print(f"  Database: {workspace.get('database_path')}")
-                print(f"  Conversations: {len(workspace.get('conversations', []))}")
-            return 0
-
-        data = query_tool.query_all_conversations()
-
-        if args.output:
-            query_tool.export_to_file(data, Path(args.output), args.format)
-        else:
-            print(json.dumps(data, indent=2))
-
-    except (FileNotFoundError, ValueError, OSError, IOError) as e:
-        print(f"Error: {e}")
-        return 1
-
-    return 0
-
-
-def list_cursor_workspaces() -> Dict[str, Any]:
+def list_cursor_workspaces() -> dict[str, Any]:
     """
     Standalone function to list Cursor workspaces.
     Returns workspace information as a dictionary.
@@ -585,5 +565,5 @@ def list_cursor_workspaces() -> Dict[str, Any]:
             "workspaces": workspaces,
         }
 
-    except (OSError, IOError, ValueError, TypeError, AttributeError) as e:
+    except (OSError, ValueError, TypeError, AttributeError) as e:
         raise ValueError(f"Error listing workspace databases: {str(e)}")

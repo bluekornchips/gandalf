@@ -8,7 +8,7 @@ for comprehensive context analysis.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.config.constants.agentic import (
     AGENTIC_TOOL_CLAUDE_CODE,
@@ -91,8 +91,8 @@ def _truncate_string_field(
 
 
 def _create_lightweight_conversation(
-    conversation: Dict[str, Any], source_tool: str
-) -> Dict[str, Any]:
+    conversation: dict[str, Any], source_tool: str
+) -> dict[str, Any]:
     """Create lightweight conversation format for token optimization."""
     if source_tool == AGENTIC_TOOL_CURSOR:
         return cursor_create_lightweight(conversation)
@@ -120,11 +120,11 @@ def _create_lightweight_conversation(
 
 
 def _standardize_conversation_format(
-    conversation: Dict[str, Any],
+    conversation: dict[str, Any],
     source_tool: str,
-    context_keywords: List[str],
+    context_keywords: list[str],
     lightweight: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Standardize conversation format across different tools."""
     if source_tool == AGENTIC_TOOL_CURSOR:
         return cursor_standardize_conversation(
@@ -169,7 +169,7 @@ def _standardize_conversation_format(
             return {}
 
 
-def _detect_available_agentic_tools() -> List[str]:
+def _detect_available_agentic_tools() -> list[str]:
     """Detect available tools using the database scanner for comprehensive detection."""
     try:
         # Use database scanner for better tool detection
@@ -222,9 +222,9 @@ def _detect_available_agentic_tools() -> List[str]:
 
 def _process_agentic_tool_conversations(
     tool_name: str,
-    context_keywords: List[str],
+    context_keywords: list[str],
     **kwargs,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Process conversations from a single tool with standardized error handling."""
     try:
         handler = AGENTIC_TOOL_HANDLERS.get(tool_name, {}).get("recall")
@@ -309,10 +309,10 @@ def _process_agentic_tool_conversations(
 
 
 def _create_no_tools_response(
-    context_keywords: List[str],
+    context_keywords: list[str],
     processing_time: float = 0.0,
     **kwargs,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create standardized response when no tools are detected."""
     response = {
         "available_tools": [],
@@ -338,11 +338,9 @@ def _create_no_tools_response(
 
 
 def _check_response_size_and_optimize(
-    response: Dict[str, Any],
-) -> Dict[str, Any]:
+    response: dict[str, Any],
+) -> dict[str, Any]:
     """Check response size and optimize if needed."""
-    import json
-
     response_json = json.dumps(response)
     response_size = len(response_json.encode("utf-8"))
 
@@ -383,8 +381,8 @@ def _check_response_size_and_optimize(
 
 
 def _create_summary_response(
-    original_response: Dict[str, Any],
-) -> Dict[str, Any]:
+    original_response: dict[str, Any],
+) -> dict[str, Any]:
     """Create a summarized response when full response is too large."""
     conversations = original_response.get("conversations", [])
 
@@ -442,13 +440,13 @@ def handle_recall_conversations(
     days_lookback: int = CONVERSATION_DEFAULT_LOOKBACK_DAYS,
     limit: int = CONVERSATION_DEFAULT_LIMIT,
     min_score: float = CONVERSATION_DEFAULT_MIN_SCORE,
-    conversation_types: Optional[List[str]] = None,
-    tools: Optional[List[str]] = None,
-    project_root: Optional[Path] = None,
-    user_prompt: Optional[str] = None,
-    search_query: Optional[str] = None,
-    tags: Optional[List[str]] = None,
-) -> Dict[str, Any]:
+    conversation_types: list[str] | None = None,
+    tools: list[str] | None = None,
+    project_root: Path | None = None,
+    user_prompt: str | None = None,
+    search_query: str | None = None,
+    tags: list[str] | None = None,
+) -> dict[str, Any]:
     """
     Cross-platform conversation recall that aggregates results from all available tools.
 
@@ -681,8 +679,8 @@ def handle_recall_conversations(
 
 
 def handle_recall_conversations_wrapper(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """Wrapper function to match the expected handler signature."""
     return handle_recall_conversations(project_root=project_root, **arguments)
 

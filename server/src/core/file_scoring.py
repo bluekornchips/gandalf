@@ -4,7 +4,7 @@ File scoring and relevance ranking for the Gandalf MCP server.
 
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from src.config.constants.cache import MCP_CACHE_TTL
 from src.config.constants.limits import PRIORITY_NEUTRAL_SCORE
@@ -12,10 +12,10 @@ from src.core.context_intelligence import get_context_intelligence
 from src.core.project_filtering import filter_project_files
 from src.utils.common import log_debug, log_info
 
-_file_scores_cache: Dict[str, Dict] = {}
+_file_scores_cache: dict[str, dict] = {}
 
 
-def get_files_with_scores(project_root: Path) -> List[Tuple[str, float]]:
+def get_files_with_scores(project_root: Path) -> list[tuple[str, float]]:
     """Get files with pre-computed relevance scores."""
     cache_key = str(project_root)
     current_time = time.time()
@@ -45,15 +45,15 @@ def get_files_with_scores(project_root: Path) -> List[Tuple[str, float]]:
     return scored_files
 
 
-def get_files_list(project_root: Path) -> List[str]:
+def get_files_list(project_root: Path) -> list[str]:
     """Get file list without scores."""
     scored_files = get_files_with_scores(project_root)
     return [file_path for file_path, score in scored_files]
 
 
 def _compute_relevance_scores(
-    project_root: Path, files: List[str]
-) -> List[Tuple[str, float]]:
+    project_root: Path, files: list[str]
+) -> list[tuple[str, float]]:
     """Compute relevance scores for files during refresh."""
     try:
         context_intel = get_context_intelligence(project_root)
@@ -61,14 +61,13 @@ def _compute_relevance_scores(
         return [(f, score) for f, score in scored_files]
     except (OSError, ValueError, AttributeError, ImportError) as e:
         log_debug(
-            f"Context intelligence failed for {project_root}: {e}, "
-            f"using neutral scores"
+            f"Context intelligence failed for {project_root}: {e}, using neutral scores"
         )
         # Fallback to neutral scores if context intelligence fails
         return [(f, PRIORITY_NEUTRAL_SCORE) for f in files]
 
 
-def clear_file_scores(project_root: Optional[Path] = None) -> None:
+def clear_file_scores(project_root: Path | None = None) -> None:
     """Clear file scores for specific project or all projects."""
     if project_root:
         cache_key = str(project_root)
@@ -80,7 +79,7 @@ def clear_file_scores(project_root: Optional[Path] = None) -> None:
         log_debug("Cleared all file scores")
 
 
-def get_scoring_info(project_root: Path) -> Dict[str, Any]:
+def get_scoring_info(project_root: Path) -> dict[str, Any]:
     """Get scoring information for debugging."""
     cache_key = str(project_root)
     current_time = time.time()

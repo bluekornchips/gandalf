@@ -16,7 +16,7 @@ readonly MORIA_DIR="moria"
 readonly KHAZAD_DUM_DIR="khazad-dum"
 readonly ISENGARD_PROJECT="isengard-project"
 
-# Helper function to validate timing with warning
+
 check_platform_timing() {
     local duration="$1"
     local max_time="$2"
@@ -29,7 +29,7 @@ check_platform_timing() {
     fi
 }
 
-# Helper function to create test directory with conten
+
 create_test_directory() {
     local dir_path="$1"
     local content_file="$2"
@@ -39,7 +39,7 @@ create_test_directory() {
     echo "$content" >"$dir_path/$content_file"
 }
 
-# Helper function to validate project info response
+
 validate_project_info() {
     local output="$1"
     local expected_field="$2"
@@ -68,7 +68,7 @@ validate_project_info() {
     echo "$field_value"
 }
 
-# Helper function to validate file listing contains pattern
+
 validate_file_listing_contains() {
     local output="$1"
     local pattern="$2"
@@ -84,13 +84,13 @@ validate_file_listing_contains() {
     fi
 }
 
-# Helper function to resolve path correctly
+
 resolve_path() {
     local path="$1"
     cd "$path" && pwd -P
 }
 
-# Helper function to create git project in directory
+
 create_git_project() {
     local project_dir="$1"
     local project_name="$2"
@@ -108,7 +108,7 @@ create_git_project() {
     git commit -m "$project_name established" >/dev/null 2>&1
 }
 
-# Helper function to validate platform detection
+
 validate_platform() {
     local platform="$1"
 
@@ -124,7 +124,7 @@ validate_platform() {
     esac
 }
 
-# Helper function to execute timed operation
+
 execute_timed_operation() {
     local operation_name="$1"
     local max_time="$2"
@@ -144,7 +144,7 @@ execute_timed_operation() {
     return $status
 }
 
-# Helper function to validate directory existence
+
 validate_directory_exists() {
     local dir_path="$1"
     local description="${2:-directory}"
@@ -155,7 +155,7 @@ validate_directory_exists() {
     fi
 }
 
-# Helper function to create symlink safely
+
 create_symlink_safe() {
     local source="$1"
     local target="$2"

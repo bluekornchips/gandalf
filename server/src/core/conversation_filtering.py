@@ -7,7 +7,7 @@ based on user prompts and project context.
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from src.config.constants.conversation import (
     CONVERSATION_DOMAIN_WORD_EXCLUSIONS,
@@ -26,7 +26,7 @@ from src.utils.common import log_debug, log_error, log_info
 class ConversationFilter:
     """Simple conversation filtering based on keyword matching."""
 
-    def __init__(self, project_root: Path, user_prompt: Optional[str] = None):
+    def __init__(self, project_root: Path, user_prompt: str | None = None):
         """Initialize the conversation filter.
 
         Args:
@@ -43,7 +43,7 @@ class ConversationFilter:
             f"Conversation filter initialized with {len(self.all_keywords)} keywords"
         )
 
-    def _extract_prompt_keywords(self) -> List[str]:
+    def _extract_prompt_keywords(self) -> list[str]:
         """Extract keywords from user prompt."""
         if not self.user_prompt or not CONVERSATION_KEYWORD_MATCH_ENABLED:
             return []
@@ -84,7 +84,7 @@ class ConversationFilter:
             log_error(e, "extracting keywords from prompt")
             return []
 
-    def _merge_keywords(self) -> List[str]:
+    def _merge_keywords(self) -> list[str]:
         """Merge base project keywords with prompt keywords."""
         if not self.prompt_keywords:
             return self.base_keywords
@@ -102,7 +102,7 @@ class ConversationFilter:
 
         return unique_keywords
 
-    def _conversation_matches_keywords(self, conversation: Dict[str, Any]) -> bool:
+    def _conversation_matches_keywords(self, conversation: dict[str, Any]) -> bool:
         """Check if conversation matches any of our keywords."""
         if not self.all_keywords:
             return True  # If no keywords, include all conversations
@@ -134,8 +134,8 @@ class ConversationFilter:
         return False
 
     def apply_conversation_filtering(
-        self, conversations: List[Dict[str, Any]], requested_limit: int
-    ) -> List[Dict[str, Any]]:
+        self, conversations: list[dict[str, Any]], requested_limit: int
+    ) -> list[dict[str, Any]]:
         """Apply simple keyword-based filtering."""
 
         if not CONVERSATION_FILTERING_ENABLED:
@@ -161,7 +161,7 @@ class ConversationFilter:
 
         return filtered_conversations
 
-    def get_filtering_summary(self) -> Dict[str, Any]:
+    def get_filtering_summary(self) -> dict[str, Any]:
         """Get a summary of the filtering configuration."""
         return {
             "conversation_filtering_enabled": CONVERSATION_FILTERING_ENABLED,
@@ -174,18 +174,18 @@ class ConversationFilter:
 
 
 def create_conversation_filter(
-    project_root: Path, user_prompt: Optional[str] = None
+    project_root: Path, user_prompt: str | None = None
 ) -> ConversationFilter:
     """Factory function to create a conversation filter."""
     return ConversationFilter(project_root, user_prompt)
 
 
 def apply_conversation_filtering(
-    conversations: List[Dict[str, Any]],
+    conversations: list[dict[str, Any]],
     project_root: Path,
     requested_limit: int = 20,
-    user_prompt: Optional[str] = None,
-) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    user_prompt: str | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Apply conversation filtering and return filtered conversations with metadata.
 
     Args:

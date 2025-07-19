@@ -7,11 +7,8 @@ SQL_CHECK_ITEMTABLE_EXISTS = (
 SQL_COUNT_TABLE_ROWS = "SELECT COUNT(*) FROM {table_name}"  # nosec B608,
 # table name is validated in code
 
-# Cursor database queries
-SQL_CURSOR_GET_COMPOSER_DATA = "SELECT value FROM ItemTable WHERE key = ?"
-SQL_CURSOR_GET_AI_CONVERSATIONS = "SELECT value FROM ItemTable WHERE key = ?"
-SQL_CURSOR_GET_AI_PROMPTS = "SELECT value FROM ItemTable WHERE key = ?"
-SQL_CURSOR_GET_AI_GENERATIONS = "SELECT value FROM ItemTable WHERE key = ?"
+# Generic database queries
+SQL_GET_VALUE_BY_KEY = "SELECT value FROM ItemTable WHERE key = ?"
 
 # Cursor database files to search for
 CURSOR_DATABASE_FILES = [
@@ -26,6 +23,17 @@ CURSOR_KEY_COMPOSER_DATA = "composer.composerData"
 CURSOR_KEY_AI_CONVERSATIONS = "aiConversations"
 CURSOR_KEY_AI_PROMPTS = "aiService.prompts"
 CURSOR_KEY_AI_GENERATIONS = "aiService.generations"
+CURSOR_KEY_USER_PROMPTS = "userPrompts"
+CURSOR_KEY_USER_GENERATIONS = "aiGenerations"
+
+CURSOR_CONVERSATION_KEYS = [
+    CURSOR_KEY_COMPOSER_DATA,
+    CURSOR_KEY_AI_CONVERSATIONS,
+    CURSOR_KEY_AI_PROMPTS,
+    CURSOR_KEY_AI_GENERATIONS,
+    CURSOR_KEY_USER_PROMPTS,
+    CURSOR_KEY_USER_GENERATIONS,
+]
 
 # Windsurf database keys
 WINDSURF_KEY_CHAT_SESSION_STORE = "windsurf.chatSessionStore"

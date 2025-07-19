@@ -1,6 +1,6 @@
 """Schema default values for configuration validation."""
 
-from typing import Any, Dict, Final
+from typing import Final
 
 # Basic default values
 DEFAULT_WEIGHT_VALUE: Final[float] = 1.0
@@ -15,7 +15,7 @@ DEFAULT_TERMINATION_LIMIT_MULTIPLIER: Final[float] = 1.5
 DEFAULT_OPTIMAL_FILE_SIZE_MIN: Final[int] = 100
 
 # Conversation type bonuses
-DEFAULT_TYPE_BONUSES: Final[Dict[str, float]] = {
+DEFAULT_TYPE_BONUSES: Final[dict[str, float]] = {
     "debugging": 0.25,
     "architecture": 0.2,
     "testing": 0.15,
@@ -25,7 +25,7 @@ DEFAULT_TYPE_BONUSES: Final[Dict[str, float]] = {
 }
 
 # Default recency thresholds
-DEFAULT_RECENCY_THRESHOLDS: Final[Dict[str, float]] = {
+DEFAULT_RECENCY_THRESHOLDS: Final[dict[str, float]] = {
     "days_1": DEFAULT_WEIGHT_VALUE,
     "days_7": DEFAULT_MULTIPLIER_HIGH,
     "days_30": DEFAULT_MULTIPLIER_MID,
@@ -35,7 +35,7 @@ DEFAULT_RECENCY_THRESHOLDS: Final[Dict[str, float]] = {
 
 # Default file extension priorities
 # Very basic, will be updated as we go.
-DEFAULT_FILE_EXTENSIONS: Final[Dict[str, float]] = {
+DEFAULT_FILE_EXTENSIONS: Final[dict[str, float]] = {
     "py": DEFAULT_WEIGHT_VALUE,
     "js": 0.9,
     "ts": 0.9,
@@ -50,7 +50,7 @@ DEFAULT_FILE_EXTENSIONS: Final[Dict[str, float]] = {
 }
 
 # Default directory priorities
-DEFAULT_DIRECTORIES: Final[Dict[str, float]] = {
+DEFAULT_DIRECTORIES: Final[dict[str, float]] = {
     "src": DEFAULT_WEIGHT_VALUE,
     "lib": 0.9,
     "app": 0.9,

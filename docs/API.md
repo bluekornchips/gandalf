@@ -166,7 +166,7 @@ Server version and protocol information.
 
 ```json
 {
-  "server_version": "2.2.3",
+  "server_version": "2.3.0",
   "protocol_version": "2024-11-05",
   "server_name": "gandalf-mcp"
 }

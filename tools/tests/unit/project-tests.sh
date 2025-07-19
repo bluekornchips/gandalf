@@ -54,7 +54,7 @@ EOF
     git commit -m "Add hobbit wisdom" >/dev/null 2>&1
 }
 
-# Helper function to validate project info JSON structure
+
 validate_project_info_json() {
     local content="$1"
     local test_name="${2:-unknown test}"
@@ -85,7 +85,7 @@ validate_project_info_json() {
 
 
 
-# Helper function to create project with custom name for testing
+
 create_custom_project() {
     local project_dir="$1"
     local readme_content="${2:-# Custom Project}"

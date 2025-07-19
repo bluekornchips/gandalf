@@ -4,9 +4,9 @@ The file system context root is the top-level directory where MCP commands query
 This is typically the project root directory that contains the code being analyzed.
 """
 
-from typing import Final, List
+from typing import Final
 
-FILE_SYSTEM_CONTEXT_INDICATORS: Final[List[str]] = [
+FILE_SYSTEM_CONTEXT_INDICATORS: Final[list[str]] = [
     "pyproject.toml",
     "package.json",
     "Cargo.toml",

@@ -10,6 +10,7 @@ readonly TESTS_DIR="$GANDALF_ROOT/tools/tests"
 declare -A SHELL_TEST_SUITES=(
 	["platform-compatibility"]="Cross-platform compatibility and path detection"
 	["core"]="Core MCP server functionality"
+	["cli"]="CLI functionality and server management"
 	["file"]="File operations"
 	["project"]="Project operations"
 	["workspace-detection"]="Workspace detection strategies"
@@ -26,7 +27,6 @@ source "$GANDALF_ROOT/tools/lib/test-helpers.sh"
 
 DEPENDENCIES_CHECKED=false
 
-# Helper function to validate positive integer
 validate_positive_integer() {
 	local value="$1"
 	local name="$2"
@@ -42,7 +42,6 @@ validate_positive_integer() {
 	fi
 }
 
-# Helper function to validate suite name
 validate_suite_name() {
 	local suite="$1"
 
@@ -52,7 +51,6 @@ validate_suite_name() {
 	fi
 }
 
-# Helper function to validate test suite
 validate_test_suite() {
 	local suite="$1"
 
@@ -69,7 +67,6 @@ validate_test_suite() {
 	fi
 }
 
-# Helper function to prepare bats arguments
 prepare_bats_args() {
 	local verbose="$1"
 	local timing="$2"
@@ -79,7 +76,6 @@ prepare_bats_args() {
 	printf '%s\n' "${bats_args[@]}"
 }
 
-# Helper function to setup test environment
 setup_test_environment() {
 	local suite="$1"
 
@@ -94,7 +90,6 @@ setup_test_environment() {
 	echo "$job_temp_dir"
 }
 
-# Helper function to cleanup test environment
 cleanup_test_environment() {
 	local suite="$1"
 	local job_temp_dir="$2"
@@ -108,7 +103,6 @@ cleanup_test_environment() {
 	fi
 }
 
-# Helper function to get existing suites
 get_existing_suites() {
 	local suites=()
 

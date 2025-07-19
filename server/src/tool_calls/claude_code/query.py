@@ -10,7 +10,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.utils.access_control import AccessValidator
 from src.utils.common import log_debug, log_error, log_info
@@ -50,7 +50,7 @@ class ClaudeCodeQuery:
         # Default to ~/.claude
         return home / ".claude"
 
-    def find_session_files(self, project_root: Optional[Path] = None) -> List[Path]:
+    def find_session_files(self, project_root: Path | None = None) -> list[Path]:
         """Find Claude Code session files."""
         session_files = []
 
@@ -78,13 +78,13 @@ class ClaudeCodeQuery:
 
         return sorted(session_files, key=lambda x: x.stat().st_mtime, reverse=True)
 
-    def parse_session_file(self, session_file: Path) -> Dict[str, Any]:
+    def parse_session_file(self, session_file: Path) -> dict[str, Any]:
         """Parse a Claude Code session file (JSONL format)."""
         try:
             messages = []
             session_metadata = {}
 
-            with open(session_file, "r", encoding="utf-8") as f:
+            with open(session_file, encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
                     if not line.strip():
                         continue
@@ -133,8 +133,8 @@ class ClaudeCodeQuery:
             return {}
 
     def query_conversations(
-        self, project_root: Optional[Path] = None, limit: int = 50
-    ) -> Dict[str, Any]:
+        self, project_root: Path | None = None, limit: int = 50
+    ) -> dict[str, Any]:
         """Query Claude Code conversations."""
         try:
             session_files = self.find_session_files(project_root)
@@ -168,8 +168,8 @@ class ClaudeCodeQuery:
             )
 
     def search_conversations(
-        self, query: str, project_root: Optional[Path] = None, limit: int = 20
-    ) -> List[Dict[str, Any]]:
+        self, query: str, project_root: Path | None = None, limit: int = 20
+    ) -> list[dict[str, Any]]:
         """Search Claude Code conversations for specific content."""
         try:
             session_files = self.find_session_files(project_root)
@@ -229,7 +229,7 @@ class ClaudeCodeQuery:
 
         return snippet
 
-    def format_as_markdown(self, data: Dict[str, Any]) -> str:
+    def format_as_markdown(self, data: dict[str, Any]) -> str:
         """Format conversation data as markdown."""
         md_lines = [
             "# Claude Code Conversations",
@@ -270,8 +270,8 @@ class ClaudeCodeQuery:
 
 
 def handle_query_claude_conversations(
-    arguments: Dict[str, Any], project_root: Path, **kwargs
-) -> Dict[str, Any]:
+    arguments: dict[str, Any], project_root: Path, **kwargs
+) -> dict[str, Any]:
     """Query Claude Code conversations with comprehensive data retrieval."""
     try:
         # Get parameters

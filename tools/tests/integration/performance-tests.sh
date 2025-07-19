@@ -6,7 +6,6 @@ set -euo pipefail
 
 load '../../lib/test-helpers.sh'
 
-# Helper function to validate timing with warning
 check_performance_timing() {
     local duration="$1"
     local max_time="$2"
@@ -19,7 +18,6 @@ check_performance_timing() {
     fi
 }
 
-# Helper function to measure operation time
 measure_operation_time() {
     local operation_name="$1"
     local max_time="$2"
@@ -36,7 +34,7 @@ measure_operation_time() {
     check_performance_timing "$duration" "$max_time" "$operation_name"
 }
 
-# Helper function to create file structure in directory
+
 create_files_in_directory() {
     local dir="$1"
     local file_count="${2:-10}"
@@ -59,7 +57,7 @@ create_files_in_directory() {
     done
 }
 
-# Helper function to create large files
+
 create_large_files() {
     local count="${1:-3}"
     local lines_per_file="${2:-1000}"
@@ -74,7 +72,7 @@ create_large_files() {
     done
 }
 
-# Helper function to create nested directory structure
+
 create_nested_structure() {
     local max_depth="${1:-5}"
     
@@ -88,7 +86,7 @@ create_nested_structure() {
     done
 }
 
-# Helper function to validate performance response
+
 validate_performance_response() {
     local output="$1"
     local expected_pattern="${2:-}"
@@ -113,7 +111,7 @@ validate_performance_response() {
     echo "$content"
 }
 
-# Helper function to execute multiple rapid calls
+
 execute_rapid_calls() {
     local call_count="$1"
     local rpc_call="$2"
@@ -123,7 +121,7 @@ execute_rapid_calls() {
     done
 }
 
-# Helper function to create test weights file
+
 create_test_weights_file() {
     local weights_fixture="$1"
     
@@ -140,7 +138,7 @@ create_test_weights_file() {
     echo "$TEST_WEIGHTS_FILE"
 }
 
-# Helper function to create isolated test project
+
 create_isolated_test_project() {
     local project_name="$1"
     local project_dir="$TEST_HOME/$project_name"

@@ -4,7 +4,7 @@ Context intelligence for file scoring and project analysis.
 
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from src.config.constants.context import (
     CONTEXT_FILE_SIZE_ACCEPTABLE_MAX,
@@ -19,7 +19,7 @@ from src.utils.common import log_debug
 class ContextIntelligence:
     """Context scoring and prioritization system."""
 
-    def __init__(self, project_root: Path, weights_config: Optional[Any] = None):
+    def __init__(self, project_root: Path, weights_config: Any | None = None):
         """Initialize context intelligence for a project."""
         self.project_root = project_root
         self._import_cache = {}
@@ -32,7 +32,7 @@ class ContextIntelligence:
         log_debug(f"Initialized context intelligence for {project_root}")
 
     def score_file_relevance(
-        self, file_path: str, context: Optional[Dict[str, Any]] = None
+        self, file_path: str, context: dict[str, Any] | None = None
     ) -> float:
         """Calculate relevance score for a file."""
         try:
@@ -173,7 +173,7 @@ class ContextIntelligence:
             return CONTEXT_MIN_SCORE
 
     def _score_import_relationships(
-        self, file_path: str, active_files: List[str]
+        self, file_path: str, active_files: list[str]
     ) -> float:
         """Score based on import relationships with active files."""
         if not active_files:
@@ -198,10 +198,10 @@ class ContextIntelligence:
 
     def rank_files(
         self,
-        files: List[str],
-        context: Optional[Dict[str, Any]] = None,
-        limit: Optional[int] = None,
-    ) -> List[Tuple[str, float]]:
+        files: list[str],
+        context: dict[str, Any] | None = None,
+        limit: int | None = None,
+    ) -> list[tuple[str, float]]:
         """Rank files by relevance score in descending order."""
         scored_files = []
         for file_path in files:
@@ -224,8 +224,8 @@ class ContextIntelligence:
         return scored_files
 
     def get_context_summary(
-        self, files: List[str], context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, files: list[str], context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Generate a comprehensive context summary for a set of files."""
         if not files:
             return {
@@ -279,11 +279,11 @@ class ContextIntelligence:
 
 
 # Module-level cache for ContextIntelligence instances
-_context_cache: Dict[str, ContextIntelligence] = {}
+_context_cache: dict[str, ContextIntelligence] = {}
 
 
 def get_context_intelligence(
-    project_root: Path, weights_config: Optional[Any] = None
+    project_root: Path, weights_config: Any | None = None
 ) -> ContextIntelligence:
     """Get context intelligence instance for a project."""
     cache_key = str(project_root)

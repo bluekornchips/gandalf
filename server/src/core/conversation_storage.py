@@ -8,7 +8,7 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.config.constants.cache import (
     CONVERSATION_CACHE_MAX_SIZE_MB,
@@ -43,7 +43,7 @@ def get_storage_metadata_path(project_root: Path) -> Path:
     return CONVERSATION_CACHE_METADATA_FILE
 
 
-def get_project_storage_hash(project_root: Path, context_keywords: List[str]) -> str:
+def get_project_storage_hash(project_root: Path, context_keywords: list[str]) -> str:
     """Generate a storage hash based on project state and keywords."""
     try:
         # Include project path, git state, and keywords in hash
@@ -67,7 +67,7 @@ def get_project_storage_hash(project_root: Path, context_keywords: List[str]) ->
         return hashlib.md5(fallback_input.encode()).hexdigest()[:16]
 
 
-def is_storage_valid(project_root: Path, context_keywords: List[str]) -> bool:
+def is_storage_valid(project_root: Path, context_keywords: list[str]) -> bool:
     """Check if the conversation storage is valid and up to date."""
     try:
         metadata_path = get_storage_metadata_path(project_root)
@@ -83,7 +83,7 @@ def is_storage_valid(project_root: Path, context_keywords: List[str]) -> bool:
             return False
 
         # Load and validate metadata
-        with open(metadata_path, "r") as f:
+        with open(metadata_path) as f:
             metadata = json.load(f)
 
         # Check TTL
@@ -105,7 +105,7 @@ def is_storage_valid(project_root: Path, context_keywords: List[str]) -> bool:
         return False
 
 
-def load_stored_conversations(project_root: Path) -> Optional[Dict[str, Any]]:
+def load_stored_conversations(project_root: Path) -> dict[str, Any] | None:
     """Load conversations from storage if valid."""
     try:
         storage_file_path = get_storage_file_path()
@@ -113,7 +113,7 @@ def load_stored_conversations(project_root: Path) -> Optional[Dict[str, Any]]:
         if not storage_file_path.exists():
             return None
 
-        with open(storage_file_path, "r") as f:
+        with open(storage_file_path) as f:
             stored_data = json.load(f)
 
         conversation_count = len(stored_data.get("conversations", []))
@@ -127,9 +127,9 @@ def load_stored_conversations(project_root: Path) -> Optional[Dict[str, Any]]:
 
 def save_conversations_to_storage(
     project_root: Path,
-    conversations: List[Dict[str, Any]],
-    context_keywords: List[str],
-    metadata: Dict[str, Any],
+    conversations: list[dict[str, Any]],
+    context_keywords: list[str],
+    metadata: dict[str, Any],
 ) -> bool:
     """Save conversations to local storage with metadata."""
     try:
@@ -165,9 +165,7 @@ def save_conversations_to_storage(
 
         # Verify file size
         storage_size_mb = storage_file_path.stat().st_size / (1024 * 1024)
-        log_info(
-            f"Stored {len(conversations)} conversations " f"({storage_size_mb:.1f}MB)"
-        )
+        log_info(f"Stored {len(conversations)} conversations ({storage_size_mb:.1f}MB)")
 
         return True
 
@@ -185,7 +183,7 @@ def clear_conversation_storage():
     log_debug("Cleared conversation storage caches")
 
 
-def get_conversation_storage_info() -> Dict[str, Any]:
+def get_conversation_storage_info() -> dict[str, Any]:
     """Get information about conversation storage state."""
     storage_file = get_storage_file_path()
     metadata_file = get_storage_metadata_path(Path.cwd())  # Default path
