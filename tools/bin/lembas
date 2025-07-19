@@ -129,7 +129,6 @@ run_shell_tests() {
     print_header "Running Shell Tests"
 
     local test_args=()
-    [[ "$verbose" == "false" ]] && test_args+=("--quiet")
 
     timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
     local test_pid=$!
@@ -151,7 +150,6 @@ run_python_tests() {
     print_header "Running Python Tests"
 
     local test_args=()
-    [[ "$verbose" == "false" ]] && test_args+=("--quiet")
 
     timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --python ${test_args[@]+"${test_args[@]}"} &
     local test_pid=$!
@@ -173,7 +171,6 @@ run_core_tests() {
     print_header "Running Core Tests"
 
     local test_args=()
-    [[ "$verbose" == "false" ]] && test_args+=("--quiet")
 
     timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
     local test_pid=$!
@@ -195,7 +192,6 @@ run_all_tests() {
     print_header "Running All Tests"
 
     local test_args=()
-    [[ "$verbose" == "false" ]] && test_args+=("--quiet")
 
     timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" ${test_args[@]+"${test_args[@]}"} &
     local test_pid=$!

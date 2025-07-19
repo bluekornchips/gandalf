@@ -247,7 +247,7 @@ export GANDALF_DEBUG="true"
 ./scripts/test-suite.sh project
 
 # Debug specific test
-bats --verbose-run scripts/tests/project-tests.sh
+bats --timing gandalf/tools/tests/unit/project-tests.sh
 ```
 
 ### Test Isolation
