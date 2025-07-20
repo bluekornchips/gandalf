@@ -106,46 +106,88 @@ class ConnectionPool:
             }
 
 
-# Global connection pool instance
-_connection_pool: ConnectionPool | None = None
-_pool_lock = threading.Lock()
+class DatabaseService:
+    """Database service with explicit initialization and lifecycle management."""
+
+    def __init__(self):
+        """Initialize the database service."""
+        self._pool: ConnectionPool | None = None
+        self._initialized = False
+        self._lock = threading.Lock()
+
+    def initialize(self, max_connections: int = 5, timeout: float = 2.0) -> None:
+        """Initialize the database service with connection pool."""
+        with self._lock:
+            if self._initialized:
+                return
+            self._pool = ConnectionPool(max_connections, timeout)
+            self._initialized = True
+            log_debug("Database service initialized")
+
+    @contextmanager
+    def get_connection(
+        self, db_path: Path
+    ) -> Generator[sqlite3.Connection, None, None]:
+        """Get a database connection from the service pool."""
+        if not self._initialized or not self._pool:
+            raise RuntimeError(
+                "DatabaseService not initialized. Call initialize() first."
+            )
+        with self._pool.get_connection(db_path) as conn:
+            yield conn
+
+    def get_pool_stats(self) -> dict[str, int]:
+        """Get current pool statistics."""
+        if not self._pool:
+            return {}
+        return self._pool.get_pool_stats()
+
+    def is_initialized(self) -> bool:
+        """Check if the database service is initialized."""
+        return self._initialized
+
+    def shutdown(self) -> None:
+        """Shutdown the database service and close all connections."""
+        with self._lock:
+            if self._pool:
+                self._pool.close_all()
+                self._pool = None
+                self._initialized = False
+                log_debug("Database service shutdown completed")
 
 
-def get_database_pool() -> ConnectionPool:
-    """Get the global database connection pool instance."""
-    global _connection_pool
+# Backward compatibility functions for existing code
+_default_service: DatabaseService | None = None
+_service_lock = threading.Lock()
 
-    if _connection_pool is None:
-        with _pool_lock:
-            if _connection_pool is None:
-                _connection_pool = ConnectionPool()
-                log_debug("Initialized global database connection pool")
 
-    return _connection_pool
+def get_database_pool() -> DatabaseService:
+    """Get the default database service instance for backward compatibility."""
+    global _default_service
+
+    if _default_service is None:
+        with _service_lock:
+            if _default_service is None:
+                _default_service = DatabaseService()
+                _default_service.initialize()
+
+    return _default_service
 
 
 def close_database_pool() -> None:
-    """Close the global database connection pool."""
-    global _connection_pool
+    """Close the default database service for backward compatibility."""
+    global _default_service
 
-    if _connection_pool is not None:
-        with _pool_lock:
-            if _connection_pool is not None:
-                _connection_pool.close_all()
-                _connection_pool = None
-                log_debug("Closed global database connection pool")
+    if _default_service is not None:
+        with _service_lock:
+            if _default_service is not None:
+                _default_service.shutdown()
+                _default_service = None
 
 
 @contextmanager
 def get_database_connection(db_path: Path) -> Generator[sqlite3.Connection, None, None]:
-    """Get a database connection using the global pool.
-
-    Args:
-        db_path: Path to the SQLite database
-
-    Yields:
-        SQLite connection object
-    """
-    pool = get_database_pool()
-    with pool.get_connection(db_path) as conn:
+    """Get a database connection using the default service for backward compatibility."""
+    service = get_database_pool()
+    with service.get_connection(db_path) as conn:
         yield conn

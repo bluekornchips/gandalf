@@ -41,24 +41,7 @@ class MemoryAwareLRUCache:
         self._current_memory = 0
 
     def _estimate_size(self, value: Any) -> int:
-        """Estimate memory size of a value in bytes.
-
-        Provides memory size estimation for different data types to enable
-        accurate memory tracking. Uses optimized size calculation methods
-        for common data types with fallback for complex objects.
-
-        Args:
-            value: The value to estimate size for
-
-        Returns:
-            Estimated size in bytes
-
-        Size Estimation Methods:
-            - String/bytes: Use len() for direct character/byte count
-            - Dict: JSON serialization size as approximation
-            - Other objects: sys.getsizeof() for Python object size
-            - Fallback: 1KB default for complex objects
-        """
+        """Estimate memory size of a value in bytes."""
         try:
             if isinstance(value, str | bytes):
                 return len(value)
@@ -72,20 +55,7 @@ class MemoryAwareLRUCache:
             return 1024
 
     def _check_memory_pressure(self) -> bool:
-        """Check if we're under memory pressure and need to evict entries.
-
-        Performs periodic memory pressure checks to determine if cache cleanup
-        is needed. Uses garbage collection to get accurate memory readings
-        and compares against configured limits.
-
-        Returns:
-            True if memory pressure detected and eviction needed
-
-        Memory Pressure Detection:
-            - Only checks at specified intervals to avoid overhead
-            - Forces garbage collection for accurate memory readings
-            - Compares current cache memory against max_memory_bytes limit
-        """
+        """Check if we're under memory pressure and need to evict entries."""
         now = time.time()
         if now - self._last_memory_check < self.check_interval:
             return False
@@ -99,18 +69,7 @@ class MemoryAwareLRUCache:
         return self._current_memory > self.max_memory_bytes
 
     def _evict_expired(self) -> None:
-        """Remove expired entries based on TTL.
-
-        Scans all cache entries and removes those that have exceeded their
-        time-to-live. This is the first eviction strategy applied when
-        memory pressure is detected.
-
-        Expiration Logic:
-            - Compares current time against entry access time
-            - Removes entries older than ttl_seconds
-            - Updates memory tracking and statistics
-            - Logs eviction count for monitoring
-        """
+        """Remove expired entries based on TTL."""
         now = time.time()
         expired_keys = [
             key
@@ -125,21 +84,7 @@ class MemoryAwareLRUCache:
             log_debug(f"Evicted {len(expired_keys)} expired cache entries")
 
     def _evict_lru(self, target_count: int | None = None) -> None:
-        """Remove least recently used entries when memory pressure persists.
-
-        Implements LRU (Least Recently Used) eviction policy to remove
-        cache entries that haven't been accessed recently. This is applied
-        after TTL-based eviction if memory pressure still exists.
-
-        Args:
-            target_count: Number of entries to evict (default: 25% of cache)
-
-        LRU Eviction Strategy:
-            - Sorts entries by access time (oldest first)
-            - Removes specified number of least recently used entries
-            - Defaults to removing 25% of cache if no target specified
-            - Updates memory tracking and logs eviction statistics
-        """
+        """Remove least recently used entries when memory pressure persists."""
         if target_count is None:
             target_count = max(1, len(self._cache) // 4)  # Remove 25%
 
@@ -159,21 +104,7 @@ class MemoryAwareLRUCache:
             log_debug(f"Evicted {evicted} LRU cache entries")
 
     def _remove_key(self, key: str) -> None:
-        """Remove a key from all internal structures and update memory tracking.
-
-        Safely removes a cache entry from all internal data structures
-        and updates memory usage tracking. This is a low-level method
-        used by eviction and expiration processes.
-
-        Args:
-            key: Cache key to remove
-
-        Cleanup Operations:
-            - Removes entry from main cache dictionary
-            - Cleans up access time tracking
-            - Updates memory usage statistics
-            - Removes size tracking information
-        """
+        """Remove a key from all internal structures and update memory tracking."""
         if key in self._cache:
             self._current_memory -= self._cache_sizes.get(key, 0)
             del self._cache[key]
@@ -231,17 +162,7 @@ class MemoryAwareLRUCache:
             )
 
     def clear(self) -> None:
-        """Clear all cache entries and reset memory tracking.
-
-        Removes all cached entries and resets internal tracking structures.
-        This provides a clean slate for the cache and frees all memory.
-
-        Operations Performed:
-            - Clear main cache dictionary
-            - Reset access time tracking
-            - Clear memory size tracking
-            - Reset total memory counter to zero
-        """
+        """Clear all cache entries and reset memory tracking."""
         with self._lock:
             self._cache.clear()
             self._access_times.clear()
@@ -250,25 +171,7 @@ class MemoryAwareLRUCache:
             log_debug("Cleared all cache entries")
 
     def get_stats(self) -> dict[str, Any]:
-        """Get comprehensive cache statistics for monitoring and debugging.
-
-        Returns detailed statistics about cache usage, memory consumption,
-        and utilization rates. Useful for performance monitoring and tuning.
-
-        Returns:
-            Dictionary containing cache statistics:
-            - total_items: Current number of cached entries
-            - memory_usage_mb: Current memory usage in megabytes
-            - memory_limit_mb: Configured memory limit in megabytes
-            - items_limit: Maximum number of items allowed
-            - memory_utilization: Memory usage as percentage of limit (0.0-1.0)
-            - items_utilization: Item count as percentage of limit (0.0-1.0)
-
-        Example:
-            stats = cache.get_stats()
-            print(f"Memory usage: {stats['memory_usage_mb']:.1f}MB")
-            print(f"Cache utilization: {stats['memory_utilization']:.1%}")
-        """
+        """Get comprehensive cache statistics for monitoring and debugging."""
         with self._lock:
             return {
                 "total_items": len(self._cache),
@@ -280,22 +183,7 @@ class MemoryAwareLRUCache:
             }
 
     def cleanup_if_needed(self) -> None:
-        """Perform cache cleanup if memory pressure is detected.
-
-        Provides a convenient method to trigger cache cleanup when needed.
-        This can be called periodically or when the application detects
-        memory pressure to proactively manage cache size.
-
-        Cleanup Strategy:
-            1. Check for memory pressure using configured thresholds
-            2. Remove expired entries first (TTL-based cleanup)
-            3. Apply LRU eviction if memory usage still high (>80% of limit)
-            4. Log cleanup actions for monitoring
-
-        Usage:
-            Call this method periodically in long-running applications
-            or when memory usage warnings are detected.
-        """
+        """Perform cache cleanup if memory pressure is detected."""
         with self._lock:
             if self._check_memory_pressure():
                 log_info("Memory pressure detected, performing cache cleanup")
@@ -311,23 +199,7 @@ _cache_lock = threading.Lock()
 
 
 def get_conversation_cache() -> MemoryAwareLRUCache:
-    """Get the global conversation cache instance with optimized settings.
-
-    Returns a singleton cache instance configured specifically for conversation
-    data with appropriate memory limits and TTL settings for conversation content.
-
-    Returns:
-        Global conversation cache instance
-
-    Cache Configuration:
-        - Memory Limit: 80MB (optimized for conversation data)
-        - Item Limit: 500 conversations
-        - TTL: 30 minutes (balances freshness and performance)
-
-    Thread Safety:
-        Uses double-checked locking pattern to ensure thread-safe
-        singleton initialization.
-    """
+    """Get the global conversation cache instance with optimized settings."""
     global _conversation_cache
 
     if _conversation_cache is None:
@@ -344,24 +216,7 @@ def get_conversation_cache() -> MemoryAwareLRUCache:
 
 
 def get_keyword_cache() -> MemoryAwareLRUCache:
-    """Get the global keyword cache instance with keyword-optimized settings.
-
-    Returns a singleton cache instance configured specifically for keyword
-    and project metadata with settings optimized for smaller, frequently
-    accessed data.
-
-    Returns:
-        Global keyword cache instance
-
-    Cache Configuration:
-        - Memory Limit: 20MB (smaller for keyword data)
-        - Item Limit: 200 keyword sets
-        - TTL: 1 hour (longer for relatively stable keyword data)
-
-    Thread Safety:
-        Uses double-checked locking pattern to ensure thread-safe
-        singleton initialization.
-    """
+    """Get the global keyword cache instance with keyword-optimized settings."""
     global _keyword_cache
 
     if _keyword_cache is None:
@@ -378,20 +233,7 @@ def get_keyword_cache() -> MemoryAwareLRUCache:
 
 
 def clear_all_caches() -> None:
-    """Clear all global caches and reset memory usage.
-
-    Provides a convenient way to clear all global cache instances at once.
-    Useful for testing, debugging, or when a complete cache reset is needed.
-
-    Operations:
-        - Clears conversation cache if initialized
-        - Clears keyword cache if initialized
-        - Logs cache clearing action for monitoring
-
-    Note:
-        This does not destroy the cache instances, just clears their contents.
-        The caches will continue to function normally after clearing.
-    """
+    """Clear all global caches and reset memory usage."""
     if _conversation_cache:
         _conversation_cache.clear()
     if _keyword_cache:

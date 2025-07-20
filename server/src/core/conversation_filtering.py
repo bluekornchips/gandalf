@@ -27,12 +27,7 @@ class ConversationFilter:
     """Simple conversation filtering based on keyword matching."""
 
     def __init__(self, project_root: Path, user_prompt: str | None = None):
-        """Initialize the conversation filter.
-
-        Args:
-            project_root: Project root directory for context generation
-            user_prompt: Optional user prompt for keyword extraction
-        """
+        """Initialize the conversation filter."""
         self.project_root = project_root
         self.user_prompt = user_prompt
         self.base_keywords = generate_shared_context_keywords(project_root)
@@ -186,17 +181,7 @@ def apply_conversation_filtering(
     requested_limit: int = 20,
     user_prompt: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Apply conversation filtering and return filtered conversations with metadata.
-
-    Args:
-        conversations: List of conversations to filter
-        project_root: Project root directory
-        requested_limit: Maximum number of conversations to return
-        user_prompt: Optional user prompt for keyword extraction
-
-    Returns:
-        Tuple of (filtered_conversations, filtering_metadata)
-    """
+    """Apply conversation filtering and return filtered conversations with metadata."""
 
     if not CONVERSATION_FILTERING_ENABLED:
         limited_conversations = conversations[:requested_limit]

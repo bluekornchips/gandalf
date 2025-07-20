@@ -447,40 +447,7 @@ def handle_recall_conversations(
     search_query: str | None = None,
     tags: list[str] | None = None,
 ) -> dict[str, Any]:
-    """
-    Cross-platform conversation recall that aggregates results from all available tools.
-
-    This function detects available tools and combines their conversation data
-    into a unified format for comprehensive context analysis with intelligent filtering.
-
-    When search_query or tags are provided, it filters conversations for
-    specific content instead of returning all contextually relevant recent
-    conversations.
-
-    Args:
-        fast_mode: Use fast extraction vs comprehensive analysis
-        days_lookback: Number of days to look back for conversations
-        limit: Maximum number of conversations to return (used as context limit
-               for intelligent filtering)
-        min_score: Minimum relevance score threshold
-        conversation_types: Filter by conversation types
-        tools: Filter by specific agentic tools (e.g. ["windsurf", "cursor"])
-        project_root: Project root directory for context generation
-        user_prompt: Optional user prompt for dynamic keyword extraction
-        search_query: Optional query to filter conversations for specific content
-        tags: Optional list of tags/keywords to filter conversations
-
-    Returns:
-        Dict containing aggregated conversation data from all detected tools
-        with intelligent filtering
-
-    Note:
-        This function automatically detects and processes conversations from
-        multiple tools for comprehensive conversation context.
-        When intelligent filtering is enabled, the limit parameter serves as a
-        context limit rather than a hard limit, allowing for quality-based
-        filtering.
-    """
+    """Cross-platform conversation recall that aggregates results from all available tools."""
     import time
 
     start_time = time.time()
