@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  python:
+  lint:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -34,11 +34,43 @@ jobs:
           cd server
           pip install -e .[dev]
 
-      - name: Lint and format (ruff)
+      - name: Run linting
         run: |
           cd server
-          make lint > lint-result.txt || true
+          make lint
+
+      - name: Check formatting
+        run: |
+          cd server
           make format
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          cd server
+          pip install -e .[dev]
 
       - name: Run tests and save coverage summary
         run: |
@@ -53,26 +85,14 @@ jobs:
           cat server/coverage-summary.txt >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
 
-      - name: Read lint results
-        id: lint
-        run: |
-          echo 'content<<EOF' >> $GITHUB_OUTPUT
-          cat server/lint-result.txt >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
-
-      - name: Post coverage and lint results as PR comment
+      - name: Post coverage results as PR comment
         if: github.event_name == 'pull_request'
         uses: peter-evans/create-or-update-comment@v4
         with:
           token: ${{ secrets.GH_PR_COMMENT_TOKEN }}
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            ## 🧪 Test Coverage Summary
+            ## Test Coverage Summary
             ```
             ${{ steps.coverage.outputs.content }}
-            ```
-
-            ## 🧹 Ruff Lint Results
-            ```
-            ${{ steps.lint.outputs.content }}
             ```
