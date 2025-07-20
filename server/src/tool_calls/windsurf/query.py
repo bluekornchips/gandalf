@@ -33,6 +33,7 @@ from src.config.constants.windsurf import (
 )
 from src.utils.access_control import AccessValidator
 from src.utils.common import log_error
+from src.utils.database_pool import get_database_connection
 
 
 class ConversationValidator:
@@ -139,7 +140,7 @@ class DatabaseReader:
     def get_data(self, db_path: Path, key: str) -> Any | None:
         """Extract data from database using a specific key."""
         try:
-            with sqlite3.connect(str(db_path)) as conn:
+            with get_database_connection(db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
                 result = cursor.fetchone()
@@ -152,7 +153,7 @@ class DatabaseReader:
     def get_all_keys(self, db_path: Path) -> list[str]:
         """Get all keys from a database."""
         try:
-            with sqlite3.connect(str(db_path)) as conn:
+            with get_database_connection(db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT key FROM ItemTable")
                 return [row[0] for row in cursor.fetchall()]

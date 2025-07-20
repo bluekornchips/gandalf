@@ -24,6 +24,7 @@ from src.config.constants.database import (
     CURSOR_KEY_USER_PROMPTS,
     SQL_GET_VALUE_BY_KEY,
 )
+from src.utils.database_pool import get_database_connection
 
 
 def is_running_in_wsl() -> bool:
@@ -244,7 +245,7 @@ class CursorQuery:
     def get_data_from_db(self, db_path: Path, key: str) -> Any | None:
         """Extract data from database using a specific key."""
         try:
-            with sqlite3.connect(str(db_path)) as conn:
+            with get_database_connection(db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
                 result = cursor.fetchone()
@@ -260,7 +261,7 @@ class CursorQuery:
     def query_conversations_from_db(self, db_path: Path) -> dict[str, Any]:
         """Query all conversation data from a single database."""
         try:
-            with sqlite3.connect(str(db_path)) as conn:
+            with get_database_connection(db_path) as conn:
                 cursor = conn.cursor()
 
                 # Query all keys in one go to minimize database connections
