@@ -19,7 +19,10 @@ class TestMain:
 
     def setup_method(self):
         from unittest.mock import patch, Mock
-        self._sqlite3_connect_patcher = patch("sqlite3.connect", return_value=Mock(close=Mock()))
+
+        self._sqlite3_connect_patcher = patch(
+            "sqlite3.connect", return_value=Mock(close=Mock())
+        )
         self._sqlite3_connect_patcher.start()
 
     def teardown_method(self):
@@ -173,7 +176,7 @@ class TestMain:
 
     def test_main_server_shutdown_on_exception_during_run(self, tmp_path):
         """Test that server shutdown is called when run() raises exception."""
-        rohan_path = tmp_path / "rohan" 
+        rohan_path = tmp_path / "rohan"
         rohan_path.mkdir()
 
         with patch("sys.argv", ["gandalf-server", "--project-root", str(rohan_path)]):
@@ -205,7 +208,7 @@ class TestMain:
                 assert called_path.is_absolute()
                 assert called_path.name == "moria"
                 assert called_path == moria_path
-                
+
                 # Verify normal flow includes shutdown
                 mock_server.run.assert_called_once()
                 mock_server.shutdown.assert_called_once()

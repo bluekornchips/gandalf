@@ -1,6 +1,7 @@
 format:
 	ruff check --fix --unsafe-fixes src/
 	ruff format src/
+	ruff format tests/
 
 lint:
 	ruff check src/

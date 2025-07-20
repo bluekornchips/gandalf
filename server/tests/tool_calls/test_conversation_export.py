@@ -147,7 +147,6 @@ class TestConversationExport:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("builtins.open", mock_open()) as mock_file_open,
         ):
-
             result = handle_export_individual_conversations(
                 {
                     "format": "json",
@@ -225,7 +224,6 @@ class TestConversationExport:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("builtins.open", mock_open()) as mock_file_open,
         ):
-
             result = handle_export_individual_conversations(
                 {
                     "format": "json",
@@ -265,7 +263,6 @@ class TestConversationExport:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("builtins.open", mock_open()) as mock_file_open,
         ):
-
             result = handle_export_individual_conversations(
                 {
                     "format": "json",
@@ -415,7 +412,6 @@ class TestConversationExportEdgeCases:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("builtins.open", mock_open()) as mock_file_open,
         ):
-
             result = handle_export_individual_conversations(
                 {"format": "markdown", "limit": 1, "output_dir": "/tmp/test"},
                 project_root=Path("/test/project"),
@@ -440,7 +436,6 @@ class TestConversationExportEdgeCases:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("builtins.open", mock_open()) as mock_file_open,
         ):
-
             result = handle_export_individual_conversations(
                 {"format": "md", "limit": 1, "output_dir": "/tmp/test"},
                 project_root=Path("/test/project"),
@@ -465,7 +460,6 @@ class TestConversationExportEdgeCases:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("builtins.open", mock_open()) as mock_file_open,
         ):
-
             result = handle_export_individual_conversations(
                 {"format": "txt", "limit": 1, "output_dir": "/tmp/test"},
                 project_root=Path("/test/project"),
@@ -492,7 +486,6 @@ class TestConversationExportEdgeCases:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("builtins.open", mock_open()) as mock_file_open,
         ):
-
             result = handle_export_individual_conversations(
                 {
                     "format": "json",
@@ -525,7 +518,6 @@ class TestConversationExportEdgeCases:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("builtins.open", mock_open()) as mock_file_open,
         ):
-
             result = handle_export_individual_conversations(
                 {
                     "format": "json",

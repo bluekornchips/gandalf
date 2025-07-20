@@ -152,7 +152,6 @@ class TestWindsurfRecall:
                 "src.tool_calls.windsurf.recall.analyze_session_relevance"
             ) as mock_analyze,
         ):
-
             mock_instance = Mock()
             mock_query_class.return_value = mock_instance
             mock_instance.query_all_conversations.return_value = (
@@ -193,7 +192,6 @@ class TestWindsurfRecall:
                 "src.tool_calls.windsurf.recall.generate_shared_context_keywords"
             ) as mock_keywords,
         ):
-
             mock_instance = Mock()
             mock_query_class.return_value = mock_instance
             mock_instance.query_all_conversations.return_value = {
@@ -230,7 +228,6 @@ class TestWindsurfRecall:
                 "src.tool_calls.windsurf.recall.analyze_session_relevance"
             ) as mock_analyze,
         ):
-
             mock_instance = Mock()
             mock_query_class.return_value = mock_instance
             mock_instance.query_all_conversations.return_value = (
@@ -284,7 +281,6 @@ class TestWindsurfRecall:
                 "src.tool_calls.windsurf.recall.analyze_session_relevance"
             ) as mock_analyze,
         ):
-
             mock_instance = Mock()
             mock_query_class.return_value = mock_instance
             mock_instance.query_all_conversations.return_value = (
@@ -326,7 +322,6 @@ class TestWindsurfRecall:
                 "src.tool_calls.windsurf.recall.analyze_session_relevance"
             ) as mock_analyze,
         ):
-
             mock_instance = Mock()
             mock_query_class.return_value = mock_instance
             mock_instance.query_all_conversations.return_value = (
@@ -379,7 +374,6 @@ class TestWindsurfRecall:
                     "src.tool_calls.windsurf.recall.analyze_session_relevance"
                 ) as mock_analyze,
             ):
-
                 mock_instance = Mock()
                 mock_query_class.return_value = mock_instance
                 mock_instance.query_all_conversations.return_value = (
@@ -427,7 +421,6 @@ class TestWindsurfRecall:
                     "src.tool_calls.windsurf.recall.generate_shared_context_keywords"
                 ) as mock_keywords,
             ):
-
                 mock_instance = Mock()
                 mock_query_class.return_value = mock_instance
                 mock_instance.query_all_conversations.return_value = {
@@ -463,7 +456,6 @@ class TestWindsurfRecall:
                 "src.tool_calls.windsurf.recall.analyze_session_relevance"
             ) as mock_analyze,
         ):
-
             mock_instance = Mock()
             mock_query_class.return_value = mock_instance
             mock_instance.query_all_conversations.return_value = (
@@ -516,7 +508,6 @@ class TestWindsurfRecall:
                 "src.tool_calls.windsurf.recall.analyze_session_relevance"
             ) as mock_analyze,
         ):
-
             mock_instance = Mock()
             mock_query_class.return_value = mock_instance
             mock_instance.query_all_conversations.return_value = (
@@ -564,7 +555,6 @@ class TestWindsurfRecall:
                 "src.tool_calls.windsurf.recall.analyze_session_relevance"
             ) as mock_analyze,
         ):
-
             mock_instance = Mock()
             mock_query_class.return_value = mock_instance
             mock_instance.query_all_conversations.return_value = (
@@ -608,7 +598,6 @@ class TestWindsurfRecall:
                 "src.tool_calls.windsurf.recall.analyze_session_relevance"
             ) as mock_analyze,
         ):
-
             mock_instance = Mock()
             mock_query_class.return_value = mock_instance
             mock_instance.query_all_conversations.return_value = (

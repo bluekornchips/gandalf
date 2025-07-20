@@ -80,4 +80,8 @@ exclude_lines = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["-v", "--tb=short", "--cov=src"] 
+addopts = ["-v", "--tb=short", "--cov=src"]
+filterwarnings = [
+    "ignore::ResourceWarning:sqlite3",
+    "ignore:unclosed database:ResourceWarning"
+] 

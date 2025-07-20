@@ -114,8 +114,7 @@ class TestGenerateSharedContextKeywords(unittest.TestCase):
             # Clear cache to force regeneration
             get_keyword_cache().clear()
 
-            # Modify file
-            time.sleep(0.1)
+            # Modify file content to ensure cache regeneration
             (tmp_path / "package.json").write_text(
                 json.dumps({"name": "updated-project"})
             )
@@ -181,7 +180,7 @@ class TestExtractProjectKeywords(unittest.TestCase):
             # Create a scenario that will trigger the exception handling
             # in _extract_project_keywords
             with patch(
-                "src.core.conversation_analysis." "_extract_tech_keywords_from_files",
+                "src.core.conversation_analysis._extract_tech_keywords_from_files",
                 side_effect=OSError("Test error"),
             ):
                 keywords = _extract_project_keywords(tmp_path)
@@ -628,8 +627,7 @@ class TestClassifyConversationType(unittest.TestCase):
     def test_classify_debugging_conversation(self):
         """Test classification of debugging conversations."""
         content = (
-            "Getting an error message when running the code, need to debug "
-            "this issue"
+            "Getting an error message when running the code, need to debug this issue"
         )
 
         conv_type = classify_conversation_type(content, [], [])
@@ -647,8 +645,7 @@ class TestClassifyConversationType(unittest.TestCase):
     def test_classify_architecture_conversation(self):
         """Test classification of architecture conversations."""
         content = (
-            "Need to refactor the code structure and improve the overall "
-            "architecture"
+            "Need to refactor the code structure and improve the overall architecture"
         )
 
         conv_type = classify_conversation_type(content, [], [])
@@ -957,7 +954,6 @@ class TestCacheManagement(unittest.TestCase):
             # Generate new keywords (should trigger cleanup)
             (tmp_path / "README.md").write_text("# New Project")
             generate_shared_context_keywords(tmp_path)
-
 
     def test_cache_key_generation(self):
         """Test that cache keys are generated consistently."""

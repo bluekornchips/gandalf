@@ -248,9 +248,9 @@ class TestClaudeCodeIntegration:
                     assert claude_summary["count"] > 0
                 else:
                     # If neither format, fail with helpful message
-                    assert (
-                        False
-                    ), f"Unexpected response format. Keys: {list(data.keys())}"
+                    assert False, (
+                        f"Unexpected response format. Keys: {list(data.keys())}"
+                    )
 
     def test_registry_detection_integration(self):
         """Test that registry detection works with real registry files."""
@@ -480,9 +480,9 @@ class TestClaudeCodeRegressionTests:
                     assert claude_summary["count"] > 0
                 else:
                     # If neither format, fail with helpful message
-                    assert (
-                        False
-                    ), f"Unexpected response format. Keys: {list(data.keys())}"
+                    assert False, (
+                        f"Unexpected response format. Keys: {list(data.keys())}"
+                    )
 
     def test_regression_conversation_aggregator_project_root_default(self):
         """Regression test: ensure conversation aggregator handles default project root."""
