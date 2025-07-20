@@ -355,7 +355,7 @@ class TestIntegrationScenarios:
         # Mock git output
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = "boromir_file.py\n" "faramir_file.py\n" "boromir_file.py\n"
+        mock_result.stdout = "boromir_file.py\nfaramir_file.py\nboromir_file.py\n"
 
         with patch("subprocess.run", return_value=mock_result):
             with patch("src.core.git_activity.log_info"):

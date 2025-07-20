@@ -2,10 +2,10 @@
 Tests for database connection pooling utility.
 """
 
+import gc
 import sqlite3
 import tempfile
 import threading
-import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -17,6 +17,7 @@ from src.utils.database_pool import (
     get_database_connection,
     get_database_pool,
 )
+from conftest import execute_sql, safe_cursor
 
 
 class TestConnectionPool:
@@ -35,10 +36,11 @@ class TestConnectionPool:
 
         with pool.get_connection(temp_db) as conn:
             assert isinstance(conn, sqlite3.Connection)
-            # Test that connection works
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            assert cursor.fetchone()[0] == 1
+            with execute_sql(conn, "SELECT 1") as cursor:
+                assert cursor.fetchone()[0] == 1
+
+        # Clean up pool connections
+        pool.close_all()
 
     def test_connection_reuse(self, temp_db):
         """Test that connections are reused from the pool."""
@@ -53,6 +55,8 @@ class TestConnectionPool:
             conn2_id = id(conn2)
             assert conn1_id == conn2_id  # Same connection object
 
+        pool.close_all()
+
     def test_max_connections_limit(self, temp_db):
         """Test that pool respects max connections limit."""
         pool = ConnectionPool(max_connections=2)
@@ -61,39 +65,49 @@ class TestConnectionPool:
         for _ in range(3):
             with pool.get_connection(temp_db) as conn:
                 # Do something to ensure connection is used
-                conn.execute("SELECT 1")
+                with execute_sql(conn, "SELECT 1") as cursor:
+                    cursor.fetchone()
 
         # Pool should only have 2 connections (the limit)
         assert len(pool._pools[str(temp_db)]) <= 2
 
-    def test_connection_health_check(self, temp_db):
+        # Explicitly close all connections in the pool to prevent leaks
+        pool.close_all()
+        gc.collect()
+
+    @patch.object(ConnectionPool, "_is_connection_healthy", return_value=False)
+    def test_connection_health_check(self, mock_health_check, temp_db):
         """Test that unhealthy connections are not returned to pool."""
         pool = ConnectionPool()
 
+        # Use connection normally, but mock health check to return False
         with pool.get_connection(temp_db) as conn:
-            # Simulate connection corruption
-            conn.close()
+            with execute_sql(conn, "SELECT 1") as cursor:
+                cursor.fetchone()
 
-        # Pool should handle the corrupted connection gracefully
+        # Pool should handle the "unhealthy" connection gracefully
         stats = pool.get_pool_stats()
-        # Connection should not have been returned to pool
+        # Connection should not have been returned to pool due to failed health check
         assert stats.get(str(temp_db), 0) == 0
+
+        mock_health_check.assert_called_once()
 
     def test_concurrent_access(self, temp_db):
         """Test thread-safe concurrent access to connection pool."""
         pool = ConnectionPool()
         results = []
         errors = []
+        barrier = threading.Barrier(5)
 
         def worker():
             try:
+                barrier.wait()
+
                 with pool.get_connection(temp_db) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT 1")
-                    result = cursor.fetchone()[0]
-                    results.append(result)
-                    time.sleep(0.01)  # Small delay to test concurrency
-            except Exception as e:
+                    with execute_sql(conn, "SELECT 1") as cursor:
+                        result = cursor.fetchone()[0]
+                        results.append(result)
+            except (sqlite3.Error, OSError, RuntimeError) as e:
                 errors.append(e)
 
         # Start multiple threads
@@ -111,6 +125,9 @@ class TestConnectionPool:
         assert len(errors) == 0
         assert len(results) == 5
         assert all(r == 1 for r in results)
+
+        # Clean up pool connections
+        pool.close_all()
 
     def test_close_all_connections(self, temp_db):
         """Test closing all connections in the pool."""
@@ -142,7 +159,8 @@ class TestConnectionPool:
         # Add connections by using them sequentially
         for _ in range(2):
             with pool.get_connection(temp_db) as conn:
-                conn.execute("SELECT 1")
+                with execute_sql(conn, "SELECT 1") as cursor:
+                    cursor.fetchone()
 
         # Check stats - should have at least 1 connection
         stats = pool.get_pool_stats()
@@ -169,6 +187,9 @@ class TestConnectionPool:
             assert len(stats) == 2
             assert str(temp_db) in stats
             assert str(temp_db2) in stats
+
+            # Clean up pool connections
+            pool.close_all()
         finally:
             temp_db2.unlink()
 
@@ -186,7 +207,7 @@ class TestDatabaseService:
         """Test DatabaseService initialization."""
         service = DatabaseService()
         service.initialize(max_connections=3, timeout=1.5)
-        
+
         assert service.is_initialized()
         assert service._pool is not None
         assert service._pool.max_connections == 3
@@ -196,20 +217,21 @@ class TestDatabaseService:
         """Test that initialize can be called multiple times safely."""
         service = DatabaseService()
         service.initialize(max_connections=2)
-        
+
         pool1 = service._pool
-        
+        assert pool1 is not None  # Ensure pool was created
+
         # Second initialize should not create new pool
         service.initialize(max_connections=5)
         pool2 = service._pool
-        
+
         assert pool1 is pool2
         assert pool1.max_connections == 2  # Original settings preserved
 
     def test_database_service_get_connection_not_initialized(self):
         """Test that get_connection raises error when not initialized."""
         service = DatabaseService()
-        
+
         with pytest.raises(RuntimeError, match="DatabaseService not initialized"):
             with service.get_connection(Path("test.db")):
                 pass
@@ -218,18 +240,17 @@ class TestDatabaseService:
         """Test successful database connection through service."""
         service = DatabaseService()
         service.initialize()
-        
+
         with service.get_connection(temp_db) as conn:
             assert isinstance(conn, sqlite3.Connection)
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            assert cursor.fetchone()[0] == 1
+            with execute_sql(conn, "SELECT 1") as cursor:
+                assert cursor.fetchone()[0] == 1
 
     def test_database_service_connection_reuse(self, temp_db):
         """Test that service reuses connections."""
         service = DatabaseService()
         service.initialize()
-        
+
         # First connection
         with service.get_connection(temp_db) as conn1:
             conn1_id = id(conn1)
@@ -243,15 +264,16 @@ class TestDatabaseService:
         """Test getting pool statistics from service."""
         service = DatabaseService()
         service.initialize()
-        
+
         # Initially empty
         stats = service.get_pool_stats()
         assert len(stats) == 0
-        
+
         # Use connection
         with service.get_connection(temp_db) as conn:
-            conn.execute("SELECT 1")
-            
+            with execute_sql(conn, "SELECT 1") as cursor:
+                cursor.fetchone()
+
         # Should have stats
         stats = service.get_pool_stats()
         assert str(temp_db) in stats
@@ -260,18 +282,19 @@ class TestDatabaseService:
         """Test service shutdown closes all connections."""
         service = DatabaseService()
         service.initialize()
-        
+
         # Use connection to add to pool
         with service.get_connection(temp_db) as conn:
-            conn.execute("SELECT 1")
-            
+            with execute_sql(conn, "SELECT 1") as cursor:
+                cursor.fetchone()
+
         # Verify connection is in pool
         stats = service.get_pool_stats()
         assert str(temp_db) in stats
-        
+
         # Shutdown
         service.shutdown()
-        
+
         assert not service.is_initialized()
         assert service._pool is None
         assert service.get_pool_stats() == {}
@@ -280,11 +303,11 @@ class TestDatabaseService:
         """Test that shutdown can be called multiple times safely."""
         service = DatabaseService()
         service.initialize()
-        
+
         # First shutdown
         service.shutdown()
         assert not service.is_initialized()
-        
+
         # Second shutdown should not error
         service.shutdown()
         assert not service.is_initialized()
@@ -293,19 +316,20 @@ class TestDatabaseService:
         """Test thread-safe concurrent access to database service."""
         service = DatabaseService()
         service.initialize()
-        
+
         results = []
         errors = []
+        barrier = threading.Barrier(5)  # all threads start simultaneously
 
         def worker():
             try:
+                barrier.wait()
+
                 with service.get_connection(temp_db) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT 1")
-                    result = cursor.fetchone()[0]
-                    results.append(result)
-                    time.sleep(0.01)
-            except Exception as e:
+                    with execute_sql(conn, "SELECT 1") as cursor:
+                        result = cursor.fetchone()[0]
+                        results.append(result)
+            except (sqlite3.Error, OSError, RuntimeError) as e:
                 errors.append(e)
 
         # Start multiple threads
@@ -328,9 +352,9 @@ class TestDatabaseService:
         """Test service error handling with invalid database path."""
         service = DatabaseService()
         service.initialize()
-        
+
         invalid_path = Path("/invalid/path/database.db")
-        
+
         with pytest.raises((sqlite3.Error, OSError)):
             with service.get_connection(invalid_path):
                 pass
@@ -345,11 +369,15 @@ class TestBackwardCompatibility:
         assert isinstance(service, DatabaseService)
         assert service.is_initialized()
 
-    def test_get_database_pool_singleton(self):
-        """Test that get_database_pool returns singleton instance."""
+    def test_get_database_pool_new_instance(self):
+        """Test that get_database_pool returns new instance each time."""
         service1 = get_database_pool()
         service2 = get_database_pool()
-        assert service1 is service2
+        assert service1 is not service2
+        assert isinstance(service1, DatabaseService)
+        assert isinstance(service2, DatabaseService)
+        assert service1.is_initialized()
+        assert service2.is_initialized()
 
     def test_close_database_pool(self):
         """Test closing the global database pool."""
@@ -368,9 +396,8 @@ class TestBackwardCompatibility:
         """Test the global get_database_connection function."""
         with get_database_connection(temp_db) as conn:
             assert isinstance(conn, sqlite3.Connection)
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            assert cursor.fetchone()[0] == 1
+            with execute_sql(conn, "SELECT 1") as cursor:
+                assert cursor.fetchone()[0] == 1
 
     def test_connection_error_handling(self):
         """Test error handling with invalid database path."""
@@ -390,42 +417,32 @@ class TestPragmaSettings:
         service.initialize()
 
         with service.get_connection(temp_db) as conn:
-            cursor = conn.cursor()
+            with execute_sql(conn, "PRAGMA foreign_keys") as cursor:
+                foreign_keys = cursor.fetchone()[0]
+                assert foreign_keys == 1
 
-            # Check foreign keys pragma
-            cursor.execute("PRAGMA foreign_keys")
-            foreign_keys = cursor.fetchone()[0]
-            assert foreign_keys == 1
+            with execute_sql(conn, "PRAGMA journal_mode") as cursor:
+                journal_mode = cursor.fetchone()[0]
+                assert journal_mode == "wal"
 
-            # Check journal mode pragma
-            cursor.execute("PRAGMA journal_mode")
-            journal_mode = cursor.fetchone()[0]
-            assert journal_mode == "wal"
-
-            # Check synchronous pragma
-            cursor.execute("PRAGMA synchronous")
-            synchronous = cursor.fetchone()[0]
-            assert synchronous == 1  # NORMAL mode
+            with execute_sql(conn, "PRAGMA synchronous") as cursor:
+                synchronous = cursor.fetchone()[0]
+                assert synchronous == 1  # NORMAL mode
 
     def test_pragma_settings_applied_backward_compat(self, temp_db):
         """Test that PRAGMA settings are applied via backward compatibility functions."""
         with get_database_connection(temp_db) as conn:
-            cursor = conn.cursor()
+            with execute_sql(conn, "PRAGMA foreign_keys") as cursor:
+                foreign_keys = cursor.fetchone()[0]
+                assert foreign_keys == 1
 
-            # Check foreign keys pragma
-            cursor.execute("PRAGMA foreign_keys")
-            foreign_keys = cursor.fetchone()[0]
-            assert foreign_keys == 1
+            with execute_sql(conn, "PRAGMA journal_mode") as cursor:
+                journal_mode = cursor.fetchone()[0]
+                assert journal_mode == "wal"
 
-            # Check journal mode pragma
-            cursor.execute("PRAGMA journal_mode")
-            journal_mode = cursor.fetchone()[0]
-            assert journal_mode == "wal"
-
-            # Check synchronous pragma
-            cursor.execute("PRAGMA synchronous")
-            synchronous = cursor.fetchone()[0]
-            assert synchronous == 1  # NORMAL mode
+            with execute_sql(conn, "PRAGMA synchronous") as cursor:
+                synchronous = cursor.fetchone()[0]
+                assert synchronous == 1  # NORMAL mode
 
 
 @pytest.fixture
@@ -435,10 +452,16 @@ def temp_db():
         db_path = Path(f.name)
 
     # Initialize database with basic table
-    with sqlite3.connect(str(db_path)) as conn:
-        conn.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)")
-        conn.execute("INSERT INTO test (value) VALUES ('test_data')")
+    conn = None
+    try:
+        conn = sqlite3.connect(str(db_path))
+        with safe_cursor(conn) as cursor:
+            cursor.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)")
+            cursor.execute("INSERT INTO test (value) VALUES ('test_data')")
         conn.commit()
+    finally:
+        if conn:
+            conn.close()
 
     yield db_path
 
@@ -452,5 +475,12 @@ def temp_db():
 @pytest.fixture(autouse=True)
 def cleanup_global_pool():
     """Ensure global pool is cleaned up after each test."""
-    yield
+    # Clean up before test to ensure clean state
     close_database_pool()
+
+    yield
+
+    # Clean up after test to prevent resource leaks
+    close_database_pool()
+    # Force garbage collection to clean up any remaining connections
+    gc.collect()

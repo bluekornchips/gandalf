@@ -1,12 +1,14 @@
 ---
-description: Gandalf Rules Core Workflows and Decision Trees
+description: Enhanced Gandalf MCP Server Rules with Performance Optimization and Advanced Workflows
 globs:
 alwaysApply: true
 ---
 
-Gandalf Rules Applied
+# Gandalf Rules Applied
 
 **RULE APPLIED: Start each response acknowledging "🧙" to confirm this rule is being followed.**
+
+Names and phrases that reference this rule: "🧙", "gandalf", "mcp", "conversation recall", "project context"
 
 # Core Workflows and Decision Trees
 
@@ -49,38 +51,90 @@ Multiple files involved?
 
 ### Project Size Guidelines
 
-- Small (<50 files): `max_files=50`
-- Medium (50-500 files): `max_files=100, fast_mode=true`
-- Large (500+ files): `max_files=50, file_types=['.py']`
+| Project Size   | Files          | Optimization Strategy | Example Parameters                                  |
+| -------------- | -------------- | --------------------- | --------------------------------------------------- |
+| **Tiny**       | <25 files      | Full analysis         | `max_files=25`                                      |
+| **Small**      | 25-100 files   | Standard mode         | `max_files=50`                                      |
+| **Medium**     | 100-500 files  | Fast mode + filters   | `max_files=100, fast_mode=true`                     |
+| **Large**      | 500-1000 files | Type filtering        | `max_files=200, file_types=['.py', '.js']`          |
+| **Enterprise** | 1000+ files    | Aggressive filtering  | `max_files=100, file_types=['.py'], fast_mode=true` |
 
 ### Response Time Targets
 
-- Conversation aggregation: <50ms
-- File listing (1000 files): <100ms
-- Project analysis: <200ms
+| Operation                 | Target | Fallback Strategy           |
+| ------------------------- | ------ | --------------------------- |
+| Conversation aggregation  | <50ms  | Reduce `days_lookback` to 3 |
+| File listing (1000 files) | <100ms | Use `file_types` filter     |
+| Project analysis          | <200ms | Enable `fast_mode=true`     |
+| Cross-tool search         | <300ms | Limit to single tool        |
 
-## Common Workflows
+### Smart Parameter Selection
 
-### Documentation Research
-
-```bash
-recall_conversations(search_query="API documentation")
+```python
+# Auto-adjust based on project size
+if file_count < 50:
+    params = {"max_files": file_count}
+elif file_count < 500:
+    params = {"max_files": 100, "fast_mode": True}
+else:
+    params = {"max_files": 50, "file_types": [".py", ".js", ".ts"], "fast_mode": True}
 ```
 
-### Debugging Support
+## Advanced Workflows
+
+### Comprehensive Context Discovery
 
 ```bash
-recall_conversations(conversation_types=["debugging", "problem_solving"])
+# Step 1: Get recent context
+recall_conversations(fast_mode=true, days_lookback=7, limit=20)
+
+# Step 2: Project overview
+get_project_info(include_stats=true)
+
+# Step 3: Relevant files
+list_project_files(max_files=50, use_relevance_scoring=true)
 ```
 
-### Backup and Export
+### Problem-Solving Workflow
 
 ```bash
-export_individual_conversations(
-    format="json",
-    limit=50,
-    output_dir="~/.gandalf/exports"
+# Search for similar issues
+recall_conversations(
+    search_query="error message keywords",
+    conversation_types=["debugging", "problem_solving"],
+    days_lookback=14
 )
+
+# Find related code
+list_project_files(
+    file_types=[".py", ".js", ".ts"],
+    max_files=30
+)
+```
+
+### Documentation & Knowledge Building
+
+```bash
+# Research patterns
+recall_conversations(
+    search_query="API documentation",
+    conversation_types=["technical", "code_discussion"]
+)
+
+# Export for reference
+export_individual_conversations(
+    format="md",
+    limit=25,
+    output_dir="~/.gandalf/exports/$(date +%Y-%m-%d)"
+)
+```
+
+### Performance Analysis
+
+```bash
+# Fast discovery for large projects
+recall_conversations(fast_mode=true, limit=15, min_score=2.0)
+list_project_files(max_files=30, file_types=[".py"])
 ```
 
 ## Best Practices

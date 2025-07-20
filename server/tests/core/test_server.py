@@ -7,6 +7,7 @@ import pytest
 from src.config.enums import ErrorCodes
 from src.core.server import GandalfMCP
 from src.utils.database_pool import DatabaseService
+from conftest import safe_cursor
 
 
 class TestGandalfMCPInputValidation:
@@ -72,12 +73,12 @@ class TestGandalfMCPInitialization:
 
         assert server.project_root.resolve() == temp_project_dir.resolve()
         assert server.is_ready is False
-        
+
         # Test database service integration
         assert server.db_service is not None
         assert isinstance(server.db_service, DatabaseService)
         assert server.db_service.is_initialized()
-        
+
         server.shutdown()
 
     def test_init_without_project_root(self):
@@ -86,12 +87,12 @@ class TestGandalfMCPInitialization:
 
         assert server.project_root is not None
         assert server.is_ready is False
-        
+
         # Test database service integration
         assert server.db_service is not None
         assert isinstance(server.db_service, DatabaseService)
         assert server.db_service.is_initialized()
-        
+
         server.shutdown()
 
     def test_init_handlers_setup(self):
@@ -111,33 +112,35 @@ class TestGandalfMCPInitialization:
     def test_database_service_initialization(self):
         """Test that database service is properly initialized during server creation."""
         server = GandalfMCP()
-        
+
         # Database service should be initialized
         assert server.db_service is not None
         assert server.db_service.is_initialized()
-        
+
         # Should be able to get pool stats
         stats = server.db_service.get_pool_stats()
         assert isinstance(stats, dict)
-        
+
         server.shutdown()
 
     def test_server_shutdown(self, temp_db):
         """Test that server shutdown properly closes database service."""
         server = GandalfMCP()
-        
+
         # Use database service to create a connection
         with server.db_service.get_connection(temp_db) as conn:
-            conn.execute("SELECT 1")
-        
+            with safe_cursor(conn) as cursor:
+                cursor.execute("SELECT 1")
+                assert cursor.fetchone()[0] == 1
+
         # Verify service is initialized and has connections
         assert server.db_service.is_initialized()
         stats = server.db_service.get_pool_stats()
         assert str(temp_db) in stats
-        
+
         # Shutdown server
         server.shutdown()
-        
+
         # Database service should be shut down
         assert not server.db_service.is_initialized()
         assert server.db_service.get_pool_stats() == {}
@@ -145,13 +148,13 @@ class TestGandalfMCPInitialization:
     def test_server_shutdown_idempotent(self):
         """Test that server shutdown can be called multiple times safely."""
         server = GandalfMCP()
-        
+
         assert server.db_service.is_initialized()
-        
+
         # First shutdown
         server.shutdown()
         assert not server.db_service.is_initialized()
-        
+
         # Second shutdown should not error
         server.shutdown()
         assert not server.db_service.is_initialized()
@@ -163,7 +166,7 @@ class TestDatabaseServiceIntegration:
     def test_tools_can_access_database_service(self, temp_db):
         """Test that tools can access database service through server instance."""
         server = GandalfMCP()
-        
+
         try:
             # Simulate tool call that uses database service
             with server.db_service.get_connection(temp_db) as conn:
@@ -183,7 +186,7 @@ class TestDatabaseServiceIntegration:
         )
 
         server = GandalfMCP()
-        
+
         try:
             # Mock the tool handlers directly on the server instance
             server.tool_handlers = {"test_tool": mock_tool}
@@ -199,11 +202,11 @@ class TestDatabaseServiceIntegration:
 
             assert "result" in response
             assert "content" in response["result"]
-            
+
             # Verify tool was called with server_instance containing database service
             mock_tool.assert_called_once()
             call_args, call_kwargs = mock_tool.call_args
-            
+
             assert "server_instance" in call_kwargs
             assert call_kwargs["server_instance"] is server
             assert hasattr(call_kwargs["server_instance"], "db_service")
@@ -480,7 +483,7 @@ class TestComponentSetup:
             assert server.project_root is not None
             assert len(server.tool_handlers) > 0
             assert len(server.tool_definitions) > 0
-            
+
             # Database service should be initialized
             assert server.db_service is not None
             assert server.db_service.is_initialized()
@@ -680,7 +683,7 @@ def temp_db():
     import tempfile
     import sqlite3
     from pathlib import Path
-    
+
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = Path(f.name)
 

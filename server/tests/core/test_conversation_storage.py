@@ -595,7 +595,6 @@ class TestIntegration:
                 return_value=metadata_file,
             ),
         ):
-
             project_root = tmp_path / "project"
             conversations = [{"id": i, "content": f"test{i}"} for i in range(10)]
             keywords = ["python", "test"]
@@ -635,7 +634,6 @@ class TestIntegration:
                 return_value=metadata_file,
             ),
         ):
-
             info = get_conversation_storage_info()
 
             assert info["storage_file_exists"] is True

@@ -171,7 +171,6 @@ class TestLogConvenienceFunctions:
         mock_write_log.assert_called_once_with("error", "'palantir'")
 
 
-
 class TestLoggingIntegration:
     """Test logging integration and workflow."""
 

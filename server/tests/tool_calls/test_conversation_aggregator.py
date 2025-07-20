@@ -35,7 +35,6 @@ def extract_data_from_mcp_response(response):
 
 
 class TestConversationAggregator(unittest.TestCase):
-
     def setUp(self):
         """Set up test fixtures."""
         self.context_keywords = ["ring", "hobbit", "fellowship", "wizard"]
@@ -256,11 +255,14 @@ class TestConversationAggregator(unittest.TestCase):
             "processing_time": 0.15,
         }
 
-        mock_filtering.return_value = [claude_standardized], {
-            "mode": "test",
-            "original_count": 1,
-            "filtered_count": 1,
-        }
+        mock_filtering.return_value = (
+            [claude_standardized],
+            {
+                "mode": "test",
+                "original_count": 1,
+                "filtered_count": 1,
+            },
+        )
 
         result = handle_recall_conversations(
             fast_mode=False,
@@ -408,7 +410,6 @@ class TestConversationAggregator(unittest.TestCase):
 
 
 class TestConversationAggregatorEdgeCases(unittest.TestCase):
-
     def setUp(self):
         """Set up test fixtures."""
         self.context_keywords = ["ring", "hobbit", "fellowship", "wizard"]
