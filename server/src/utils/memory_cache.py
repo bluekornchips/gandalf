@@ -124,7 +124,7 @@ class MemoryAwareLRUCache:
         if expired_keys:
             log_debug(f"Evicted {len(expired_keys)} expired cache entries")
 
-    def _evict_lru(self, target_count: int = None) -> None:
+    def _evict_lru(self, target_count: int | None = None) -> None:
         """Remove least recently used entries when memory pressure persists.
 
         Implements LRU (Least Recently Used) eviction policy to remove

@@ -13,8 +13,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+from src.config.constants.cache import CONTEXT_CACHE_TTL_SECONDS
 from src.core.conversation_analysis import (
-    CONTEXT_CACHE_TTL_SECONDS,
     FILE_REFERENCE_PATTERNS,
     _extract_keywords_from_file,
     _extract_project_keywords,
