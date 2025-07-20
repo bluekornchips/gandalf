@@ -43,15 +43,19 @@ def main() -> None:
             print(f"Error: Invalid project root path: {e}", file=sys.stderr)
             sys.exit(1)
 
+    server = None
     try:
         server = GandalfMCP(project_root=project_root)
-        try:
-            server.run()
-        finally:
-            server.shutdown()
+        server.run()
+    except KeyboardInterrupt:
+        print("Server interrupted by user (SIGINT)", file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
         print(f"Error: Failed to start server: {e}", file=sys.stderr)
         sys.exit(1)
+    finally:
+        if server:
+            server.shutdown()
 
 
 if __name__ == "__main__":

@@ -17,6 +17,14 @@ from src.main import main
 class TestMain:
     """Tests for main entry point function."""
 
+    def setup_method(self):
+        from unittest.mock import patch, Mock
+        self._sqlite3_connect_patcher = patch("sqlite3.connect", return_value=Mock(close=Mock()))
+        self._sqlite3_connect_patcher.start()
+
+    def teardown_method(self):
+        self._sqlite3_connect_patcher.stop()
+
     def test_main_with_no_arguments(self):
         """Test main function with no command line arguments."""
         with patch("sys.argv", ["gandalf-server"]):
@@ -139,15 +147,12 @@ class TestMain:
                 mock_server.run.side_effect = Exception("Server runtime error")
                 mock_gandalf.return_value = mock_server
 
-                with pytest.raises(SystemExit) as exc_info:
+                with patch("sys.exit") as mock_exit:
                     main()
-
-                assert exc_info.value.code == 1
+                    mock_exit.assert_called_once_with(1)
                 captured = capsys.readouterr()
                 assert "Error: Failed to start server" in captured.err
                 assert "Server runtime error" in captured.err
-                
-                # Verify shutdown was called even though run failed
                 mock_server.shutdown.assert_called_once()
 
     def test_main_server_shutdown_on_keyboard_interrupt(self, tmp_path):
@@ -161,11 +166,9 @@ class TestMain:
                 mock_server.run.side_effect = KeyboardInterrupt("User interrupted")
                 mock_gandalf.return_value = mock_server
 
-                with pytest.raises(SystemExit) as exc_info:
+                with patch("sys.exit") as mock_exit:
                     main()
-
-                assert exc_info.value.code == 1
-                # Verify shutdown was called even with KeyboardInterrupt
+                    mock_exit.assert_called_once_with(1)
                 mock_server.shutdown.assert_called_once()
 
     def test_main_server_shutdown_on_exception_during_run(self, tmp_path):
