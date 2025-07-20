@@ -19,19 +19,7 @@ def export_conversations_simple(
     format_type: str = CONVERSATION_EXPORT_FORMAT_DEFAULT,
     silent: bool = False,
 ) -> bool:
-    """
-    Simple export of all conversations to a single file.
-
-    For individual conversation exports, use the MCP tool 'export_individual_conversations'.
-
-    Args:
-        output_path: Path where to save the exported data
-        format_type: Export format - 'json', 'markdown', or 'cursor'
-        silent: Suppress console output
-
-    Returns:
-        True if export succeeded, False otherwise
-    """
+    """Simple export of all conversations to a single file."""
     if format_type not in CONVERSATION_EXPORT_FORMATS:
         raise ValueError(
             f"format_type must be one of: {', '.join(CONVERSATION_EXPORT_FORMATS)}"
@@ -57,15 +45,7 @@ def export_conversations_simple(
 
 
 def list_workspaces(silent: bool = False) -> list[str]:
-    """
-    List available workspace hashes.
-
-    Args:
-        silent: Suppress console output
-
-    Returns:
-        List of workspace hash strings
-    """
+    """List available workspace hashes."""
     try:
         query_tool = CursorQuery(silent=silent)
         data = query_tool.query_all_conversations()

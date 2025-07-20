@@ -46,16 +46,7 @@ def _create_number_field(
     max_val: float = VALIDATION_CONVERSATION_PARAM_MAX,
     default_val: float = DEFAULT_WEIGHT_VALUE,
 ) -> dict[str, Any]:
-    """Create a number field validation schema.
-
-    Args:
-        min_val: Minimum allowed value
-        max_val: Maximum allowed value
-        default_val: Default value if not provided
-
-    Returns:
-        Dictionary containing validation schema for number field
-    """
+    """Create a number field validation schema."""
     return {
         "type": "number",
         "min": min_val,
@@ -68,15 +59,7 @@ def _create_integer_field(
     min_val: int = VALIDATION_FILE_SIZE_MIN,
     default_val: int = DEFAULT_OPTIMAL_FILE_SIZE_MIN,
 ) -> dict[str, Any]:
-    """Create an integer field validation schema.
-
-    Args:
-        min_val: Minimum allowed value
-        default_val: Default value if not provided
-
-    Returns:
-        Dictionary containing validation schema for integer field
-    """
+    """Create an integer field validation schema."""
     return {
         "type": "integer",
         "min": min_val,
@@ -89,16 +72,7 @@ def _create_dict_field(
     required: bool = False,
     default_val: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Create a dictionary field validation schema.
-
-    Args:
-        schema: Nested schema for dictionary contents
-        required: Whether field is required
-        default_val: Default value if not provided
-
-    Returns:
-        Dictionary containing validation schema for dict field
-    """
+    """Create a dictionary field validation schema."""
     field_def: dict[str, Any] = {
         "type": "dict",
         "schema": schema,
@@ -241,14 +215,7 @@ class GandalfSchemaValidator:
         self.normalized_data: dict[str, Any] = {}
 
     def validate(self, data: dict[str, Any]) -> bool:
-        """Validate data against schema.
-
-        Args:
-            data: Configuration data to validate
-
-        Returns:
-            True if validation passes, False otherwise
-        """
+        """Validate data against schema."""
         self.errors = []
         self.normalized_data = {}
 
@@ -262,16 +229,7 @@ class GandalfSchemaValidator:
     def _validate_recursive(
         self, data: dict[str, Any], schema: dict[str, Any], path: str
     ) -> dict[str, Any]:
-        """Recursively validate and normalize data.
-
-        Args:
-            data: Configuration data to validate
-            schema: Schema definition to validate against
-            path: Current validation path for error reporting
-
-        Returns:
-            Normalized data with defaults applied
-        """
+        """Recursively validate and normalize data."""
         result = {}
 
         # Check for required fields
@@ -311,16 +269,7 @@ class GandalfSchemaValidator:
     def _validate_field(
         self, value: Any, field_schema: dict[str, Any], path: str
     ) -> Any:
-        """Validate a single field.
-
-        Args:
-            value: Field value to validate
-            field_schema: Schema definition for this field
-            path: Current validation path for error reporting
-
-        Returns:
-            Validated and potentially normalized field value
-        """
+        """Validate a single field."""
         # Type validation
         expected_type = field_schema.get("type")
         if expected_type == "number":
@@ -385,24 +334,12 @@ class GandalfSchemaValidator:
         return value
 
     def normalized(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Return normalized data with defaults applied.
-
-        Args:
-            data: Original data (fallback if normalization failed)
-
-        Returns:
-            Normalized data with defaults applied, or original data if normalization
-            failed
-        """
+        """Return normalized data with defaults applied."""
         return self.normalized_data if self.normalized_data else data
 
 
 def create_default_weights_file() -> Path:
-    """Create a default weights configuration file in ~/.gandalf/config.
-
-    Returns:
-        Path to the created default weights file
-    """
+    """Create a default weights configuration file in ~/.gandalf/config."""
     DEFAULT_WEIGHTS_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     default_config = apply_schema_defaults(WEIGHTS_SCHEMA, {})
@@ -418,15 +355,7 @@ def create_default_weights_file() -> Path:
 
 
 def get_weights_file_path(spec_dir: Path | None = None) -> Path:
-    """Get the appropriate weights file path based on validation.
-
-    Args:
-        spec_dir: Directory containing potential gandalf-weights.yaml
-                 (optional, defaults to SPEC_WEIGHTS_FILE)
-
-    Returns:
-        Path to the weights file to use (override, spec, or default)
-    """
+    """Get the appropriate weights file path based on validation."""
     if WEIGHTS_FILE_OVERRIDE:
         override_path = Path(WEIGHTS_FILE_OVERRIDE)
         if override_path.exists():
@@ -472,29 +401,14 @@ def get_weights_file_path(spec_dir: Path | None = None) -> Path:
 
 
 def format_validation_errors(errors: list[ValidationError]) -> list[str]:
-    """Format validation errors into readable strings.
-
-    Args:
-        errors: List of ValidationError objects
-
-    Returns:
-        List of formatted error messages
-    """
+    """Format validation errors into readable strings."""
     return [str(error) for error in errors]
 
 
 def apply_schema_defaults(
     schema: dict[str, Any], data: dict[str, Any]
 ) -> dict[str, Any]:
-    """Apply default values from schema to configuration data.
-
-    Args:
-        schema: Schema with default values
-        data: Configuration data to apply defaults to
-
-    Returns:
-        Configuration data with defaults applied
-    """
+    """Apply default values from schema to configuration data."""
 
     def apply_defaults_recursive(
         schema_def: dict[str, Any], config_data: dict[str, Any]
@@ -521,14 +435,7 @@ def apply_schema_defaults(
 def validate_weights_config(
     config: dict[str, Any],
 ) -> tuple[bool, list[str], dict[str, Any]]:
-    """Validate weights configuration using custom schema validation.
-
-    Args:
-        config: Configuration dictionary to validate
-
-    Returns:
-        Tuple of (is_valid, error_messages, normalized_config)
-    """
+    """Validate weights configuration using custom schema validation."""
     validator = GandalfSchemaValidator(WEIGHTS_SCHEMA, allow_unknown=False)
 
     # Validate the configuration
@@ -551,24 +458,12 @@ def validate_weights_config(
 
 
 def get_weights_schema() -> dict[str, Any]:
-    """Get the schema for weights configuration.
-
-    Returns:
-        The weights configuration schema
-    """
+    """Get the schema for weights configuration."""
     return WEIGHTS_SCHEMA
 
 
 def create_validator(
     schema: dict[str, Any], allow_unknown: bool = False
 ) -> GandalfSchemaValidator:
-    """Create a Gandalf schema validator instance.
-
-    Args:
-        schema: Schema dictionary
-        allow_unknown: Whether to allow unknown fields
-
-    Returns:
-        GandalfSchemaValidator instance
-    """
+    """Create a Gandalf schema validator instance."""
     return GandalfSchemaValidator(schema, allow_unknown=allow_unknown)

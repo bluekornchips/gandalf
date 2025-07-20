@@ -22,13 +22,7 @@ class WeightsConfig:
     """Schema-validated weights configuration using custom validation."""
 
     def __init__(self, config_dir: Path | None = None, validate: bool = True):
-        """Initialize the weights configuration.
-
-        Args:
-            config_dir: Directory containing gandalf-weights.yaml.
-                        Defaults to using the global weights file system.
-            validate: Whether to validate configuration on load (default: True)
-        """
+        """Initialize the weights configuration."""
         self.config_dir = config_dir
         self.validation_errors: list[str] = []
         self.is_valid = True
@@ -67,15 +61,7 @@ class WeightsConfig:
         return {}
 
     def get(self, path: str, default: Any = None) -> Any:
-        """Get a value from the config using dot notation.
-
-        Args:
-            path: Dot-separated path
-            default: Default value if not found (defaults to CONTEXT_MIN_SCORE)
-
-        Returns:
-            The value, default, or CONTEXT_MIN_SCORE if default is None
-        """
+        """Get a value from the config using dot notation."""
         if default is None:
             default = CONTEXT_MIN_SCORE
 
@@ -88,14 +74,7 @@ class WeightsConfig:
         return value
 
     def get_dict(self, path: str) -> dict[str, Any]:
-        """Get a dictionary from the config using dot notation.
-
-        Args:
-            path: Dot-separated path to dictionary
-
-        Returns:
-            Dictionary or empty dict if not found
-        """
+        """Get a dictionary from the config using dot notation."""
         value = self.get(path)
         return value if isinstance(value, dict) else {}
 
@@ -108,31 +87,19 @@ class WeightsConfig:
         return self.validation_errors
 
     def get_file_extension_weights(self) -> dict[str, float]:
-        """Get file extension priority weights with dot prefixes.
-
-        Returns:
-            Dictionary mapping file extensions to weight values
-        """
+        """Get file extension priority weights with dot prefixes."""
         weights_dict = self.get_dict("file_extensions")
         # Add dot prefixes and convert to float
         return {f".{ext}": float(weight) for ext, weight in weights_dict.items()}
 
     def get_directory_priority_weights(self) -> dict[str, float]:
-        """Get directory importance scores.
-
-        Returns:
-            Dictionary mapping directory names to weight values
-        """
+        """Get directory importance scores."""
         weights_dict = self.get_dict("directories")
         # Convert to float
         return {dir_name: float(weight) for dir_name, weight in weights_dict.items()}
 
     def get_weights_validation_status(self) -> dict[str, Any]:
-        """Get validation status of the weights configuration.
-
-        Returns:
-            Dictionary with validation status information
-        """
+        """Get validation status of the weights configuration."""
         has_errors = self.has_validation_errors()
         error_count = len(self.validation_errors)
 

@@ -28,6 +28,7 @@ class TestMain:
 
                 mock_gandalf.assert_called_once_with(project_root=None)
                 mock_server.run.assert_called_once()
+                mock_server.shutdown.assert_called_once()
 
     def test_main_with_valid_project_root(self, tmp_path):
         """Test main function with valid project root path."""
@@ -45,6 +46,7 @@ class TestMain:
 
                 mock_gandalf.assert_called_once_with(project_root=hobbiton_path)
                 mock_server.run.assert_called_once()
+                mock_server.shutdown.assert_called_once()
 
     def test_main_with_nonexistent_project_root(self, tmp_path, capsys):
         """Test main function with non-existent project root."""
@@ -62,6 +64,7 @@ class TestMain:
                 # Server should start successfully with nonexistent project root
                 mock_gandalf.assert_called_once_with(project_root=isengard_path)
                 mock_server.run.assert_called_once()
+                mock_server.shutdown.assert_called_once()
 
     def test_main_with_file_as_project_root(self, tmp_path, capsys):
         """Test main function with file instead of directory."""
@@ -143,6 +146,45 @@ class TestMain:
                 captured = capsys.readouterr()
                 assert "Error: Failed to start server" in captured.err
                 assert "Server runtime error" in captured.err
+                
+                # Verify shutdown was called even though run failed
+                mock_server.shutdown.assert_called_once()
+
+    def test_main_server_shutdown_on_keyboard_interrupt(self, tmp_path):
+        """Test that server shutdown is called on KeyboardInterrupt during run."""
+        gondor_path = tmp_path / "gondor"
+        gondor_path.mkdir()
+
+        with patch("sys.argv", ["gandalf-server", "--project-root", str(gondor_path)]):
+            with patch("src.main.GandalfMCP") as mock_gandalf:
+                mock_server = Mock()
+                mock_server.run.side_effect = KeyboardInterrupt("User interrupted")
+                mock_gandalf.return_value = mock_server
+
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
+
+                assert exc_info.value.code == 1
+                # Verify shutdown was called even with KeyboardInterrupt
+                mock_server.shutdown.assert_called_once()
+
+    def test_main_server_shutdown_on_exception_during_run(self, tmp_path):
+        """Test that server shutdown is called when run() raises exception."""
+        rohan_path = tmp_path / "rohan" 
+        rohan_path.mkdir()
+
+        with patch("sys.argv", ["gandalf-server", "--project-root", str(rohan_path)]):
+            with patch("src.main.GandalfMCP") as mock_gandalf:
+                mock_server = Mock()
+                mock_server.run.side_effect = RuntimeError("Unexpected runtime error")
+                mock_gandalf.return_value = mock_server
+
+                with pytest.raises(SystemExit):
+                    main()
+
+                # Verify both run and shutdown were called
+                mock_server.run.assert_called_once()
+                mock_server.shutdown.assert_called_once()
 
     def test_main_path_resolution(self, tmp_path):
         """Test that project root path is properly resolved."""
@@ -160,6 +202,10 @@ class TestMain:
                 assert called_path.is_absolute()
                 assert called_path.name == "moria"
                 assert called_path == moria_path
+                
+                # Verify normal flow includes shutdown
+                mock_server.run.assert_called_once()
+                mock_server.shutdown.assert_called_once()
 
     def test_main_empty_project_root_argument(self, capsys):
         """Test main function with empty project root argument."""
@@ -172,6 +218,7 @@ class TestMain:
 
                 mock_gandalf.assert_called_once_with(project_root=None)
                 mock_server.run.assert_called_once()
+                mock_server.shutdown.assert_called_once()
 
     def test_main_with_os_error_on_path_resolution(self, capsys):
         """Test main function when Path operations raise OSError."""

@@ -21,14 +21,7 @@ from src.utils.cursor_chat_query import CursorQuery, list_cursor_workspaces
 
 
 def format_timestamp(timestamp: float | None = None) -> str:
-    """Format timestamp for filenames and content.
-
-    Args:
-        timestamp: Unix timestamp (defaults to current time)
-
-    Returns:
-        Formatted timestamp string
-    """
+    """Format timestamp for filenames and content."""
     if timestamp is None:
         timestamp = datetime.now().timestamp()
 
@@ -39,14 +32,7 @@ def format_timestamp(timestamp: float | None = None) -> str:
 
 
 def sanitize_filename(filename: str) -> str:
-    """Sanitize filename for filesystem safety.
-
-    Args:
-        filename: Raw filename
-
-    Returns:
-        Sanitized filename safe for filesystem use
-    """
+    """Sanitize filename for filesystem safety."""
     # Remove or replace problematic characters
     sanitized = re.sub(FILENAME_INVALID_CHARS_PATTERN, "_", filename)
 
@@ -66,16 +52,7 @@ def sanitize_filename(filename: str) -> str:
 def handle_export_individual_conversations(
     arguments: dict[str, Any], project_root: Path, **kwargs
 ) -> dict[str, Any]:
-    """Export individual conversations to files.
-
-    Args:
-        arguments: Tool arguments containing format, output_dir, etc.
-        project_root: Project root path
-        **kwargs: Additional arguments
-
-    Returns:
-        MCP response with export results
-    """
+    """Export individual conversations to files."""
     try:
         # Validate arguments
         format_type = arguments.get("format", "json")
@@ -203,16 +180,7 @@ def handle_export_individual_conversations(
 def handle_list_cursor_workspaces(
     arguments: dict[str, Any], project_root: Path, **kwargs
 ) -> dict[str, Any]:
-    """List available Cursor workspaces.
-
-    Args:
-        arguments: Tool arguments (currently unused)
-        project_root: Project root path
-        **kwargs: Additional arguments
-
-    Returns:
-        MCP response with workspace list
-    """
+    """List available Cursor workspaces."""
     try:
         result = list_cursor_workspaces()
         return AccessValidator.create_success_response(

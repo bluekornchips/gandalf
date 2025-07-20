@@ -45,7 +45,10 @@ def main() -> None:
 
     try:
         server = GandalfMCP(project_root=project_root)
-        server.run()
+        try:
+            server.run()
+        finally:
+            server.shutdown()
     except Exception as e:
         print(f"Error: Failed to start server: {e}", file=sys.stderr)
         sys.exit(1)

@@ -44,18 +44,7 @@ class AccessValidator:
         max_length: int | None = None,
         required: bool = True,
     ) -> tuple[bool, str]:
-        """Validate string input with length and content constraints.
-
-        Args:
-            value: Input value to validate
-            field_name: Name of the field for error messages
-            min_length: Minimum required length
-            max_length: Maximum allowed length (defaults to MAX_STRING_LENGTH)
-            required: Whether the field is required
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
+        """Validate string input with length and content constraints."""
         if required and not value:
             return False, f"{field_name} is required"
 
@@ -89,18 +78,7 @@ class AccessValidator:
         item_type: type | None = None,
         required: bool = True,
     ) -> tuple[bool, str]:
-        """Validate array input with type and size constraints.
-
-        Args:
-            value: Input value to validate
-            field_name: Name of the field for error messages
-            max_items: Maximum allowed items (defaults to MAX_ARRAY_LENGTH)
-            item_type: Required type for array items
-            required: Whether the field is required
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
+        """Validate array input with type and size constraints."""
         if required and not value:
             return False, f"{field_name} is required"
 
@@ -133,18 +111,7 @@ class AccessValidator:
         max_value: int | None = None,
         required: bool = True,
     ) -> tuple[bool, str]:
-        """Validate integer input with range constraints.
-
-        Args:
-            value: Input value to validate
-            field_name: Name of the field for error messages
-            min_value: Minimum allowed value
-            max_value: Maximum allowed value
-            required: Whether the field is required
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
+        """Validate integer input with range constraints."""
         if required and value is None:
             return False, f"{field_name} is required"
 
@@ -170,17 +137,7 @@ class AccessValidator:
         valid_values: list[str],
         required: bool = True,
     ) -> tuple[bool, str]:
-        """Validate enum input against allowed values.
-
-        Args:
-            value: Input value to validate
-            field_name: Name of the field for error messages
-            valid_values: List of allowed values
-            required: Whether the field is required
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
+        """Validate enum input against allowed values."""
         if required and not value:
             return False, f"{field_name} is required"
 
@@ -202,15 +159,7 @@ class AccessValidator:
     def validate_path(
         cls, path: str | Path, field_name: str = "path"
     ) -> tuple[bool, str]:
-        """Validate file path for security.
-
-        Args:
-            path: Path to validate
-            field_name: Name of the field for error messages
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
+        """Validate file path for security."""
         path_str = str(path)
 
         if cls._check_for_tricks(path_str):
@@ -240,14 +189,7 @@ class AccessValidator:
 
     @classmethod
     def validate_file_extension(cls, extension: str) -> tuple[bool, str]:
-        """Validate file extension for security using blocklist approach.
-
-        Args:
-            extension: File extension to validate
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
+        """Validate file extension for security using blocklist approach."""
         if not extension.startswith("."):
             extension = f".{extension}"
 
@@ -295,14 +237,7 @@ class AccessValidator:
 
     @classmethod
     def create_error_response(cls, message: str) -> dict[str, Any]:
-        """Create a standardized MCP error response.
-
-        Args:
-            message: Error message
-
-        Returns:
-            MCP error response dictionary
-        """
+        """Create a standardized MCP error response."""
         return {
             "isError": True,
             "error": message,
@@ -311,14 +246,7 @@ class AccessValidator:
 
     @classmethod
     def create_success_response(cls, text: str) -> dict[str, Any]:
-        """Create a standardized MCP success response.
-
-        Args:
-            text: Response text
-
-        Returns:
-            MCP success response dictionary
-        """
+        """Create a standardized MCP success response."""
         return {"content": [{"type": "text", "text": text}]}
 
     @classmethod
@@ -330,18 +258,7 @@ class AccessValidator:
         max_length: int | None = None,
         required: bool = True,
     ) -> tuple[bool, str]:
-        """Validate conversation content with enhanced security checks.
-
-        Args:
-            value: Content to validate
-            field_name: Name of the field for error messages
-            min_length: Minimum required length
-            max_length: Maximum allowed length
-            required: Whether the field is required
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
+        """Validate conversation content with enhanced security checks."""
         is_valid, error_msg = cls.validate_string(
             value, field_name, min_length, max_length, required
         )
@@ -356,17 +273,7 @@ class AccessValidator:
 
     @classmethod
     def _check_for_conversation_tricks(cls, text: str) -> bool:
-        """Check for conversation-specific dangerous patterns.
-
-        Validates conversation content for potentially malicious patterns,
-        while being less restrictive than general input validation.
-
-        Args:
-            text: Conversation text to validate
-
-        Returns:
-            bool: True if dangerous patterns are found, False otherwise
-        """
+        """Check for conversation-specific dangerous patterns."""
         for pattern in CONVERSATION_DANGEROUS_PATTERNS:
             if re.search(pattern, text, re.IGNORECASE | re.DOTALL):
                 return True
@@ -375,14 +282,7 @@ class AccessValidator:
 
     @classmethod
     def sanitize_project_name(cls, project_name: str) -> str:
-        """Sanitize project name for filesystem safety with transparency.
-
-        Args:
-            project_name: Raw project name to sanitize
-
-        Returns:
-            str: Sanitized project name safe for filesystem use
-        """
+        """Sanitize project name for filesystem safety with transparency."""
         if not project_name:
             log_debug("Empty project name provided, using default")
             return "unnamed_project"
@@ -420,28 +320,14 @@ class AccessValidator:
 
 
 def validate_conversation_id(conv_id: Any) -> tuple[bool, str]:
-    """Validate conversation ID with specific rules.
-
-    Args:
-        conv_id: Conversation ID to validate
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
+    """Validate conversation ID with specific rules."""
     return AccessValidator.validate_string(
         conv_id, "conversation_id", min_length=1, max_length=100
     )
 
 
 def validate_search_query(query: Any) -> tuple[bool, str]:
-    """Validate search query with specific rules.
-
-    Args:
-        query: Search query to validate
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
+    """Validate search query with specific rules."""
     return AccessValidator.validate_string(
         query,
         "query",
@@ -451,14 +337,7 @@ def validate_search_query(query: Any) -> tuple[bool, str]:
 
 
 def validate_file_types(file_types: Any) -> tuple[bool, str]:
-    """Validate file types array with extension validation.
-
-    Args:
-        file_types: Array of file extensions to validate
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
+    """Validate file types array with extension validation."""
     is_valid, error = AccessValidator.validate_array(
         file_types,
         "file_types",
@@ -479,14 +358,7 @@ def validate_file_types(file_types: Any) -> tuple[bool, str]:
 
 
 def get_platform_blocked_paths(platform: str | None = None) -> set:
-    """Get platform-specific blocked paths.
-
-    Args:
-        platform: Platform identifier (linux, macos, wsl)
-
-    Returns:
-        Set of blocked paths for the platform
-    """
+    """Get platform-specific blocked paths."""
     if platform == "linux":
         return COMMON_BLOCKED_PATHS | LINUX_SPECIFIC_BLOCKED_PATHS
     elif platform == "macos":
