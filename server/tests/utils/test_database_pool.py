@@ -6,7 +6,6 @@ import gc
 import sqlite3
 import tempfile
 import threading
-import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -18,7 +17,7 @@ from src.utils.database_pool import (
     get_database_connection,
     get_database_pool,
 )
-from tests.conftest import safe_cursor, execute_sql
+from conftest import execute_sql, safe_cursor
 
 
 class TestConnectionPool:

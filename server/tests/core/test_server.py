@@ -7,7 +7,7 @@ import pytest
 from src.config.enums import ErrorCodes
 from src.core.server import GandalfMCP
 from src.utils.database_pool import DatabaseService
-from tests.conftest import safe_cursor
+from conftest import safe_cursor
 
 
 class TestGandalfMCPInputValidation:
