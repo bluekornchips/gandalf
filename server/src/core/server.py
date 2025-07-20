@@ -95,34 +95,21 @@ class GandalfMCP:
             weights_config = WeightsManager.get_default()
             validation_status = weights_config.get_weights_validation_status()
 
-            if not validation_status["is_valid"]:
+            if validation_status["has_errors"]:
                 log_info("Configuration validation found issues")
-                log_info(f"Validation summary: {validation_status['summary']}")
+                log_info(f"Validation message: {validation_status['message']}")
 
                 # Log a helpful message about configuration issues
                 if validation_status["error_count"] > 0:
                     log_info(
                         f"gandalf-weights.yaml has "
-                        f"{validation_status['error_count']} errors "
-                        f"and {validation_status['warning_count']} warnings. "
+                        f"{validation_status['error_count']} errors. "
                         "Server will use default values for invalid settings. "
                         "Check the logs above for detailed error information."
                     )
-                else:
-                    log_info(
-                        f"gandalf-weights.yaml has "
-                        f"{validation_status['warning_count']} warnings. "
-                        "Server is running normally with recommended "
-                        "improvements available."
-                    )
             else:
-                if validation_status["warning_count"] > 0:
-                    log_info(
-                        f"Configuration loaded successfully with "
-                        f"{validation_status['warning_count']} minor warnings"
-                    )
-                else:
-                    log_info("Configuration validation passed - all settings are valid")
+                # Configuration is valid, log success message
+                log_info("Configuration validation passed - all settings are valid")
 
         except Exception as e:
             log_error(e, "Error during configuration validation")

@@ -7,7 +7,6 @@ and relevance scoring for conversation recall and search functionality.
 
 import json
 import re
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -16,9 +15,6 @@ from src.config.config_data import (
     CONTEXT_SKIP_DIRECTORIES,
     FILE_REFERENCE_PATTERNS,
     TECHNOLOGY_KEYWORD_MAPPING,
-)
-from src.config.constants.cache import (
-    CONTEXT_CACHE_TTL_SECONDS,
 )
 from src.config.constants.context import (
     CONTEXT_KEYWORD_MAX_COUNT,
@@ -30,10 +26,7 @@ from src.config.constants.conversation import (
 )
 from src.config.weights import WeightsManager
 from src.utils.common import log_debug, log_error
-
-# Global cache for context keywords
-_context_keywords_cache = {}
-_context_keywords_cache_time = {}
+from src.utils.memory_cache import get_keyword_cache
 
 
 def generate_shared_context_keywords(project_root: Path) -> list[str]:
@@ -63,31 +56,19 @@ def generate_shared_context_keywords(project_root: Path) -> list[str]:
     except (OSError, ValueError):
         pass
 
-    current_time = time.time()
-
-    # Check cache
-    if (
-        cache_key in _context_keywords_cache
-        and cache_key in _context_keywords_cache_time
-        and current_time - _context_keywords_cache_time[cache_key]
-        < CONTEXT_CACHE_TTL_SECONDS
-    ):
+    # Check memory cache
+    keyword_cache = get_keyword_cache()
+    cached_keywords = keyword_cache.get(cache_key)
+    if cached_keywords:
         log_debug(f"Using cached context keywords for {project_root.name}")
-        return _context_keywords_cache[cache_key]
+        return cached_keywords
 
     # Generate keywords
     log_debug(f"Generating fresh context keywords for {project_root.name}")
     keywords = _extract_project_keywords(project_root)
 
-    # Cache results
-    _context_keywords_cache[cache_key] = keywords
-    _context_keywords_cache_time[cache_key] = current_time
-
-    # Clean old cache entries
-    for key in list(_context_keywords_cache_time.keys()):
-        if current_time - _context_keywords_cache_time[key] > CONTEXT_CACHE_TTL_SECONDS:
-            _context_keywords_cache.pop(key, None)
-            _context_keywords_cache_time.pop(key, None)
+    # Cache results using memory-aware cache
+    keyword_cache.put(cache_key, keywords)
 
     return keywords
 

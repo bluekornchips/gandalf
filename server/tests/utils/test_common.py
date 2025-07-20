@@ -6,7 +6,6 @@ from pathlib import Path
 
 from src.utils.common import (
     initialize_session_logging,
-    log_critical,
     log_debug,
     log_error,
     log_info,
@@ -171,12 +170,6 @@ class TestLogConvenienceFunctions:
 
         mock_write_log.assert_called_once_with("error", "'palantir'")
 
-    @mock.patch("src.utils.common.write_log")
-    def test_log_critical_calls_write_log_only(self, mock_write_log):
-        """Test log_critical calls write_log only, no RPC messages."""
-        log_critical("the beacons are lit")
-
-        mock_write_log.assert_called_once_with("critical", "the beacons are lit")
 
 
 class TestLoggingIntegration:
@@ -192,7 +185,6 @@ class TestLoggingIntegration:
                 # Log various messages
                 log_info("gandalf arrives precisely when he means to")
                 log_debug("looking for signs of the enemy")
-                log_critical("they have a cave troll")
 
                 # Verify log file exists
                 logs_dir = Path(temp_dir) / "logs"
@@ -204,9 +196,8 @@ class TestLoggingIntegration:
         """Test that different logging functions work together properly."""
         log_info("the hobbits are going to isengard")
         log_debug("searching for tracks")
-        log_critical("we are being hunted")
 
-        assert mock_write_log.call_count == 3
+        assert mock_write_log.call_count == 2
 
     def test_session_id_persistence(self):
         """Test that session ID persists across multiple logging calls."""

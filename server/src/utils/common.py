@@ -76,8 +76,3 @@ def log_error(error: Exception, context: str = "") -> None:
 def log_debug(message: str) -> None:
     """Log a debug message to file only."""
     write_log("debug", message)
-
-
-def log_critical(message: str) -> None:
-    """Log a critical message to file only."""
-    write_log("critical", message)

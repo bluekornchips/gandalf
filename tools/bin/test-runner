@@ -95,7 +95,7 @@ count_python_tests() {
 	fi
 
 	local count
-	count=$(find "$GANDALF_ROOT/server/tests" -name "test_*.py" -exec grep -c "^def test_" {} \; 2>/dev/null | awk '{sum += $1} END {print sum+0}')
+	count=$(find "$GANDALF_ROOT/server/tests" -name "test_*.py" -exec grep -c "def test_" {} \; 2>/dev/null | awk '{sum += $1} END {print sum+0}')
 	echo "$count"
 }
 

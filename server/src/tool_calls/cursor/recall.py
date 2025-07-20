@@ -66,12 +66,6 @@ from src.utils.common import log_debug, log_error, log_info
 from src.utils.cursor_chat_query import CursorQuery
 from src.utils.performance import get_duration, log_operation_time, start_timer
 
-# Global cache for context keywords and conversation data
-_context_keywords_cache = {}
-_context_keywords_cache_time = {}
-_conversation_cache = {}
-_conversation_cache_time = {}
-
 
 def create_lightweight_conversation(
     conversation: dict[str, Any],

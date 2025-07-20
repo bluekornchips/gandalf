@@ -552,9 +552,10 @@ def handle_recall_conversations(
             f"{', '.join(available_tools)}"
         )
 
-        # Collect conversations from all available tools
-        all_conversations = []
+        # Stream and filter conversations from all available tools (memory efficient)
+        filtered_conversations = []
         tool_results = {}
+        total_processed = 0
 
         for tool_name in available_tools:
             try:
@@ -562,7 +563,7 @@ def handle_recall_conversations(
                     "project_root": context_project_root,
                     "fast_mode": fast_mode,
                     "days_lookback": days_lookback,
-                    "limit": limit,
+                    "limit": limit * 2,  # Get more initially for better filtering
                     "min_score": min_score,
                     "conversation_types": conversation_types,
                 }
@@ -577,10 +578,22 @@ def handle_recall_conversations(
                 )
 
                 if result and "conversations" in result:
-                    all_conversations.extend(result["conversations"])
+                    tool_conversations = result["conversations"]
+                    total_processed += len(tool_conversations)
+
+                    # Apply early filtering to prevent memory buildup
+                    for conv in tool_conversations:
+                        # Basic relevance filtering
+                        if conv.get("relevance_score", 0) >= min_score:
+                            filtered_conversations.append(conv)
+
+                        # Break early if we have enough high-quality conversations
+                        if len(filtered_conversations) >= limit * 3:
+                            break
+
                     log_info(
-                        f"Retrieved {len(result['conversations'])} "
-                        f"conversations from {tool_name}",
+                        f"Retrieved {len(tool_conversations)} conversations from {tool_name}, "
+                        f"kept {len([c for c in tool_conversations if c.get('relevance_score', 0) >= min_score])}"
                     )
 
                 tool_results[tool_name] = result
@@ -597,23 +610,23 @@ def handle_recall_conversations(
 
         processing_time = time.time() - start_time
 
-        # Apply intelligent filtering
-        filtered_conversations, filtering_metadata = apply_conversation_filtering(
-            all_conversations,
+        # Apply intelligent filtering to pre-filtered conversations
+        final_conversations, filtering_metadata = apply_conversation_filtering(
+            filtered_conversations,
             context_project_root,
             limit,
             user_prompt,
         )
 
         # Determine response optimization
-        total_size_estimate = len(json.dumps(filtered_conversations))
+        total_size_estimate = len(json.dumps(final_conversations))
         use_summary_mode = total_size_estimate > TOKEN_OPTIMIZATION_MAX_RESPONSE_SIZE
 
         # Create comprehensive response
         response = {
             "available_tools": available_tools,
-            "conversations": filtered_conversations,
-            "total_conversations": len(filtered_conversations),
+            "conversations": final_conversations,
+            "total_conversations": len(final_conversations),
             "context_keywords": context_keywords[
                 :TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS
             ],
