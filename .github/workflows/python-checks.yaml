@@ -74,8 +74,9 @@ jobs:
 
       - name: Run tests and save coverage summary
         run: |
+          set -e
           cd server
-          pytest --cov=src --cov-report=term --cov-report=xml > result.log
+          pytest --cov=src --cov-report=term --cov-report=xml | tee result.log
           tail -n 30 result.log > coverage-summary.txt
 
       - name: Read coverage summary
