@@ -33,7 +33,7 @@ cleanup_handler() {
 declare -a CHILD_PIDS=()
 trap cleanup_handler INT TERM
 
-readonly DEFAULT_TIMEOUT=500
+readonly DEFAULT_TIMEOUT=300
 readonly DEFAULT_WAIT_TIME=2
 
 
@@ -64,8 +64,9 @@ Lembas - Comprehensive Test Suite and Validation
 Usage: $0 [OPTIONS]
 
 Options:
+    --fast              Run fast tests only (core + essential, ~2min)
     --core              Run core tests only (default)
-    --all               Run all tests (shell + python)
+    --all               Run all tests (shell + python, ~8min)
     --shell-only        Run shell tests only
     --python-only       Run python tests only
     --timeout SECONDS   Set test timeout (default: $DEFAULT_TIMEOUT)
@@ -74,7 +75,8 @@ Options:
 
 Examples:
     $0                  # Run core tests
-    $0 --all            # Run all tests
+    $0 --fast           # Quick validation (~2 minutes)
+    $0 --all            # Run all tests (~8 minutes)
     $0 --verbose        # Run with verbose output
     $0 --timeout 600    # Set 10-minute timeout
 
@@ -164,6 +166,28 @@ run_python_tests() {
     fi
 }
 
+run_fast_tests() {
+    local verbose="${1:-false}"
+    local timeout="${2:-120}"
+
+    print_header "Running Fast Tests (Core + Essential)"
+
+    # Run only essential test suites for quick validation
+    local test_args=("--suites" "core,file,project")
+
+    timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
+    local test_pid=$!
+    CHILD_PIDS+=("$test_pid")
+    
+    if wait "$test_pid"; then
+        print_info "Fast tests completed successfully"
+        return 0
+    else
+        print_error "Fast tests failed"
+        return 1
+    fi
+}
+
 run_core_tests() {
     local verbose="${1:-false}"
     local timeout="${2:-$DEFAULT_TIMEOUT}"
@@ -215,6 +239,10 @@ parse_arguments() {
         case "$1" in
         --core)
             test_type="core"
+            shift
+            ;;
+        --fast)
+            test_type="fast"
             shift
             ;;
         --all)
@@ -277,6 +305,9 @@ main() {
     start_time=$(date +%s)
 
     case "$LEMBAS_TEST_TYPE" in
+    fast)
+        run_fast_tests "$LEMBAS_VERBOSE" "$LEMBAS_TIMEOUT"
+        ;;
     core)
         run_core_tests "$LEMBAS_VERBOSE" "$LEMBAS_TIMEOUT"
         ;;

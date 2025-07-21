@@ -102,6 +102,7 @@ count_python_tests() {
 main() {
 	local FORCE_SHELL=false
 	local FORCE_PYTHON=false
+	local SUITE_LIST=""
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -114,6 +115,10 @@ main() {
 			;;
 		--python)
 			FORCE_PYTHON=true
+			;;
+		--suites)
+			SUITE_LIST="$2"
+			shift
 			;;
 		--worker-count)
 			# Ignore worker-count parameter for compatibility
@@ -194,8 +199,28 @@ EOF
 	if [[ "$FORCE_PYTHON" != "true" ]]; then
 		echo "Running shell test suites..."
 
-		# Run each test suite directly
-		for suite in "${!test_suites[@]}"; do
+		# Determine which suites to run
+		local suites_to_run=()
+		if [[ -n "$SUITE_LIST" ]]; then
+			# Parse comma-separated suite list
+			IFS=',' read -ra requested_suites <<< "$SUITE_LIST"
+			for suite in "${requested_suites[@]}"; do
+				suite=$(echo "$suite" | xargs) # trim whitespace
+				if [[ -n "${test_suites[$suite]:-}" ]]; then
+					suites_to_run+=("$suite")
+				else
+					echo "Warning: Unknown suite: $suite"
+				fi
+			done
+		else
+			# Run all suites
+			for suite in "${!test_suites[@]}"; do
+				suites_to_run+=("$suite")
+			done
+		fi
+
+		# Run each selected test suite directly
+		for suite in "${suites_to_run[@]}"; do
 			local test_file="${test_suites[$suite]}"
 			local test_path="$tests_dir/$test_file"
 
