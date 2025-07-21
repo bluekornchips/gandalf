@@ -15,7 +15,7 @@ from src.config.constants.security import (
     FILENAME_CONTROL_CHARS_PATTERN,
     FILENAME_INVALID_CHARS_PATTERN,
 )
-from src.utils.access_control import AccessValidator
+from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_debug, log_info
 from src.utils.cursor_chat_query import CursorQuery, list_cursor_workspaces
 
@@ -80,17 +80,26 @@ def handle_export_individual_conversations(
         data = query_tool.query_all_conversations()
 
         if not data or not data.get("workspaces"):
-            return AccessValidator.create_success_response(
-                json.dumps(
-                    {
-                        "exported_count": 0,
-                        "files": [],
-                        "message": "No conversations found to export",
-                        "output_directory": str(output_path),
-                        "format": format_type,
-                    }
-                )
-            )
+            export_result = {
+                "exported_count": 0,
+                "files": [],
+                "message": "No conversations found to export",
+                "output_directory": str(output_path),
+                "format": format_type,
+            }
+            structured_data = {
+                "export": {
+                    "success": True,
+                    "count": 0,
+                    "files": [],
+                    "directory": str(output_path),
+                    "format": format_type,
+                },
+                "status": "no_conversations_found",
+            }
+            content_text = json.dumps(export_result, indent=2)
+            mcp_result = create_mcp_tool_result(content_text, structured_data)
+            return mcp_result
 
         # Create output directory
         output_path.mkdir(parents=True, exist_ok=True)
@@ -161,16 +170,25 @@ def handle_export_individual_conversations(
 
         log_info(f"Exported {len(exported_files)} conversations to {output_dir}")
 
-        return AccessValidator.create_success_response(
-            json.dumps(
-                {
-                    "exported_count": len(exported_files),
-                    "files": exported_files,
-                    "output_directory": str(output_path.absolute()),
-                    "format": format_type,
-                }
-            )
-        )
+        export_result = {
+            "exported_count": len(exported_files),
+            "files": exported_files,
+            "output_directory": str(output_path.absolute()),
+            "format": format_type,
+        }
+        structured_data = {
+            "export": {
+                "success": True,
+                "count": len(exported_files),
+                "files": [{"path": f} for f in exported_files],
+                "directory": str(output_path.absolute()),
+                "format": format_type,
+            },
+            "status": "export_complete",
+        }
+        content_text = json.dumps(export_result, indent=2)
+        mcp_result = create_mcp_tool_result(content_text, structured_data)
+        return mcp_result
 
     except (OSError, json.JSONDecodeError, KeyError, AttributeError) as e:
         log_debug(f"Error in export_individual_conversations: {e}")
@@ -183,14 +201,23 @@ def handle_list_cursor_workspaces(
     """List available Cursor workspaces."""
     try:
         result = list_cursor_workspaces()
-        return AccessValidator.create_success_response(
-            json.dumps(
-                {
-                    "workspaces": result["workspaces"],
-                    "count": result["total_workspaces"],
-                }
-            )
-        )
+        workspace_result = {
+            "workspaces": result["workspaces"],
+            "count": result["total_workspaces"],
+        }
+        structured_data = {
+            "workspaces": {
+                "items": [
+                    {"hash": ws["hash"], "path": ws["path"]}
+                    for ws in result["workspaces"]
+                ],
+                "total_count": result["total_workspaces"],
+            },
+            "status": "workspaces_listed",
+        }
+        content_text = json.dumps(workspace_result, indent=2)
+        mcp_result = create_mcp_tool_result(content_text, structured_data)
+        return mcp_result
 
     except (OSError, KeyError, AttributeError) as e:
         log_debug(f"Error in list_cursor_workspaces: {e}")
@@ -242,6 +269,7 @@ def _format_conversation_text(conversation: dict[str, Any]) -> str:
 # Tool definition
 TOOL_EXPORT_INDIVIDUAL_CONVERSATIONS = {
     "name": "export_individual_conversations",
+    "title": "Export Individual Conversations",
     "description": (
         "Export individual conversations to separate files in the specified directory."
     ),
@@ -278,6 +306,35 @@ TOOL_EXPORT_INDIVIDUAL_CONVERSATIONS = {
             },
         },
         "required": [],
+    },
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "success": {
+                "type": "boolean",
+                "description": "Whether the export operation succeeded",
+            },
+            "exported_count": {
+                "type": "integer",
+                "description": "Number of conversations exported",
+            },
+            "output_directory": {
+                "type": "string",
+                "description": "Directory where files were exported",
+            },
+            "format": {"type": "string", "description": "Export format used"},
+            "file_list": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of exported file paths",
+            },
+            "errors": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Any errors encountered during export",
+            },
+        },
+        "required": ["success", "exported_count", "output_directory", "format"],
     },
     "annotations": {
         "title": "Export Individual Conversations",

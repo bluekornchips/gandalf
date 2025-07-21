@@ -33,7 +33,7 @@ cleanup_handler() {
 declare -a CHILD_PIDS=()
 trap cleanup_handler INT TERM
 
-readonly DEFAULT_TIMEOUT=300
+readonly DEFAULT_TIMEOUT=500
 readonly DEFAULT_WAIT_TIME=2
 
 

@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.utils.access_control import AccessValidator
+from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_error, log_info
 from src.utils.cursor_chat_query import CursorQuery, list_cursor_workspaces
 
@@ -78,9 +78,17 @@ def handle_query_cursor_conversations(
                 f"Summary: {total_conversations} conversations across "
                 f"{len(data['workspaces'])} workspaces"
             )
-            return AccessValidator.create_success_response(
-                json.dumps(summary_data, indent=2)
-            )
+
+            structured_data = {
+                "summary": summary_data,
+                "status": "cursor_summary_complete",
+            }
+
+            content_text = json.dumps(summary_data, indent=2)
+            mcp_result = create_mcp_tool_result(content_text, structured_data)
+            return {
+                "content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]
+            }
 
         # Format output based on requested format
         if format_type == "markdown":
@@ -94,7 +102,20 @@ def handle_query_cursor_conversations(
             f"Queried {sum(len(ws['conversations']) for ws in data['workspaces'])} "
             f"conversations in {format_type} format"
         )
-        return AccessValidator.create_success_response(content)
+
+        total_conversations = sum(len(ws["conversations"]) for ws in data["workspaces"])
+        structured_data = {
+            "query_result": {
+                "total_conversations": total_conversations,
+                "workspaces": len(data.get("workspaces", [])),
+                "format": format_type,
+            },
+            "data": data,
+            "status": "cursor_query_complete",
+        }
+
+        mcp_result = create_mcp_tool_result(content, structured_data)
+        return {"content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]}
 
     except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
         log_error(e, "query_cursor_conversations")

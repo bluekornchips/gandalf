@@ -11,6 +11,7 @@ from src.config.constants.conversation import (
     CONVERSATION_EXPORT_FORMAT_DEFAULT,
     CONVERSATION_EXPORT_FORMATS,
 )
+from src.utils.common import log_error, log_info
 from src.utils.cursor_chat_query import CursorQuery
 
 
@@ -19,7 +20,11 @@ def export_conversations_simple(
     format_type: str = CONVERSATION_EXPORT_FORMAT_DEFAULT,
     silent: bool = False,
 ) -> bool:
-    """Simple export of all conversations to a single file."""
+    """
+    Simple export of all conversations to a single file.
+
+    For individual conversation exports, use the MCP tool 'export_individual_conversations'.
+    """
     if format_type not in CONVERSATION_EXPORT_FORMATS:
         raise ValueError(
             f"format_type must be one of: {', '.join(CONVERSATION_EXPORT_FORMATS)}"
@@ -34,13 +39,13 @@ def export_conversations_simple(
             total_conversations = sum(
                 len(ws.get("conversations", [])) for ws in data.get("workspaces", [])
             )
-            print(f"Exported {total_conversations} conversations to {output_path}")
+            log_info(f"Exported {total_conversations} conversations to {output_path}")
 
         return True
 
     except (OSError, ValueError, TypeError, KeyError) as e:
         if not silent:
-            print(f"Export failed: {e}")
+            log_error(e, "Export failed")
         return False
 
 
@@ -57,11 +62,11 @@ def list_workspaces(silent: bool = False) -> list[str]:
         ]
 
         if not silent and hashes:
-            print(f"Found {len(hashes)} workspaces: {', '.join(hashes)}")
+            log_info(f"Found {len(hashes)} workspaces: {', '.join(hashes)}")
 
         return hashes
 
     except (OSError, ValueError, TypeError, KeyError) as e:
         if not silent:
-            print(f"Failed to list workspaces: {e}")
+            log_error(e, "Failed to list workspaces")
         return []

@@ -181,7 +181,7 @@ class TestClaudeCodeSessionRelevance:
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def create_test_session_metadata(self, start_time: str = None) -> dict:
+    def create_test_session_metadata(self, start_time: str | None = None) -> dict:
         """Create test session metadata."""
         if start_time is None:
             start_time = datetime.now().isoformat()
@@ -373,8 +373,12 @@ class TestClaudeCodeRecallHandlers:
 
             result = handle_recall_claude_conversations(arguments, self.project_root)
 
-        assert "isError" not in result
-        data = json.loads(result["content"][0]["text"])
+        # Check that the outer response contains content
+        assert "content" in result
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        assert mcp_response.get("isError") is False
+        data = json.loads(mcp_response["content"][0]["text"])
         assert "conversations" in data
         assert data["fast_mode"] is True
         assert len(data["context_keywords"]) > 0
@@ -394,8 +398,12 @@ class TestClaudeCodeRecallHandlers:
         arguments = {"fast_mode": True}
         result = handle_recall_claude_conversations(arguments, self.project_root)
 
-        assert "isError" not in result
-        data = json.loads(result["content"][0]["text"])
+        # Check that the outer response contains content
+        assert "content" in result
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        assert mcp_response.get("isError") is False
+        data = json.loads(mcp_response["content"][0]["text"])
         assert data["conversations"] == []
         assert data["total_analyzed"] == 0
 
@@ -441,8 +449,12 @@ class TestClaudeCodeRecallHandlers:
 
             result = handle_recall_claude_conversations(arguments, self.project_root)
 
-        assert "isError" not in result
-        data = json.loads(result["content"][0]["text"])
+        # Check that the outer response contains content
+        assert "content" in result
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        assert mcp_response.get("isError") is False
+        data = json.loads(mcp_response["content"][0]["text"])
         assert len(data["conversations"]) == 1
         assert data["conversations"][0]["conversation_type"] == "debugging"
 

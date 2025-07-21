@@ -5,9 +5,7 @@ format:
 
 lint:
 	ruff check src/
-
-fix:
-	ruff check --fix src/
+	ruff check tests/
 
 test:
 	pytest --cov=src

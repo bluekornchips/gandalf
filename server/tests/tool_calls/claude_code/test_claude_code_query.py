@@ -39,10 +39,31 @@ class TestClaudeCodeQuery:
 
     def teardown_method(self):
         """Clean up test fixtures and database connections."""
+        import gc
         import shutil
-        from src.utils.database_pool import close_database_pool
+        import sqlite3
 
-        close_database_pool()
+        try:
+            # Force immediate garbage collection
+            for _ in range(5):
+                gc.collect()
+
+            # Close any SQLite connections found in garbage collector
+            for obj in gc.get_objects():
+                if isinstance(obj, sqlite3.Connection):
+                    try:
+                        if not obj.in_transaction:
+                            obj.close()
+                    except Exception:
+                        pass
+
+            # Force another round of garbage collection
+            for _ in range(3):
+                gc.collect()
+
+        except Exception:
+            # Ignore cleanup errors but ensure directory cleanup happens
+            pass
 
         # Clean up test directory
         if hasattr(self, "temp_dir") and self.temp_dir.exists():
@@ -79,7 +100,9 @@ class TestClaudeCodeQuery:
             mock_home.return_value = self.temp_dir
 
             query = ClaudeCodeQuery()
+            self.temp_dir / ".claude"
 
+            # Since we're mocking, we need to check the logic
             assert query.claude_home.name == ".claude"
 
     def test_get_claude_home_environment(self):
@@ -312,10 +335,31 @@ class TestClaudeCodeQueryHandlers:
 
     def teardown_method(self):
         """Clean up test fixtures and database connections."""
+        import gc
         import shutil
-        from src.utils.database_pool import close_database_pool
+        import sqlite3
 
-        close_database_pool()
+        try:
+            # Force immediate garbage collection
+            for _ in range(5):
+                gc.collect()
+
+            # Close any SQLite connections found in garbage collector
+            for obj in gc.get_objects():
+                if isinstance(obj, sqlite3.Connection):
+                    try:
+                        if not obj.in_transaction:
+                            obj.close()
+                    except Exception:
+                        pass
+
+            # Force another round of garbage collection
+            for _ in range(3):
+                gc.collect()
+
+        except Exception:
+            # Ignore cleanup errors but ensure directory cleanup happens
+            pass
 
         # Clean up test directory
         if hasattr(self, "temp_dir") and self.temp_dir.exists():
@@ -340,7 +384,9 @@ class TestClaudeCodeQueryHandlers:
         assert "content" in result
         assert len(result["content"]) == 1
         assert result["content"][0]["type"] == "text"
-        data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        data = json.loads(mcp_response["content"][0]["text"])
         assert "conversations" in data
         assert data["total_sessions"] == 1
 
@@ -373,7 +419,9 @@ class TestClaudeCodeQueryHandlers:
         assert "content" in result
         assert len(result["content"]) == 1
         assert result["content"][0]["type"] == "text"
-        data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        data = json.loads(mcp_response["content"][0]["text"])
         assert data["total_conversations"] == 2
         assert data["total_messages"] == 8  # 5 + 3
 
@@ -398,11 +446,14 @@ class TestClaudeCodeQueryHandlers:
         arguments = {"format": "markdown"}
         result = handle_query_claude_conversations(arguments, self.project_root)
 
-        # New MCP format uses content array instead of success field
+        # Parse the nested MCP response
         assert "content" in result
         assert len(result["content"]) == 1
         assert result["content"][0]["type"] == "text"
-        assert result["content"][0]["text"] == "# Test Markdown"
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        actual_content = mcp_response["content"][0]["text"]
+        assert actual_content == "# Test Markdown"
 
     @patch("src.tool_calls.claude_code.query.ClaudeCodeQuery")
     def test_handle_query_claude_conversations_exception(self, mock_query_class):

@@ -31,9 +31,8 @@ from src.config.constants.paths import (
 from src.config.constants.windsurf import (
     WINDSURF_CONVERSATION_PATTERNS,
 )
-from src.utils.access_control import AccessValidator
+from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_error
-from src.utils.database_pool import get_database_connection
 
 
 class ConversationValidator:
@@ -140,7 +139,7 @@ class DatabaseReader:
     def get_data(self, db_path: Path, key: str) -> Any | None:
         """Extract data from database using a specific key."""
         try:
-            with get_database_connection(db_path) as conn:
+            with sqlite3.connect(str(db_path)) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
                 result = cursor.fetchone()
@@ -153,7 +152,7 @@ class DatabaseReader:
     def get_all_keys(self, db_path: Path) -> list[str]:
         """Get all keys from a database."""
         try:
-            with get_database_connection(db_path) as conn:
+            with sqlite3.connect(str(db_path)) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT key FROM ItemTable")
                 return [row[0] for row in cursor.fetchall()]
@@ -589,7 +588,20 @@ def handle_query_windsurf_conversations(
 
         # Format response
         response_data = _format_response(data, format_type)
-        return AccessValidator.create_success_response(response_data)
+
+        # Create structured content
+        structured_data = {
+            "query_result": {
+                "total_conversations": len(conversations),
+                "format": format_type,
+                "limited_results": data.get("limited_results", False),
+            },
+            "conversations": conversations,
+            "status": "windsurf_query_complete",
+        }
+
+        mcp_result = create_mcp_tool_result(response_data, structured_data)
+        return {"content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]}
 
     except (ValueError, KeyError, TypeError) as e:
         log_error(e, "query_windsurf_conversations")

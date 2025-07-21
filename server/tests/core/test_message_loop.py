@@ -197,12 +197,8 @@ class TestMessageLoop:
         mock_input_stream.__iter__ = Mock(side_effect=KeyboardInterrupt)
 
         with patch("src.core.message_loop.log_info") as mock_log_info:
-            try:
-                self.handler.run_message_loop(mock_input_stream)
-            except KeyboardInterrupt:
-                pytest.fail(
-                    "KeyboardInterrupt should be handled internally and not propagate"
-                )
+            self.handler.run_message_loop(mock_input_stream)
+
             mock_log_info.assert_called_once_with("Server shutdown requested")
 
     def test_run_message_loop_unexpected_exception(self):
@@ -325,7 +321,7 @@ class TestIntegrationScenarios:
 
         # Simulate a typical MCP session
         session_requests = [
-            '{"jsonrpc": "2.0", "method": "initialize", "params": {"protocolVersion": "2024-11-05"}, "id": 1}',
+            '{"jsonrpc": "2.0", "method": "initialize", "params": {"protocolVersion": "2025-06-18"}, "id": 1}',
             '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
             '{"jsonrpc": "2.0", "method": "tools/list", "id": 2}',
             '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "get_project_info", "arguments": {}}, "id": 3}',
@@ -336,7 +332,7 @@ class TestIntegrationScenarios:
             {
                 "jsonrpc": "2.0",
                 "result": {
-                    "protocolVersion": "2024-11-05",
+                    "protocolVersion": "2025-06-18",
                     "capabilities": {},
                 },
                 "id": 1,

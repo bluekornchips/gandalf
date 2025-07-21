@@ -24,7 +24,7 @@ from src.config.constants.database import (
     CURSOR_KEY_USER_PROMPTS,
     SQL_GET_VALUE_BY_KEY,
 )
-from src.utils.database_pool import get_database_connection
+from src.utils.common import log_error, log_info
 
 
 def is_running_in_wsl() -> bool:
@@ -224,7 +224,7 @@ class CursorQuery:
 
         if not workspace_storage_path.exists():
             if not self.silent:
-                print(f"No workspace storage found at: {workspace_storage_path}")
+                log_info(f"No workspace storage found at: {workspace_storage_path}")
             return databases
 
         try:
@@ -235,17 +235,17 @@ class CursorQuery:
                         if db_path.exists() and db_path.is_file():
                             databases.append(db_path)
                             if not self.silent:
-                                print(f"Found database: {db_path}")
+                                log_info(f"Found database: {db_path}")
         except (OSError, PermissionError) as e:
             if not self.silent:
-                print(f"Error accessing workspace storage: {e}")
+                log_error(e, "Error accessing workspace storage")
 
         return databases
 
     def get_data_from_db(self, db_path: Path, key: str) -> Any | None:
         """Extract data from database using a specific key."""
         try:
-            with get_database_connection(db_path) as conn:
+            with sqlite3.connect(str(db_path)) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
                 result = cursor.fetchone()
@@ -255,13 +255,13 @@ class CursorQuery:
                 return None
         except (sqlite3.Error, json.JSONDecodeError, OSError) as e:
             if not self.silent:
-                print(f"Error reading from database {db_path}: {e}")
+                log_error(e, f"Error reading from database {db_path}")
             return None
 
     def query_conversations_from_db(self, db_path: Path) -> dict[str, Any]:
         """Query all conversation data from a single database."""
         try:
-            with get_database_connection(db_path) as conn:
+            with sqlite3.connect(str(db_path)) as conn:
                 cursor = conn.cursor()
 
                 # Query all keys in one go to minimize database connections
@@ -314,7 +314,7 @@ class CursorQuery:
 
         except (sqlite3.Error, OSError) as e:
             if not self.silent:
-                print(f"Error reading from database {db_path}: {e}")
+                log_error(e, f"Error reading from database {db_path}")
             return {
                 "conversations": [],
                 "prompts": [],
@@ -533,11 +533,11 @@ class CursorQuery:
                 raise ValueError(f"Unsupported format: {format_type}")
 
             if not self.silent:
-                print(f"Data exported to: {output_path}")
+                log_info(f"Data exported to: {output_path}")
 
         except (OSError, ValueError, TypeError) as e:
             if not self.silent:
-                print(f"Export failed: {e}")
+                log_error(e, "Export failed")
             raise
 
 

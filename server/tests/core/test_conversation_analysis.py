@@ -13,9 +13,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from src.config.constants.cache import CONTEXT_CACHE_TTL_SECONDS
 from src.core.conversation_analysis import (
+    CONTEXT_CACHE_TTL_SECONDS,
     FILE_REFERENCE_PATTERNS,
+    _context_keywords_cache,
+    _context_keywords_cache_time,
     _extract_keywords_from_file,
     _extract_project_keywords,
     _extract_tech_keywords_from_files,
@@ -30,7 +32,6 @@ from src.core.conversation_analysis import (
     score_session_recency,
     sort_conversations_by_relevance,
 )
-from src.utils.memory_cache import get_keyword_cache
 
 
 class TestGenerateSharedContextKeywords(unittest.TestCase):
@@ -38,7 +39,8 @@ class TestGenerateSharedContextKeywords(unittest.TestCase):
 
     def setUp(self):
         """Clear cache before each test."""
-        get_keyword_cache().clear()
+        _context_keywords_cache.clear()
+        _context_keywords_cache_time.clear()
 
     def test_generate_keywords_with_package_json(self):
         """Test keyword generation from package.json file."""
@@ -62,7 +64,7 @@ class TestGenerateSharedContextKeywords(unittest.TestCase):
         """Test keyword generation with Python project structure."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
-            (tmp_path / "requirements.txt").write_text("django==4.2.0\nflask==2.3.0")
+            (tmp_path / "requirements.txt").write_text("django==4.2.0\nflask==2.31")
             (tmp_path / "main.py").write_text("# Python file")
             (tmp_path / "app.py").write_text("# Flask app")
 
@@ -96,10 +98,21 @@ class TestGenerateSharedContextKeywords(unittest.TestCase):
             (tmp_path / "README.md").write_text("# Test Project")
 
             # First call
-            keywords1 = generate_shared_context_keywords(tmp_path)
-            keywords2 = generate_shared_context_keywords(tmp_path)
+            generate_shared_context_keywords(tmp_path)
 
-            self.assertEqual(keywords1, keywords2)
+            # Simulate cache expiry
+            cache_key = next(iter(_context_keywords_cache_time.keys()))
+            _context_keywords_cache_time[cache_key] = (
+                time.time() - CONTEXT_CACHE_TTL_SECONDS - 1
+            )
+
+            # Should regenerate keywords
+            with patch(
+                "src.core.conversation_analysis._extract_project_keywords"
+            ) as mock_extract:
+                mock_extract.return_value = ["test"]
+                generate_shared_context_keywords(tmp_path)
+                mock_extract.assert_called_once()
 
     def test_generate_keywords_with_modification_time(self):
         """Test cache key includes file modification time."""
@@ -112,9 +125,11 @@ class TestGenerateSharedContextKeywords(unittest.TestCase):
             keywords1 = generate_shared_context_keywords(tmp_path)
 
             # Clear cache to force regeneration
-            get_keyword_cache().clear()
+            _context_keywords_cache.clear()
+            _context_keywords_cache_time.clear()
 
-            # Modify file content to ensure cache regeneration
+            # Modify file
+            time.sleep(0.1)
             (tmp_path / "package.json").write_text(
                 json.dumps({"name": "updated-project"})
             )
@@ -943,17 +958,27 @@ class TestCacheManagement(unittest.TestCase):
 
     def setUp(self):
         """Clear cache before each test."""
-        get_keyword_cache().clear()
+        _context_keywords_cache.clear()
+        _context_keywords_cache_time.clear()
 
     def test_cache_cleanup(self):
         """Test that old cache entries are cleaned up."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
-            pass
+            # Add old cache entries
+            old_key = "old_project"
+            _context_keywords_cache[old_key] = ["old", "keywords"]
+            _context_keywords_cache_time[old_key] = (
+                time.time() - CONTEXT_CACHE_TTL_SECONDS - 1
+            )
 
             # Generate new keywords (should trigger cleanup)
             (tmp_path / "README.md").write_text("# New Project")
             generate_shared_context_keywords(tmp_path)
+
+            # Old cache entry should be removed
+            self.assertNotIn(old_key, _context_keywords_cache)
+            self.assertNotIn(old_key, _context_keywords_cache_time)
 
     def test_cache_key_generation(self):
         """Test that cache keys are generated consistently."""
@@ -967,3 +992,4 @@ class TestCacheManagement(unittest.TestCase):
 
             # Should use cache on second call
             self.assertEqual(keywords1, keywords2)
+            self.assertEqual(len(_context_keywords_cache), 1)

@@ -3,157 +3,88 @@ Test configuration and utilities for database connection management.
 """
 
 import sqlite3
-import tempfile
+import weakref
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
+from typing import Generator, List
 from unittest.mock import patch
 
 import pytest
 
 
-@contextmanager
-def safe_cursor(conn: sqlite3.Connection) -> Generator[sqlite3.Cursor, None, None]:
-    """Context manager for safe cursor operations with automatic cleanup."""
-    cursor = conn.cursor()
-    try:
-        yield cursor
-    finally:
-        cursor.close()
+class DatabaseConnectionManager:
+    """Manages database connections to prevent leaks in tests."""
 
+    def __init__(self):
+        self._connections: List[weakref.ref] = []
 
-@contextmanager
-def execute_sql(
-    conn: sqlite3.Connection, sql: str, params: tuple | None = None
-) -> Generator[sqlite3.Cursor, None, None]:
-    """Context manager for safe SQL execution with automatic cursor cleanup."""
-    cursor = conn.cursor()
-    try:
-        if params:
-            cursor.execute(sql, params)
-        else:
-            cursor.execute(sql)
-        yield cursor
-    finally:
-        try:
-            cursor.close()
-        except (sqlite3.Error, OSError):
-            pass
+    @contextmanager
+    def managed_connection(
+        self, db_path: Path
+    ) -> Generator[sqlite3.Connection, None, None]:
+        """Create a managed database connection that will be properly closed."""
+        with sqlite3.connect(str(db_path)) as conn:
+            self._connections.append(weakref.ref(conn))
+            yield conn
 
-
-def create_test_database(
-    db_path: Path, schema_sql: str | None = None, data: dict | None = None
-) -> None:
-    """Create a test database with optional schema and data."""
-    with sqlite3.connect(str(db_path)) as conn:
-        cursor = conn.cursor()
-        try:
-            if schema_sql:
-                cursor.executescript(schema_sql)
-
-            if data:
-                for table, rows in data.items():
-                    if rows:
-                        placeholders = ", ".join(["?" for _ in rows[0]])
-                        cursor.executemany(
-                            f"INSERT INTO {table} VALUES ({placeholders})", rows
-                        )
-
-            conn.commit()
-        finally:
-            cursor.close()
+    def close_all_connections(self) -> None:
+        """Close all tracked connections."""
+        for conn_ref in self._connections:
+            conn = conn_ref()
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+        self._connections.clear()
 
 
 @pytest.fixture
-def temp_project_dir():
-    """Create a temporary project directory for testing."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        project_root = Path(temp_dir)
-        # Create some basic project structure
-        (project_root / "src").mkdir()
-        (project_root / "tests").mkdir()
-        (project_root / "README.md").write_text("# Test Project")
-        yield project_root
+def db_manager():
+    """Provide a database connection manager for tests."""
+    manager = DatabaseConnectionManager()
+    yield manager
+    manager.close_all_connections()
 
 
 @pytest.fixture
-def temp_db():
-    """Create a temporary SQLite database for testing."""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        db_path = Path(f.name)
-
-    # Initialize database with basic table
-    with sqlite3.connect(str(db_path)) as conn:
-        with safe_cursor(conn) as cursor:
-            cursor.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)")
-            cursor.execute("INSERT INTO test (value) VALUES ('test_data')")
-        conn.commit()
-
+def temp_db(tmp_path):
+    """Create a temporary database file."""
+    db_path = tmp_path / "test.db"
     yield db_path
 
-    # Cleanup
-    try:
-        db_path.unlink()
-    except FileNotFoundError:
-        pass
+
+@pytest.fixture
+def temp_project_dir(tmp_path):
+    """Create a temporary project directory for testing."""
+    project_dir = tmp_path / "test_project"
+    project_dir.mkdir()
+    yield project_dir
 
 
 @pytest.fixture
 def mock_query_class():
-    """Mock query class for testing handlers."""
+    """Provide a mock query class for testing."""
     with patch("src.tool_calls.claude_code.query.ClaudeCodeQuery") as mock:
         yield mock
 
 
-@pytest.fixture
-def clean_database_pool():
-    """Provide a clean database pool for tests that need isolation."""
-    from src.utils.database_pool import close_database_pool
+def create_test_database(
+    db_path: Path, schema_sql: str = None, data: dict = None
+) -> None:
+    """Create a test database with optional schema and data."""
+    with sqlite3.connect(str(db_path)) as conn:
+        cursor = conn.cursor()
 
-    # Clean up before this specific test that requested isolation
-    close_database_pool()
+        if schema_sql:
+            cursor.executescript(schema_sql)
 
-    yield
+        if data:
+            for table, rows in data.items():
+                if rows:
+                    placeholders = ", ".join(["?" for _ in rows[0]])
+                    cursor.executemany(
+                        f"INSERT INTO {table} VALUES ({placeholders})", rows
+                    )
 
-    # Clean up after this specific test
-    close_database_pool()
-
-
-@pytest.fixture(autouse=True)
-def cleanup_connections():
-    """Auto-cleanup database connections after each test to prevent ResourceWarnings."""
-    yield
-    from src.utils.database_pool import close_all_connections
-
-    close_all_connections()
-
-
-# Sample request structures for testing
-@pytest.fixture
-def sample_requests():
-    """Provide sample request structures for testing."""
-    return {
-        "cursor_recall": {
-            "jsonrpc": "2.0",
-            "id": "test-123",
-            "method": "tools/call",
-            "params": {
-                "name": "mcp_gandalf_recall_conversations",
-                "arguments": {
-                    "tools": ["cursor"],
-                    "days_lookback": 7,
-                    "limit": 50,
-                    "fast_mode": True,
-                },
-            },
-        },
-        "project_info": {
-            "jsonrpc": "2.0",
-            "id": "test-456",
-            "method": "tools/call",
-            "params": {
-                "name": "mcp_gandalf_get_project_info",
-                "arguments": {"include_stats": True},
-            },
-        },
-    }
+        conn.commit()

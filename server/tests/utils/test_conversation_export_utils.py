@@ -218,9 +218,9 @@ class TestConversationExportUtils:
         assert result is False
 
     @patch("src.utils.conversation_export.CursorQuery")
-    @patch("builtins.print")
+    @patch("src.utils.conversation_export.log_info")
     def test_export_conversations_simple_verbose_output(
-        self, mock_print, mock_cursor_query
+        self, mock_log_info, mock_cursor_query
     ):
         """Test export with verbose output (silent=False)."""
         mock_instance = Mock()
@@ -235,16 +235,15 @@ class TestConversationExportUtils:
         )
 
         assert result is True
-        # Should print success message
-        mock_print.assert_called()
-        print_call_args = str(mock_print.call_args)
-        assert "Exported" in print_call_args
-        assert "conversations" in print_call_args
+        mock_log_info.assert_called()
+        log_call_args = str(mock_log_info.call_args)
+        assert "Exported" in log_call_args
+        assert "conversations" in log_call_args
 
     @patch("src.utils.conversation_export.CursorQuery")
-    @patch("builtins.print")
+    @patch("src.utils.conversation_export.log_error")
     def test_export_conversations_simple_error_verbose(
-        self, mock_print, mock_cursor_query
+        self, mock_log_error, mock_cursor_query
     ):
         """Test export error with verbose output (silent=False)."""
         mock_instance = Mock()
@@ -258,10 +257,9 @@ class TestConversationExportUtils:
         )
 
         assert result is False
-        # Should print error message
-        mock_print.assert_called()
-        print_call_args = str(mock_print.call_args)
-        assert "Export failed" in print_call_args
+        mock_log_error.assert_called()
+        log_call_args = str(mock_log_error.call_args)
+        assert "Export failed" in log_call_args
 
     @patch("src.utils.conversation_export.CursorQuery")
     def test_list_workspaces_success(self, mock_cursor_query):
@@ -393,8 +391,8 @@ class TestConversationExportUtils:
         assert len(result) == 0
 
     @patch("src.utils.conversation_export.CursorQuery")
-    @patch("builtins.print")
-    def test_list_workspaces_verbose_output(self, mock_print, mock_cursor_query):
+    @patch("src.utils.conversation_export.log_info")
+    def test_list_workspaces_verbose_output(self, mock_log_info, mock_cursor_query):
         """Test workspace listing with verbose output (silent=False)."""
         mock_instance = Mock()
         mock_instance.query_all_conversations.return_value = self.mock_conversation_data
@@ -404,15 +402,15 @@ class TestConversationExportUtils:
 
         assert isinstance(result, list)
         assert len(result) == 2
-        # Should print success message
-        mock_print.assert_called()
-        print_call_args = str(mock_print.call_args)
-        assert "Found" in print_call_args
-        assert "workspaces" in print_call_args
+        # Should log success message
+        mock_log_info.assert_called()
+        log_call_args = str(mock_log_info.call_args)
+        assert "Found" in log_call_args
+        assert "workspaces" in log_call_args
 
     @patch("src.utils.conversation_export.CursorQuery")
-    @patch("builtins.print")
-    def test_list_workspaces_error_verbose(self, mock_print, mock_cursor_query):
+    @patch("src.utils.conversation_export.log_error")
+    def test_list_workspaces_error_verbose(self, mock_log_error, mock_cursor_query):
         """Test workspace listing error with verbose output (silent=False)."""
         mock_instance = Mock()
         mock_instance.query_all_conversations.side_effect = OSError("Test error")
@@ -422,7 +420,7 @@ class TestConversationExportUtils:
 
         assert isinstance(result, list)
         assert len(result) == 0
-        # Should print error message
-        mock_print.assert_called()
-        print_call_args = str(mock_print.call_args)
-        assert "Failed to list workspaces" in print_call_args
+        # Should log error message
+        mock_log_error.assert_called()
+        log_call_args = str(mock_log_error.call_args)
+        assert "Failed to list workspaces" in log_call_args

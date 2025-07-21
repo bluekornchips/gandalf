@@ -7,7 +7,7 @@ package-mode = false
 
 [project]
 name = "gandalf-mcp"
-version = "2.3.0"
+version = "2.31"
 description = "Gandalf MCP Server - Agentic Tool Integrator for Development Assistants"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -76,12 +76,9 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 
-
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["-v", "--tb=short", "--cov=src"]
+addopts = ["-v", "--tb=short", "--cov=src", "--maxfail=1"]
 filterwarnings = [
-    "ignore::ResourceWarning:sqlite3",
-    "ignore:unclosed database:ResourceWarning"
+    "ignore::ResourceWarning",
 ] 

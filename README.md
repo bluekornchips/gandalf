@@ -4,15 +4,15 @@ Model Context Protocol (MCP) Server for Agentic Development Tools
 
 [![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](https://github.com/bluekornchips/gandalf/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
-[![MCP](https://img.shields.io/badge/protocol-MCP-purple.svg)](https://modelcontextprotocol.io)
-[![Tests](https://img.shields.io/badge/tests-959%20passing-green.svg)](#testing)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
+[![MCP](https://img.shields.io/badge/protocol-MCP%202025--06--18-purple.svg)](https://modelcontextprotocol.io)
+[![Tests](https://img.shields.io/badge/tests-1118%20passing-green.svg)](#testing)
 
 Gandalf aggregates conversations from multiple agentic tools (Cursor, Claude Code, Windsurf) and provides intelligent context for AI-assisted development.
 
 In the Lord of the Rings, Gandalf is a powerful wizard, but he is not omnipotent. He can see much, but there's only so much a maiar can do; that's where we mortals come in.
 
-[Quick Start](#quick-start) - [Installation](docs/INSTALLATION.md) - [API Reference](docs/API.md) - [Troubleshooting](docs/TROUBLESHOOTING.md)
+[**Quick Start**](#quick-start) - [**Installation**](docs/INSTALLATION.md) - [**API Reference**](docs/API.md) - [**Troubleshooting**](docs/TROUBLESHOOTING.md)
 
 ## Quick Start
 
@@ -62,15 +62,16 @@ list_project_files()
 
 ### Performance Optimized
 
-- Connection pooling with health monitoring
-- 100MB intelligent least recently used (LRU) cache with automatic eviction and TTL management
-- Optimized conversation aggregation and analysis
-- Adapts to project size automatically with streaming file iteration
+- Fast Processing: Sub-50ms conversation aggregation
+- Intelligent Caching: File system monitoring with cache invalidation
+- Scalable Architecture: Adapts to project size automatically
 
-### Enterprise Ready
+### Team Ready
 
 - Relevance Scoring: Multi-point analysis for optimal context prioritization
 - Project Awareness: Deep understanding of codebase structure
+- MCP 2025-06-18: Latest protocol version with enhanced capabilities
+- Robust Error Handling: Comprehensive request validation and error recovery
 
 ## Essential Tools
 
@@ -104,20 +105,16 @@ list_project_files()
 
 ## Performance Guidelines
 
-Gandalf now automatically optimizes performance for any project size with intelligent resource management.
-
-| Project Size             | Automatic Optimization                   | Manual Tuning                            |
-| ------------------------ | ---------------------------------------- | ---------------------------------------- |
-| Small (<50 files)        | Instant response with memory caching     | `list_project_files()`                   |
-| Medium (50-500 files)    | Connection pooling + intelligent cache   | `recall_conversations(fast_mode=true)`   |
-| Large (500+ files)       | Streaming processing + early termination | `list_project_files(file_types=['.py'])` |
-| Enterprise (1000+ files) | Memory-aware limits + depth control      | `list_project_files(max_files=1000)`     |
+| Project Size          | Configuration    | Example                                  |
+| --------------------- | ---------------- | ---------------------------------------- |
+| Small (<50 files)     | Default settings | `list_project_files()`                   |
+| Medium (50-500 files) | Enable fast mode | `recall_conversations(fast_mode=true)`   |
+| Large (500+ files)    | Limit scope      | `list_project_files(file_types=['.py'])` |
 
 ## Documentation
 
 - [Installation](docs/INSTALLATION.md): Setup instructions for all platforms
 - [API Reference](docs/API.md): Complete tool documentation with examples
-- [Performance Guide](PERFORMANCE.md): Detailed optimization documentation and tuning guide
 - [Troubleshooting](docs/TROUBLESHOOTING.md): Common issues and solutions
 - [Contributing](docs/CONTRIBUTING.md): Development guidelines
 
@@ -131,7 +128,7 @@ Gandalf now automatically optimizes performance for any project size with intell
 ./gandalf lembas --all
 ```
 
-Test Coverage: 959 comprehensive tests with 90%+ coverage across all optimized modules
+Test Coverage: 1,118 tests (171 shell + 947 Python) with 90%+ coverage
 
 ## Commands
 
@@ -157,6 +154,5 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 
 ## TODO:
 
-- Convert to flask server to serve requests.
-- Add ability to send notifications to the IDE
-- semgrep, random automations?
+- Complete MCP resource links and embedded resources
+- semgrep integration and security automations

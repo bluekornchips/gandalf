@@ -172,7 +172,10 @@ class TestWindsurfIntegration:
         )
 
         content_text = result["content"][0]["text"]
-        data = json.loads(content_text)
+        mcp_response = json.loads(content_text)
+
+        # The actual data is the MCP response itself
+        data = mcp_response
 
         assert data["available_tools"] == [AGENTIC_TOOL_WINDSURF]
         assert len(data["conversations"]) == 1
@@ -257,7 +260,10 @@ class TestWindsurfIntegration:
         )
 
         content_text = result["content"][0]["text"]
-        data = json.loads(content_text)
+        mcp_response = json.loads(content_text)
+
+        # The actual data is the MCP response itself
+        data = mcp_response
 
         assert len(data["available_tools"]) == 2
         assert AGENTIC_TOOL_WINDSURF in data["available_tools"]
@@ -300,7 +306,10 @@ class TestWindsurfIntegration:
         )
 
         content_text = result["content"][0]["text"]
-        data = json.loads(content_text)
+        mcp_response = json.loads(content_text)
+
+        # The actual data is the MCP response itself
+        data = mcp_response
 
         assert data["available_tools"] == [AGENTIC_TOOL_WINDSURF]
         assert data["total_conversations"] == 0
@@ -349,7 +358,10 @@ class TestWindsurfIntegration:
         )
 
         content_text = result["content"][0]["text"]
-        data = json.loads(content_text)
+        mcp_response = json.loads(content_text)
+
+        # The actual data is the MCP response itself
+        data = mcp_response
 
         if data.get("summary_mode", False):
             assert data["summary_mode"] is True
@@ -469,7 +481,10 @@ class TestWindsurfIntegration:
         )
 
         content_text = result["content"][0]["text"]
-        data = json.loads(content_text)
+        mcp_response = json.loads(content_text)
+
+        # The actual data is the MCP response itself
+        data = mcp_response
 
         returned_conversations = data["conversations"]
         assert len(returned_conversations) == 2

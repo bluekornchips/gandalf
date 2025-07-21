@@ -245,9 +245,12 @@ class AccessValidator:
         }
 
     @classmethod
-    def create_success_response(cls, text: str) -> dict[str, Any]:
+    def create_success_response(cls, content: str) -> dict[str, Any]:
         """Create a standardized MCP success response."""
-        return {"content": [{"type": "text", "text": text}]}
+        return {
+            "content": [{"type": "text", "text": content}],
+            "isError": False,
+        }
 
     @classmethod
     def validate_conversation_content(
@@ -273,7 +276,11 @@ class AccessValidator:
 
     @classmethod
     def _check_for_conversation_tricks(cls, text: str) -> bool:
-        """Check for conversation-specific dangerous patterns."""
+        """Check for conversation-specific dangerous patterns.
+
+        Validates conversation content for potentially malicious patterns,
+        while being less restrictive than general input validation.
+        """
         for pattern in CONVERSATION_DANGEROUS_PATTERNS:
             if re.search(pattern, text, re.IGNORECASE | re.DOTALL):
                 return True
@@ -367,3 +374,43 @@ def get_platform_blocked_paths(platform: str | None = None) -> set:
         return COMMON_BLOCKED_PATHS | WSL_SPECIFIC_BLOCKED_PATHS
     else:
         return COMMON_BLOCKED_PATHS
+
+
+def create_mcp_tool_result(
+    content_text: str, structured_content: dict | None = None, is_error: bool = False
+) -> dict[str, Any]:
+    """
+    Create MCP-compliant tool result with optional structured content.
+
+    According to MCP 2025-06-18 specification:
+    - Tools can return both text content and structured content
+    - Structured content should be validated against output schema
+    - Error handling should distinguish protocol vs tool execution errors
+    """
+    result = {
+        "content": [
+            {
+                "type": "text",
+                "text": content_text,
+                "annotations": {"audience": ["assistant"], "priority": 0.8},
+            }
+        ],
+        "isError": is_error,
+    }
+
+    # Add structured content if provided
+    if structured_content and not is_error:
+        result["structuredContent"] = structured_content
+
+    return result
+
+
+def create_tool_execution_error(
+    error_message: str, details: dict | None = None
+) -> dict[str, Any]:
+    """Create tool execution error (not protocol error) according to MCP 2025-06-18."""
+    content_text = error_message
+    if details:
+        content_text += f"\nDetails: {json.dumps(details, indent=2)}"
+
+    return create_mcp_tool_result(content_text, is_error=True)

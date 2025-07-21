@@ -5,10 +5,17 @@ import unittest.mock as mock
 from pathlib import Path
 
 from src.utils.common import (
+    LogLevel,
     initialize_session_logging,
+    log_alert,
+    log_critical,
     log_debug,
+    log_emergency,
     log_error,
     log_info,
+    log_notice,
+    log_warning,
+    set_min_log_level,
     write_log,
 )
 
@@ -129,46 +136,72 @@ class TestLogConvenienceFunctions:
 
     @mock.patch("src.utils.common.write_log")
     def test_log_info_calls_write_log_only(self, mock_write_log):
-        """Test log_info calls write_log only, no RPC messages."""
+        """Test log_info calls write_log with default logger and no data."""
         log_info("all we have to decide is what to do with the time given us")
 
         mock_write_log.assert_called_once_with(
             "info",
             "all we have to decide is what to do with the time given us",
+            "server",
+            None,
         )
 
     @mock.patch("src.utils.common.write_log")
     def test_log_debug_calls_write_log_only(self, mock_write_log):
-        """Test log_debug calls write_log only, no RPC messages."""
+        """Test log_debug calls write_log with default logger and no data."""
         log_debug("you shall not pass")
 
-        mock_write_log.assert_called_once_with("debug", "you shall not pass")
+        mock_write_log.assert_called_once_with(
+            "debug", "you shall not pass", "server", None
+        )
 
     @mock.patch("src.utils.common.write_log")
     def test_log_error_with_context(self, mock_write_log):
-        """Test log_error formats message with context and calls write_log only."""
+        """Test log_error formats message with context and structured data."""
         test_exception = ValueError("ring not found")
         log_error(test_exception, "searching for precious")
 
         mock_write_log.assert_called_once_with(
-            "error", "searching for precious: ring not found"
+            "error",
+            "searching for precious: ring not found",
+            "server",
+            {"error_type": "ValueError", "error_str": "ring not found"},
         )
 
     @mock.patch("src.utils.common.write_log")
     def test_log_error_without_context(self, mock_write_log):
-        """Test log_error formats message without context and calls write_log only."""
+        """Test log_error formats message without context and structured data."""
         test_exception = RuntimeError("sauron has returned")
         log_error(test_exception)
 
-        mock_write_log.assert_called_once_with("error", "sauron has returned")
+        mock_write_log.assert_called_once_with(
+            "error",
+            "sauron has returned",
+            "server",
+            {"error_type": "RuntimeError", "error_str": "sauron has returned"},
+        )
 
     @mock.patch("src.utils.common.write_log")
     def test_log_error_empty_context(self, mock_write_log):
-        """Test log_error handles empty context string and calls write_log only."""
+        """Test log_error handles empty context string with structured data."""
         test_exception = KeyError("palantir")
         log_error(test_exception, "")
 
-        mock_write_log.assert_called_once_with("error", "'palantir'")
+        mock_write_log.assert_called_once_with(
+            "error",
+            "'palantir'",
+            "server",
+            {"error_type": "KeyError", "error_str": "'palantir'"},
+        )
+
+    @mock.patch("src.utils.common.write_log")
+    def test_log_critical_calls_write_log_only(self, mock_write_log):
+        """Test log_critical calls write_log with structured data."""
+        log_critical("the beacons are lit")
+
+        mock_write_log.assert_called_once_with(
+            "critical", "the beacons are lit", "server", None
+        )
 
 
 class TestLoggingIntegration:
@@ -184,6 +217,7 @@ class TestLoggingIntegration:
                 # Log various messages
                 log_info("gandalf arrives precisely when he means to")
                 log_debug("looking for signs of the enemy")
+                log_critical("they have a cave troll")
 
                 # Verify log file exists
                 logs_dir = Path(temp_dir) / "logs"
@@ -195,8 +229,9 @@ class TestLoggingIntegration:
         """Test that different logging functions work together properly."""
         log_info("the hobbits are going to isengard")
         log_debug("searching for tracks")
+        log_critical("we are being hunted")
 
-        assert mock_write_log.call_count == 2
+        assert mock_write_log.call_count == 3
 
     def test_session_id_persistence(self):
         """Test that session ID persists across multiple logging calls."""
@@ -235,7 +270,7 @@ class TestLoggingEdgeCases:
 
     @mock.patch("src.utils.common.write_log")
     def test_log_error_with_complex_exception(self, mock_write_log):
-        """Test log_error handles complex exception objects."""
+        """Test log_error handles complex exception objects with structured data."""
 
         class CustomException(Exception):
             def __init__(self, message, code):
@@ -249,7 +284,13 @@ class TestLoggingEdgeCases:
         log_error(complex_error, "ring bearer status")
 
         expected_message = "ring bearer status: Error 404: the ring is lost"
-        mock_write_log.assert_called_once_with("error", expected_message)
+        expected_data = {
+            "error_type": "CustomException",
+            "error_str": "Error 404: the ring is lost",
+        }
+        mock_write_log.assert_called_once_with(
+            "error", expected_message, "server", expected_data
+        )
 
     def test_write_log_with_optional_parameters(self):
         """Test write_log with optional logger and data parameters."""
@@ -277,3 +318,105 @@ class TestLoggingEdgeCases:
                     assert last_entry["message"] == "test message with extras"
                     assert last_entry["logger"] == "test_logger"
                     assert last_entry["data"] == test_data
+
+
+class TestMCPLoggingCompliance:
+    """Test MCP logging compliance features."""
+
+    def test_log_level_enum_values(self):
+        """Test LogLevel enum has correct RFC 5424 values."""
+        assert LogLevel.DEBUG == 0
+        assert LogLevel.INFO == 1
+        assert LogLevel.NOTICE == 2
+        assert LogLevel.WARNING == 3
+        assert LogLevel.ERROR == 4
+        assert LogLevel.CRITICAL == 5
+        assert LogLevel.ALERT == 6
+        assert LogLevel.EMERGENCY == 7
+
+    def test_log_level_enum_comparison(self):
+        """Test LogLevel enum supports proper comparison."""
+        assert LogLevel.DEBUG < LogLevel.INFO
+        assert LogLevel.ERROR > LogLevel.WARNING
+        assert LogLevel.EMERGENCY > LogLevel.CRITICAL
+
+    def test_set_min_log_level_valid(self):
+        """Test set_min_log_level accepts valid levels."""
+        assert set_min_log_level("info") is True
+        assert set_min_log_level("error") is True
+        assert set_min_log_level("debug") is True
+
+    def test_set_min_log_level_invalid(self):
+        """Test set_min_log_level rejects invalid levels."""
+        assert set_min_log_level("invalid") is False
+        assert set_min_log_level("") is False
+        assert set_min_log_level("trace") is False
+
+    @mock.patch("src.utils.common.write_log")
+    def test_log_notice_structured(self, mock_write_log):
+        """Test log_notice uses structured format."""
+        log_notice("configuration changed", "config", {"key": "value"})
+        mock_write_log.assert_called_once_with(
+            "notice", "configuration changed", "config", {"key": "value"}
+        )
+
+    @mock.patch("src.utils.common.write_log")
+    def test_log_warning_structured(self, mock_write_log):
+        """Test log_warning uses structured format."""
+        log_warning("deprecated feature", "api")
+        mock_write_log.assert_called_once_with(
+            "warning", "deprecated feature", "api", None
+        )
+
+    @mock.patch("src.utils.common.write_log")
+    def test_log_alert_structured(self, mock_write_log):
+        """Test log_alert uses structured format."""
+        log_alert("data corruption detected")
+        mock_write_log.assert_called_once_with(
+            "alert", "data corruption detected", "server", None
+        )
+
+    @mock.patch("src.utils.common.write_log")
+    def test_log_emergency_structured(self, mock_write_log):
+        """Test log_emergency uses structured format."""
+        log_emergency("system failure", "system", {"status": "failed"})
+        mock_write_log.assert_called_once_with(
+            "emergency", "system failure", "system", {"status": "failed"}
+        )
+
+    @mock.patch("src.utils.common._should_log")
+    def test_log_level_filtering(self, mock_should_log):
+        """Test log level filtering works with enum."""
+        mock_should_log.return_value = False
+
+        # Mock the log file path to enable write_log processing
+        import src.utils.common as common_module
+
+        original_path = common_module._log_file_path
+        common_module._log_file_path = Path("/test/path.log")
+
+        try:
+            with mock.patch("builtins.open"):
+                log_debug("filtered message")
+                # _should_log should be called and return False, preventing file write
+                mock_should_log.assert_called_once_with("debug")
+        finally:
+            common_module._log_file_path = original_path
+
+    def test_log_levels_mapping_complete(self):
+        """Test all log levels are mapped correctly."""
+        from src.utils.common import LOG_LEVELS
+
+        expected_levels = [
+            "debug",
+            "info",
+            "notice",
+            "warning",
+            "error",
+            "critical",
+            "alert",
+            "emergency",
+        ]
+        for level in expected_levels:
+            assert level in LOG_LEVELS
+            assert isinstance(LOG_LEVELS[level], LogLevel)

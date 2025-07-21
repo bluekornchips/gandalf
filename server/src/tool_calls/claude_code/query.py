@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.utils.access_control import AccessValidator
+from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_debug, log_error, log_info
 
 
@@ -323,9 +323,22 @@ def handle_query_claude_conversations(
             log_info(
                 f"Summary: {total_conversations} conversations with {total_messages} total messages"
             )
-            return AccessValidator.create_success_response(
-                json.dumps(summary_data, indent=2)
-            )
+
+            structured_data = {
+                "summary": {
+                    "total_conversations": total_conversations,
+                    "total_messages": total_messages,
+                    "claude_home": data.get("claude_home"),
+                },
+                "recent_conversations": recent_conversations,
+                "status": "summary_complete",
+            }
+
+            content_text = json.dumps(summary_data, indent=2)
+            mcp_result = create_mcp_tool_result(content_text, structured_data)
+            return {
+                "content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]
+            }
 
         # Format output based on requested format
         if format_type == "markdown":
@@ -336,7 +349,20 @@ def handle_query_claude_conversations(
         log_info(
             f"Queried {len(data.get('conversations', []))} conversations in {format_type} format"
         )
-        return AccessValidator.create_success_response(content)
+
+        # Create structured content for full results
+        structured_data = {
+            "query_result": {
+                "total_sessions": data.get("total_sessions", 0),
+                "claude_home": data.get("claude_home"),
+                "format": format_type,
+            },
+            "conversations": data.get("conversations", []),
+            "status": "query_complete",
+        }
+
+        mcp_result = create_mcp_tool_result(content, structured_data)
+        return {"content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]}
 
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "query_claude_conversations")

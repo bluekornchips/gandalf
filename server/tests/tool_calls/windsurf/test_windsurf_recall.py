@@ -160,12 +160,14 @@ class TestWindsurfRecall:
             mock_keywords.return_value = self.context_keywords
 
             # Mock relevance analysis to return good scores
-            def mock_analyze_side_effect(conv, keywords, project_root, fast_mode=True):
-                return {
-                    "relevance_score": 5.0,
-                    "snippet": f"Snippet for {conv.get('id', 'unknown')}",
+            def mock_analyze_side_effect(
+                content, keywords, session_metadata, include_detailed_analysis=False
+            ):
+                conv_id = session_metadata.get("id", "unknown")
+                return 5.0, {
+                    "snippet": f"Snippet for {conv_id}",
                     "keyword_matches": ["fellowship", "ring"],
-                    "context_analysis": {"score": 5.0},
+                    "score": 5.0,
                 }
 
             mock_analyze.side_effect = mock_analyze_side_effect
@@ -174,7 +176,8 @@ class TestWindsurfRecall:
 
             assert "content" in result
             content_text = result["content"][0]["text"]
-            data = json.loads(content_text)
+            mcp_response = json.loads(content_text)
+            data = json.loads(mcp_response["content"][0]["text"])
 
             assert "conversations" in data
             assert "total_conversations" in data
@@ -203,7 +206,8 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            data = json.loads(content_text)
+            mcp_response = json.loads(content_text)
+            data = json.loads(mcp_response["content"][0]["text"])
 
             assert data["total_conversations"] == 0
             assert data["total_analyzed"] == 0
@@ -235,8 +239,14 @@ class TestWindsurfRecall:
             )
             mock_keywords.return_value = self.context_keywords
 
-            def mock_analyze_side_effect(conv, keywords, project_root, fast_mode=True):
-                conv_id = conv.get("id", "unknown")
+            def mock_analyze_side_effect(
+                content, keywords, session_metadata, include_detailed_analysis=False
+            ):
+                # Extract conv_id from session_metadata or content
+                conv_id = "unknown"
+                if session_metadata:
+                    conv_id = session_metadata.get("id", "unknown")
+
                 if conv_id == "frodo_ring_bearer":
                     score = 5.0  # above
                 elif conv_id == "gandalf_balrog_encounter":
@@ -244,19 +254,21 @@ class TestWindsurfRecall:
                 else:
                     score = 4.5  # above
 
-                return {
-                    "relevance_score": score,
+                analysis = {
                     "snippet": f"Snippet for {conv_id}",
                     "keyword_matches": ["fellowship", "ring"],
-                    "context_analysis": {"score": score},
+                    "score": score,
                 }
+
+                return score, analysis
 
             mock_analyze.side_effect = mock_analyze_side_effect
 
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            data = json.loads(content_text)
+            mcp_response = json.loads(content_text)
+            data = json.loads(mcp_response["content"][0]["text"])
 
             assert len(data["conversations"]) == 4  # 4 conversations have scores >= 4.0
             assert data["total_analyzed"] == 5
@@ -289,12 +301,14 @@ class TestWindsurfRecall:
             mock_keywords.return_value = self.context_keywords
 
             # All conversations get good scores
-            def mock_analyze_side_effect(conv, keywords, project_root, fast_mode=True):
-                return {
-                    "relevance_score": 5.0,
-                    "snippet": f"Snippet for {conv.get('id', 'unknown')}",
+            def mock_analyze_side_effect(
+                content, keywords, session_metadata, include_detailed_analysis=False
+            ):
+                conv_id = session_metadata.get("id", "unknown")
+                return 5.0, {
+                    "snippet": f"Snippet for {conv_id}",
                     "keyword_matches": ["fellowship"],
-                    "context_analysis": {"score": 5.0},
+                    "score": 5.0,
                 }
 
             mock_analyze.side_effect = mock_analyze_side_effect
@@ -302,7 +316,8 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            data = json.loads(content_text)
+            mcp_response = json.loads(content_text)
+            data = json.loads(mcp_response["content"][0]["text"])
 
             assert len(data["conversations"]) == 2
             assert data["total_analyzed"] == 5
@@ -329,12 +344,14 @@ class TestWindsurfRecall:
             )
             mock_keywords.return_value = self.context_keywords
 
-            def mock_analyze_side_effect(conv, keywords, project_root, fast_mode=True):
-                return {
-                    "relevance_score": 5.0,
-                    "snippet": f"Snippet for {conv.get('id', 'unknown')}",
+            def mock_analyze_side_effect(
+                content, keywords, session_metadata, include_detailed_analysis=False
+            ):
+                conv_id = session_metadata.get("id", "unknown")
+                return 5.0, {
+                    "snippet": f"Snippet for {conv_id}",
                     "keyword_matches": ["fellowship"],
-                    "context_analysis": {"score": 5.0},
+                    "score": 5.0,
                 }
 
             mock_analyze.side_effect = mock_analyze_side_effect
@@ -342,7 +359,8 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            data = json.loads(content_text)
+            mcp_response = json.loads(content_text)
+            data = json.loads(mcp_response["content"][0]["text"])
 
             for conv in data["conversations"]:
                 assert "id" in conv
@@ -398,7 +416,8 @@ class TestWindsurfRecall:
                 )
 
                 content_text = result["content"][0]["text"]
-                data = json.loads(content_text)
+                mcp_response = json.loads(content_text)
+                data = json.loads(mcp_response["content"][0]["text"])
 
                 assert data["parameters"]["fast_mode"] == fast_mode
                 assert len(data["conversations"]) > 0
@@ -434,7 +453,8 @@ class TestWindsurfRecall:
                 )
 
                 content_text = result["content"][0]["text"]
-                data = json.loads(content_text)
+                mcp_response = json.loads(content_text)
+                data = json.loads(mcp_response["content"][0]["text"])
 
                 assert "parameters" in data
                 params = data["parameters"]
@@ -463,15 +483,16 @@ class TestWindsurfRecall:
             )
             mock_keywords.return_value = self.context_keywords
 
-            def mock_analyze_side_effect(conv, keywords, project_root, fast_mode=True):
-                conv_id = conv.get("id", "unknown")
+            def mock_analyze_side_effect(
+                content, keywords, session_metadata, include_detailed_analysis=False
+            ):
+                conv_id = session_metadata.get("id", "unknown")
                 if conv_id == "gandalf_balrog_encounter":
                     raise OSError("Analysis failed")
-                return {
-                    "relevance_score": 5.0,
+                return 5.0, {
                     "snippet": f"Snippet for {conv_id}",
                     "keyword_matches": ["fellowship"],
-                    "context_analysis": {"score": 5.0},
+                    "score": 5.0,
                 }
 
             mock_analyze.side_effect = mock_analyze_side_effect
@@ -479,7 +500,8 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            data = json.loads(content_text)
+            mcp_response = json.loads(content_text)
+            data = json.loads(mcp_response["content"][0]["text"])
 
             assert len(data["conversations"]) >= 4  # at least 4 should succeed
             assert data["total_analyzed"] == 5
@@ -515,13 +537,15 @@ class TestWindsurfRecall:
             )
             mock_keywords.return_value = self.context_keywords
 
-            def mock_analyze_side_effect(conv, keywords, project_root, fast_mode=True):
+            def mock_analyze_side_effect(
+                content, keywords, session_metadata, include_detailed_analysis=False
+            ):
                 assert keywords == self.context_keywords
-                return {
-                    "relevance_score": 5.0,
-                    "snippet": f"Snippet for {conv.get('id', 'unknown')}",
+                conv_id = session_metadata.get("id", "unknown")
+                return 5.0, {
+                    "snippet": f"Snippet for {conv_id}",
                     "keyword_matches": keywords[:2],  # Use some keywords
-                    "context_analysis": {"score": 5.0},
+                    "score": 5.0,
                 }
 
             mock_analyze.side_effect = mock_analyze_side_effect
@@ -529,7 +553,8 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            data = json.loads(content_text)
+            mcp_response = json.loads(content_text)
+            data = json.loads(mcp_response["content"][0]["text"])
 
             assert data["context_keywords"] == self.context_keywords
             mock_keywords.assert_called_once_with(self.project_root)
@@ -566,12 +591,14 @@ class TestWindsurfRecall:
             filtered_conversations = self.sample_conversations[:2]  # Only first 2
             mock_filter.return_value = filtered_conversations
 
-            def mock_analyze_side_effect(conv, keywords, project_root, fast_mode=True):
-                return {
-                    "relevance_score": 5.0,
-                    "snippet": f"Snippet for {conv.get('id', 'unknown')}",
+            def mock_analyze_side_effect(
+                content, keywords, session_metadata, include_detailed_analysis=False
+            ):
+                conv_id = session_metadata.get("id", "unknown")
+                return 5.0, {
+                    "snippet": f"Snippet for {conv_id}",
                     "keyword_matches": ["fellowship"],
-                    "context_analysis": {"score": 5.0},
+                    "score": 5.0,
                 }
 
             mock_analyze.side_effect = mock_analyze_side_effect
@@ -579,7 +606,8 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            data = json.loads(content_text)
+            mcp_response = json.loads(content_text)
+            data = json.loads(mcp_response["content"][0]["text"])
 
             # Should only process filtered conversations
             assert data["total_filtered"] == 2
@@ -606,8 +634,10 @@ class TestWindsurfRecall:
             mock_keywords.return_value = self.context_keywords
 
             # Mock different relevance scores to test sorting
-            def mock_analyze_side_effect(conv, keywords, project_root, fast_mode=True):
-                conv_id = conv.get("id", "unknown")
+            def mock_analyze_side_effect(
+                content, keywords, session_metadata, include_detailed_analysis=False
+            ):
+                conv_id = session_metadata.get("id", "unknown")
                 scores = {
                     "frodo_ring_bearer": 3.0,
                     "gandalf_balrog_encounter": 5.0,
@@ -617,11 +647,10 @@ class TestWindsurfRecall:
                 }
                 score = scores.get(conv_id, 1.0)
 
-                return {
-                    "relevance_score": score,
+                return score, {
                     "snippet": f"Snippet for {conv_id}",
                     "keyword_matches": ["fellowship"],
-                    "context_analysis": {"score": score},
+                    "score": score,
                 }
 
             mock_analyze.side_effect = mock_analyze_side_effect
@@ -629,7 +658,8 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            data = json.loads(content_text)
+            mcp_response = json.loads(content_text)
+            data = json.loads(mcp_response["content"][0]["text"])
 
             # Should be sorted by relevance score (highest first)
             scores = [conv["relevance_score"] for conv in data["conversations"]]

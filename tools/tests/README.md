@@ -7,20 +7,20 @@ Comprehensive tests for the Gandalf MCP server, ensuring functionality, security
 The test system is organized into separate managers:
 
 - Main Coordinator\*\*: `../test-suite.sh` - Coordinates between shell and Python tests
-- Shell Test Manager: `../shell-tests-manager.sh` - Handles all shell/bats tests
-- Python Test Manager: `../python-tests-manager.sh` - Handles all Python/pytest tests
+- **Shell Test Manager**: `../shell-tests-manager.sh` - Handles all shell/bats tests
+- **Python Test Manager**: `../python-tests-manager.sh` - Handles all Python/pytest tests
 
 ### Test Categories
 
-- Core Tests: Basic server functionality, JSON-RPC compliance (Python)
-- File Tests: File operations, listing, filtering, relevance scoring (Python)
-- Project Tests: Project information, git integration, statistics (Shell)
-- Context Intelligence Tests: File prioritization, relevance scoring (Python)
-- Security Tests: Security validation, input sanitization (Python)
-- Performance Tests: Performance benchmarks, load testing (Shell)
-- Integration Tests: End-to-end workflows and tool interactions (Shell)
-- Workspace Detection Tests: Project root identification (Shell)
-- Conversation Export Tests: Conversation export functionality (Shell)
+- **Core Tests**: Basic server functionality, JSON-RPC compliance (Python)
+- **File Tests**: File operations, listing, filtering, relevance scoring (Python)
+- **Project Tests**: Project information, git integration, statistics (Shell)
+- **Context Intelligence Tests**: File prioritization, relevance scoring (Python)
+- **Security Tests**: Security validation, input sanitization (Python)
+- **Performance Tests**: Performance benchmarks, load testing (Shell)
+- **Integration Tests**: End-to-end workflows and tool interactions (Shell)
+- **Workspace Detection Tests**: Project root identification (Shell)
+- **Conversation Export Tests**: Conversation export functionality (Shell)
 
 ### Active Shell Test Suites
 
@@ -37,18 +37,18 @@ The test system is organized into separate managers:
 | `uninstall`            | `uninstall-tests.sh`            | Uninstall script functionality and cleanup operations |
 | `workspace-detection`  | `workspace-detection-tests.sh`  | Workspace detection strategies                        |
 
-Total Shell Tests: 131 test cases
+**Total Shell Tests: 131 test cases**
 
 ### Python Test Coverage
 
 The Python test suite uses pytest and is organized into directories:
 
-- `core/` - Core MCP server functionality, context intelligence, conversation analysis, file scoring, git activity
-- `tool_calls/` - Tool implementations, conversation aggregation, export functionality, integration tests
-- `utils/` - Utility functions, access control, performance, project operations
-- `config/` - Configuration and constants testing
+- **`core/`** - Core MCP server functionality, context intelligence, conversation analysis, file scoring, git activity
+- **`tool_calls/`** - Tool implementations, conversation aggregation, export functionality, integration tests
+- **`utils/`** - Utility functions, access control, performance, project operations
+- **`config/`** - Configuration and constants testing
 
-Total Python Tests: 581 test cases
+**Total Python Tests: 581 test cases**
 
 ## Tool Coverage
 
@@ -108,13 +108,13 @@ teardown() {
 
 Located in `fixtures/helpers/test-helpers.sh`:
 
-Core Functions:
+**Core Functions:**
 
 - `execute_rpc()` - JSON-RPC request execution
 - `validate_jsonrpc_response()` - Response validation
 - `generate_test_id()` - Unique test ID generation
 
-Test Environment:
+**Test Environment:**
 
 - `shared_setup()` - Standard test environment setup
 - `shared_teardown()` - Standard test environment cleanup
@@ -124,9 +124,9 @@ Test Environment:
 
 Each test suite has its own project creation function:
 
-- Project Tests: `create_project_test_structure()` - Specialized structure with git history
-- Performance Tests: `create_large_project_structure()` - Large project for performance testing
-- Integration Tests: `create_integration_test_structure()` - Realistic structure for integration testing
+- **Project Tests**: `create_project_test_structure()` - Specialized structure with git history
+- **Performance Tests**: `create_large_project_structure()` - Large project for performance testing
+- **Integration Tests**: `create_integration_test_structure()` - Realistic structure for integration testing
 
 ## Running Tests
 
@@ -219,7 +219,7 @@ gdlf test --python
 
 ### Mock Data Standards
 
-All test data uses Lord of the Rings references:
+All test data uses **Lord of the Rings** references:
 
 ```bash
 # Example test data
@@ -232,10 +232,10 @@ TEST_FILES=("fellowship.py" "ring.js" "gandalf.md")
 
 Located in `fixtures/data/`:
 
-- Project structures - Various project layouts for testing
-- Git repositories - Pre-configured git histories
-- Configuration files - Sample MCP configurations
-- Mock databases - Test conversation data
+- **Project structures** - Various project layouts for testing
+- **Git repositories** - Pre-configured git histories
+- **Configuration files** - Sample MCP configurations
+- **Mock databases** - Test conversation data
 
 ## Debugging Tests
 
@@ -263,17 +263,17 @@ export GANDALF_TEST_CLEANUP="false"
 
 ### Common Issues
 
-Tests failing with "command not found":
+**Tests failing with "command not found":**
 
 - Ensure `bats`, `jq`, and `python3` are installed
 - Check `PATH` includes required tools
 
-Permission errors:
+**Permission errors:**
 
 - Run `chmod +x` on test scripts
 - Ensure test directories are writable
 
-Git-related failures:
+**Git-related failures:**
 
 - Ensure git is configured with user.name and user.email
 - Check git repository is properly initialized
@@ -282,11 +282,11 @@ Git-related failures:
 
 ### Adding New Tests
 
-1. Choose appropriate test type (shell vs Python)
-2. Follow naming conventions (`feature-tests.sh` for shell)
-3. Use shared helper functions for consistency
-4. Include proper setup/teardown for isolation
-5. Use Lord of the Rings references for mock data
+1. **Choose appropriate test type** (shell vs Python)
+2. **Follow naming conventions** (`feature-tests.sh` for shell)
+3. **Use shared helper functions** for consistency
+4. **Include proper setup/teardown** for isolation
+5. **Use Lord of the Rings references** for mock data
 
 ### Test Requirements
 

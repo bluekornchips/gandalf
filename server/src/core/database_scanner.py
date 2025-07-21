@@ -47,7 +47,6 @@ from src.config.constants.paths import (
     WINDSURF_WORKSPACE_STORAGE,
 )
 from src.utils.common import log_debug, log_error, log_info
-from src.utils.database_pool import get_database_connection
 
 
 @contextmanager
@@ -99,10 +98,10 @@ class DatabaseScanner:
         return time.time() - self._last_scan_time > self._cache_ttl
 
     def _count_conversations_sqlite(self, db_path: Path) -> int | None:
-        """Count conversations in a SQLite database safely using connection pool."""
+        """Count conversations in a SQLite database safely."""
         try:
             with timeout_context(DATABASE_OPERATION_TIMEOUT):
-                with get_database_connection(db_path) as conn:
+                with sqlite3.connect(str(db_path), timeout=2.0) as conn:
                     cursor = conn.cursor()
 
                     # Check if this is a Cursor database with 'ItemTable' structure

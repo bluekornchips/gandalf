@@ -54,7 +54,7 @@ call_mcp_tool() {
 
     local temp_input=$(mktemp)
     cat >"$temp_input" <<EOFMCP
-{"jsonrpc": "2.0", "method": "initialize", "id": 1, "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "gandalf-cli", "version": "1.0.0"}}}
+{"jsonrpc": "2.0", "method": "initialize", "id": 1, "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "gandalf-cli", "version": "1.0.0"}}}
 {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}
 {"jsonrpc": "2.0", "method": "tools/call", "id": 2, "params": {"name": "$tool_name", "arguments": $args_oneline}}
 EOFMCP

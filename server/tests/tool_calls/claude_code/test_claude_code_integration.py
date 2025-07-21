@@ -180,7 +180,8 @@ class TestClaudeCodeIntegration:
             # Extract data from MCP response
             if isinstance(result, dict) and "content" in result:
                 content_text = result["content"][0]["text"]
-                data = json.loads(content_text)
+                mcp_response = json.loads(content_text)
+                data = json.loads(mcp_response["content"][0]["text"])
             else:
                 data = result
 
@@ -227,24 +228,59 @@ class TestClaudeCodeIntegration:
                 # Extract data from MCP response
                 if isinstance(result, dict) and "content" in result:
                     content_text = result["content"][0]["text"]
-                    data = json.loads(content_text)
+                    try:
+                        inner_mcp = json.loads(content_text)
+                        if (
+                            isinstance(inner_mcp, dict)
+                            and "structuredContent" in inner_mcp
+                        ):
+                            structured = inner_mcp["structuredContent"]
+                            if "content" in inner_mcp:
+                                inner_content = inner_mcp["content"]
+                                if inner_content and isinstance(inner_content, list):
+                                    inner_text = inner_content[0].get("text", "{}")
+                                    try:
+                                        text_data = json.loads(inner_text)
+                                        data = {**text_data, **structured}
+                                    except json.JSONDecodeError:
+                                        data = structured
+                                else:
+                                    data = structured
+                            else:
+                                data = structured
+                        else:
+                            data = inner_mcp
+                    except json.JSONDecodeError:
+                        data = {"error": "Failed to parse response"}
                 else:
                     data = result
 
                 # Should detect Claude Code as available
-                assert "claude-code" in data["available_tools"]
+                available_tools = data["available_tools"]
+                assert isinstance(available_tools, list), (
+                    "available_tools should be a list"
+                )
+                assert "claude-code" in available_tools
 
                 # Should find Claude Code conversations properly
                 # Handle both normal format and summary format
                 if "tool_results" in data:
-                    assert "claude-code" in data["tool_results"]
-                    claude_results = data["tool_results"]["claude-code"]
+                    tool_results = data["tool_results"]
+                    assert isinstance(tool_results, dict), (
+                        "tool_results should be a dict"
+                    )
+                    assert "claude-code" in tool_results
+                    claude_results = tool_results["claude-code"]
                     # Should find the conversation
                     assert claude_results["total_conversations"] > 0
                 elif "tool_summaries" in data:
                     # Summary format when response is too large
-                    assert "claude-code" in data["tool_summaries"]
-                    claude_summary = data["tool_summaries"]["claude-code"]
+                    tool_summaries = data["tool_summaries"]
+                    assert isinstance(tool_summaries, dict), (
+                        "tool_summaries should be a dict"
+                    )
+                    assert "claude-code" in tool_summaries
+                    claude_summary = tool_summaries["claude-code"]
                     assert claude_summary["count"] > 0
                 else:
                     # If neither format, fail with helpful message
@@ -459,24 +495,34 @@ class TestClaudeCodeRegressionTests:
                     limit=10,
                 )
 
-                # Extract data
+                # Extract data - handle nested MCP response
                 if isinstance(result, dict) and "content" in result:
                     content_text = result["content"][0]["text"]
-                    data = json.loads(content_text)
+                    mcp_response = json.loads(content_text)
+                    # The actual data is now directly in the mcp_response, not nested within another content field
+                    data = mcp_response
                 else:
                     data = result
 
                 # REGRESSION: Should find Claude Code conversations properly
                 # Handle both normal format and summary format
                 if "tool_results" in data:
-                    assert "claude-code" in data["tool_results"]
-                    claude_results = data["tool_results"]["claude-code"]
+                    tool_results = data["tool_results"]
+                    assert isinstance(tool_results, dict), (
+                        "tool_results should be a dict"
+                    )
+                    assert "claude-code" in tool_results
+                    claude_results = tool_results["claude-code"]
                     # Should find the conversation
                     assert claude_results["total_conversations"] > 0
                 elif "tool_summaries" in data:
                     # Summary format when response is too large
-                    assert "claude-code" in data["tool_summaries"]
-                    claude_summary = data["tool_summaries"]["claude-code"]
+                    tool_summaries = data["tool_summaries"]
+                    assert isinstance(tool_summaries, dict), (
+                        "tool_summaries should be a dict"
+                    )
+                    assert "claude-code" in tool_summaries
+                    claude_summary = tool_summaries["claude-code"]
                     assert claude_summary["count"] > 0
                 else:
                     # If neither format, fail with helpful message
@@ -508,10 +554,12 @@ class TestClaudeCodeRegressionTests:
                     limit=10,
                 )
 
-                # Extract data
+                # Extract data - handle nested MCP response
                 if isinstance(result, dict) and "content" in result:
                     content_text = result["content"][0]["text"]
-                    data = json.loads(content_text)
+                    mcp_response = json.loads(content_text)
+                    # The actual data is now directly in the mcp_response, not nested within another content field
+                    data = mcp_response
                 else:
                     data = result
 

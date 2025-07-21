@@ -37,7 +37,7 @@ from src.core.conversation_analysis import (
     sort_conversations_by_relevance,
 )
 from src.tool_calls.windsurf.query import WindsurfQuery
-from src.utils.access_control import AccessValidator
+from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_error, log_info
 from src.utils.performance import get_duration, start_timer
 
@@ -173,25 +173,43 @@ def handle_recall_windsurf_conversations(
 
         if not conversations:
             log_info("No Windsurf conversations found")
-            return AccessValidator.create_success_response(
-                json.dumps(
-                    {
-                        "conversations": [],
-                        "total_conversations": 0,
-                        "total_analyzed": 0,
-                        "parameters": {
-                            "days_lookback": days_lookback,
-                            "limit": limit,
-                            "min_score": min_score,
-                            "fast_mode": fast_mode,
-                            "conversation_types": conversation_types,
-                        },
-                        "processing_time": get_duration(start_time),
-                        "query_timestamp": datetime.now().isoformat(),
-                        "fast_mode": fast_mode,
-                    }
-                )
-            )
+            response_data = {
+                "conversations": [],
+                "total_conversations": 0,
+                "total_analyzed": 0,
+                "parameters": {
+                    "days_lookback": days_lookback,
+                    "limit": limit,
+                    "min_score": min_score,
+                    "fast_mode": fast_mode,
+                    "conversation_types": conversation_types,
+                },
+                "processing_time": get_duration(start_time),
+                "query_timestamp": datetime.now().isoformat(),
+                "fast_mode": fast_mode,
+            }
+
+            structured_data = {
+                "summary": {
+                    "total_conversations": 0,
+                    "total_analyzed": 0,
+                    "processing_time": get_duration(start_time),
+                },
+                "conversations": [],
+                "context": {
+                    "keywords": generate_shared_context_keywords(project_root),
+                    "fast_mode": fast_mode,
+                    "days_lookback": days_lookback,
+                    "min_score": min_score,
+                },
+                "status": "windsurf_recall_complete",
+            }
+
+            content_text = json.dumps(response_data, indent=2, default=str)
+            mcp_result = create_mcp_tool_result(content_text, structured_data)
+            return {
+                "content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]
+            }
 
         # Generate context keywords for relevance analysis
         context_keywords = generate_shared_context_keywords(project_root)
@@ -236,18 +254,29 @@ def handle_recall_windsurf_conversations(
         analyzed_conversations = []
         for conv in filtered_conversations:
             try:
-                # Use session relevance analysis adapted for Windsurf
-                relevance_data = analyze_session_relevance(
-                    conv, context_keywords, project_root, fast_mode=fast_mode
+                # Extract content and use session relevance analysis adapted for Windsurf
+                content = extract_conversation_content(
+                    conv, CONVERSATION_TEXT_EXTRACTION_LIMIT
+                )
+
+                # Create session metadata including conversation ID for analysis
+                session_metadata = conv.get("session_data", {}).copy()
+                session_metadata["id"] = conv.get("id", "")
+
+                score, analysis = analyze_session_relevance(
+                    content,
+                    context_keywords,
+                    session_metadata,
+                    include_detailed_analysis=not fast_mode,
                 )
 
                 # Update conversation with relevance data
-                conv["relevance_score"] = relevance_data.get("relevance_score", 0.0)
-                conv["snippet"] = relevance_data.get("snippet", "")[
-                    :CONVERSATION_SNIPPET_MAX_LENGTH
-                ]
-                conv["keyword_matches"] = relevance_data.get("keyword_matches", [])
-                conv["context_analysis"] = relevance_data.get("context_analysis", {})
+                conv["relevance_score"] = score
+                conv["snippet"] = (
+                    content[:CONVERSATION_SNIPPET_MAX_LENGTH] if content else ""
+                )
+                conv["keyword_matches"] = analysis.get("keyword_matches", [])
+                conv["context_analysis"] = analysis
 
                 # Only include conversations that meet minimum score
                 if conv["relevance_score"] >= min_score:
@@ -300,9 +329,25 @@ def handle_recall_windsurf_conversations(
             f"in {get_duration(start_time):.3f}s"
         )
 
-        return AccessValidator.create_success_response(
-            json.dumps(response_data, indent=2, default=str)
-        )
+        structured_data = {
+            "summary": {
+                "total_conversations": len(final_conversations),
+                "total_analyzed": total_found,
+                "processing_time": get_duration(start_time),
+            },
+            "conversations": final_conversations,
+            "context": {
+                "keywords": context_keywords,
+                "fast_mode": fast_mode,
+                "days_lookback": days_lookback,
+                "min_score": min_score,
+            },
+            "status": "windsurf_recall_complete",
+        }
+
+        content_text = json.dumps(response_data, indent=2, default=str)
+        mcp_result = create_mcp_tool_result(content_text, structured_data)
+        return {"content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]}
 
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "handle_recall_windsurf_conversations")

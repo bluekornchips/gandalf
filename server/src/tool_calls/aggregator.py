@@ -7,6 +7,7 @@ for comprehensive context analysis.
 """
 
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -65,7 +66,7 @@ from src.tool_calls.windsurf.recall import (
 from src.tool_calls.windsurf.recall import (
     standardize_conversation as windsurf_standardize_conversation,
 )
-from src.utils.access_control import AccessValidator
+from src.utils.access_control import create_mcp_tool_result
 from src.utils.common import log_debug, log_error, log_info
 
 
@@ -264,6 +265,17 @@ def _process_agentic_tool_conversations(
         # Parse the response and standardize format
         try:
             tool_data = json.loads(content_text)
+            # Check if this is a nested MCP response (Claude Code returns double-nested)
+            if (
+                isinstance(tool_data, dict)
+                and "content" in tool_data
+                and isinstance(tool_data["content"], list)
+                and len(tool_data["content"]) > 0
+                and "text" in tool_data["content"][0]
+            ):
+                # Extract the inner data from the nested MCP response
+                inner_text = tool_data["content"][0]["text"]
+                tool_data = json.loads(inner_text)
         except json.JSONDecodeError:
             # If it's not valid JSON, try to work with raw data
             tool_data = {"conversations": [], "raw_response": content_text}
@@ -447,9 +459,12 @@ def handle_recall_conversations(
     search_query: str | None = None,
     tags: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Cross-platform conversation recall that aggregates results from all available tools."""
-    import time
+    """
+    Cross-platform conversation recall that aggregates results from all available tools.
 
+    This function detects available tools and combines their conversation data
+    into a unified format for comprehensive context analysis with intelligent filtering.
+    """
     start_time = time.time()
 
     try:
@@ -510,19 +525,48 @@ def handle_recall_conversations(
                 tags=tags,
             )
             log_info("No tools detected for conversation recall")
-            return AccessValidator.create_success_response(
-                json.dumps(_convert_paths_for_json(response), indent=2)
-            )
+
+            # Create MCP 2025-06-18 compliant response with structured content
+            response_data = _convert_paths_for_json(response)
+            response_text = json.dumps(response_data, indent=2)
+
+            # Structure the data for better AI consumption
+            # Ensure response_data is a dict for safe .get() operations
+            if not isinstance(response_data, dict):
+                response_data = {}
+
+            structured_data = {
+                "summary": {
+                    "total_conversations": 0,
+                    "available_tools": [],
+                    "processing_time": response_data.get("processing_time", 0.0),
+                },
+                "conversations": [],
+                "context": {
+                    "keywords": response_data.get("context_keywords", []),
+                    "filters_applied": {
+                        "fast_mode": response_data.get("fast_mode"),
+                        "days_lookback": response_data.get("days_lookback"),
+                        "min_score": response_data.get("min_score"),
+                        "limit": response_data.get("limit"),
+                    },
+                },
+                "tool_results": {},
+                "status": "no_tools_detected",
+            }
+
+            # Return MCP 2025-06-18 format with both text and structured content
+            mcp_result = create_mcp_tool_result(response_text, structured_data)
+            return mcp_result
 
         log_info(
             f"Found {len(available_tools)} available tools: "
             f"{', '.join(available_tools)}"
         )
 
-        # Stream and filter conversations from all available tools (memory efficient)
-        filtered_conversations = []
+        # Collect conversations from all available tools
+        all_conversations = []
         tool_results = {}
-        total_processed = 0
 
         for tool_name in available_tools:
             try:
@@ -530,7 +574,7 @@ def handle_recall_conversations(
                     "project_root": context_project_root,
                     "fast_mode": fast_mode,
                     "days_lookback": days_lookback,
-                    "limit": limit * 2,  # Get more initially for better filtering
+                    "limit": limit,
                     "min_score": min_score,
                     "conversation_types": conversation_types,
                 }
@@ -545,22 +589,10 @@ def handle_recall_conversations(
                 )
 
                 if result and "conversations" in result:
-                    tool_conversations = result["conversations"]
-                    total_processed += len(tool_conversations)
-
-                    # Apply early filtering to prevent memory buildup
-                    for conv in tool_conversations:
-                        # Basic relevance filtering
-                        if conv.get("relevance_score", 0) >= min_score:
-                            filtered_conversations.append(conv)
-
-                        # Break early if we have enough high-quality conversations
-                        if len(filtered_conversations) >= limit * 3:
-                            break
-
+                    all_conversations.extend(result["conversations"])
                     log_info(
-                        f"Retrieved {len(tool_conversations)} conversations from {tool_name}, "
-                        f"kept {len([c for c in tool_conversations if c.get('relevance_score', 0) >= min_score])}"
+                        f"Retrieved {len(result['conversations'])} "
+                        f"conversations from {tool_name}",
                     )
 
                 tool_results[tool_name] = result
@@ -577,23 +609,23 @@ def handle_recall_conversations(
 
         processing_time = time.time() - start_time
 
-        # Apply intelligent filtering to pre-filtered conversations
-        final_conversations, filtering_metadata = apply_conversation_filtering(
-            filtered_conversations,
+        # Apply intelligent filtering
+        filtered_conversations, filtering_metadata = apply_conversation_filtering(
+            all_conversations,
             context_project_root,
             limit,
             user_prompt,
         )
 
         # Determine response optimization
-        total_size_estimate = len(json.dumps(final_conversations))
+        total_size_estimate = len(json.dumps(filtered_conversations))
         use_summary_mode = total_size_estimate > TOKEN_OPTIMIZATION_MAX_RESPONSE_SIZE
 
         # Create comprehensive response
         response = {
             "available_tools": available_tools,
-            "conversations": final_conversations,
-            "total_conversations": len(final_conversations),
+            "conversations": filtered_conversations,
+            "total_conversations": len(filtered_conversations),
             "context_keywords": context_keywords[
                 :TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS
             ],
@@ -626,9 +658,35 @@ def handle_recall_conversations(
             f"in {processing_time:.2f}s"
         )
 
-        return AccessValidator.create_success_response(
-            json.dumps(_convert_paths_for_json(response), indent=2)
-        )
+        response_data = _convert_paths_for_json(response)
+        response_text = json.dumps(response_data, indent=2)
+
+        # Ensure response_data is a dict for safe .get() operations
+        if not isinstance(response_data, dict):
+            response_data = {}
+
+        structured_data = {
+            "summary": {
+                "total_conversations": response_data.get("total_conversations", 0),
+                "available_tools": response_data.get("available_tools", []),
+                "processing_time": response_data.get("processing_time", 0.0),
+            },
+            "conversations": response_data.get("conversations", []),
+            "context": {
+                "keywords": response_data.get("context_keywords", []),
+                "filters_applied": {
+                    "fast_mode": response_data.get("fast_mode"),
+                    "days_lookback": response_data.get("days_lookback"),
+                    "min_score": response_data.get("min_score"),
+                    "limit": response_data.get("limit"),
+                },
+            },
+            "tool_results": response_data.get("tool_results", {}),
+        }
+
+        # Return MCP 2025-06-18 format with both text and structured content
+        mcp_result = create_mcp_tool_result(response_text, structured_data)
+        return mcp_result
 
     except (
         ValueError,
@@ -653,9 +711,39 @@ def handle_recall_conversations(
             search_query=search_query,
             tags=tags,
         )
-        return AccessValidator.create_success_response(
-            json.dumps(_convert_paths_for_json(response), indent=2)
-        )
+
+        # Create MCP 2025-06-18 compliant error response
+        response_data = _convert_paths_for_json(response)
+        response_text = json.dumps(response_data, indent=2)
+
+        # Ensure response_data is a dict for safe .get() operations
+        if not isinstance(response_data, dict):
+            response_data = {}
+
+        # Structure the error data
+        structured_data = {
+            "summary": {
+                "total_conversations": 0,
+                "available_tools": [],
+                "processing_time": processing_time,
+            },
+            "conversations": [],
+            "context": {
+                "keywords": [],
+                "filters_applied": {
+                    "fast_mode": response_data.get("fast_mode"),
+                    "days_lookback": response_data.get("days_lookback"),
+                    "min_score": response_data.get("min_score"),
+                    "limit": response_data.get("limit"),
+                },
+            },
+            "tool_results": {},
+            "status": "error_occurred",
+        }
+
+        # Return MCP 2025-06-18 format
+        mcp_result = create_mcp_tool_result(response_text, structured_data)
+        return mcp_result
 
 
 def handle_recall_conversations_wrapper(
@@ -668,6 +756,7 @@ def handle_recall_conversations_wrapper(
 # Tool definitions
 TOOL_RECALL_CONVERSATIONS = {
     "name": "recall_conversations",
+    "title": "Cross-Platform Conversation Recall",
     "description": (
         "Cross-platform conversation recall that aggregates results from all "
         "available tools (Cursor, Claude Code, etc.) for comprehensive context "
@@ -753,6 +842,52 @@ TOOL_RECALL_CONVERSATIONS = {
             },
         },
         "required": [],
+    },
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "available_tools": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of available agentic tools detected",
+            },
+            "total_conversations": {
+                "type": "integer",
+                "description": "Total number of conversations found across all tools",
+            },
+            "conversations": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "title": {"type": "string"},
+                        "source_tool": {"type": "string"},
+                        "relevance_score": {"type": "number"},
+                        "message_count": {"type": "integer"},
+                        "snippet": {"type": "string"},
+                        "created_at": {"type": "string"},
+                        "updated_at": {"type": "string"},
+                    },
+                },
+                "description": "Array of conversation objects with metadata",
+            },
+            "context_keywords": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Context keywords used for conversation filtering",
+            },
+            "processing_time": {
+                "type": "number",
+                "description": "Time taken to process the request in seconds",
+            },
+        },
+        "required": [
+            "available_tools",
+            "total_conversations",
+            "conversations",
+            "processing_time",
+        ],
     },
     "annotations": {
         "title": "Intelligent Conversation Recall from All Tools",
