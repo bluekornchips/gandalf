@@ -32,24 +32,24 @@ def extract_data_from_mcp_response(response):
     # Check if structuredContent is directly in the response (new format)
     if "structuredContent" in response:
         structured = response["structuredContent"]
-        
+
         # Also get the original content data which has additional fields
         content_text = response["content"][0].get("text", "{}")
         try:
             content_data = json.loads(content_text)
         except json.JSONDecodeError:
             content_data = {}
-        
+
         # Start with the content data and overlay structured data
         result = {**content_data, **structured}
-        
+
         # Flatten summary fields to top level for backwards compatibility
         if "summary" in structured:
             summary = structured["summary"]
             result = {**result, **summary}
             # Remove the nested summary to avoid duplication
             result.pop("summary", None)
-            
+
         return result
 
     # Fallback to old nested format for backwards compatibility
