@@ -1,13 +1,14 @@
 """Common utility functions for the MCP server, focusing on file-based logging only."""
 
 import json
+import sys
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
 from typing import Any
 
 from src.config.constants.paths import GANDALF_HOME
-from src.config.constants.server import MCP_SERVER_NAME
+from src.config.constants.server import DEBUG_LOGGING, MCP_SERVER_NAME
 
 _log_file_path: Path | None = None
 _session_id: str | None = None
@@ -48,16 +49,13 @@ def initialize_session_logging(session_id: str, server_instance: Any = None) -> 
     _session_id = session_id
     _server_instance = server_instance
 
-    # Create logs directory, if it doesn't exist
     logs_dir = GANDALF_HOME / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create session-specific log file, if it doesn't exist
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_filename = f"{MCP_SERVER_NAME}_session_{session_id}_{timestamp}.log"
     _log_file_path = logs_dir / log_filename
 
-    # Write session start marker
     write_log("info", f"{MCP_SERVER_NAME.upper()} session started: {session_id}")
 
 
@@ -101,8 +99,7 @@ def _send_mcp_notification(
             notification_data["data"].update(data)
 
         _server_instance.send_notification("notifications/message", notification_data)
-    except Exception:
-        # Avoid recursion by not logging MCP notification failures
+    except AttributeError:
         pass
 
 
@@ -117,6 +114,11 @@ def write_log(
         return
 
     if not _log_file_path:
+        if DEBUG_LOGGING:
+            print(
+                f"GANDALF_LOG_DEBUG: No log file path - {level}: {message}",
+                file=sys.stderr,
+            )
         return
 
     try:
@@ -133,14 +135,23 @@ def write_log(
         if data:
             log_entry["data"] = data
 
+        _log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
         with open(_log_file_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(log_entry) + "\n")
+            f.flush()
 
         _send_mcp_notification(level, message, logger, data)
 
-    except (OSError, UnicodeEncodeError, TypeError):
-        # Avoid recursion by not logging this error
-        pass
+    except OSError as e:
+        if DEBUG_LOGGING:
+            print(f"GANDALF_LOG_ERROR: {e}", file=sys.stderr)
+    except UnicodeEncodeError as e:
+        if DEBUG_LOGGING:
+            print(f"GANDALF_ENCODING_ERROR: {e}", file=sys.stderr)
+    except TypeError as e:
+        if DEBUG_LOGGING:
+            print(f"GANDALF_TYPE_ERROR: {e}", file=sys.stderr)
 
 
 def log_debug(

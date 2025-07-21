@@ -35,7 +35,7 @@ class TestDatabasePool:
             with safe_cursor(db_path) as cursor:
                 cursor.execute("SELECT * FROM hobbits WHERE id = ?", (1,))
                 result = cursor.fetchone()
-                assert result == (1, 'Frodo Baggins')
+                assert result == (1, "Frodo Baggins")
 
         finally:
             if db_path.exists():
@@ -60,13 +60,15 @@ class TestDatabasePool:
             # Test execute_sql without parameters
             results = execute_sql(db_path, "SELECT * FROM fellowship")
             assert len(results) == 2
-            assert (1, 'Gandalf Grey') in results
-            assert (2, 'Aragorn King') in results
+            assert (1, "Gandalf Grey") in results
+            assert (2, "Aragorn King") in results
 
             # Test execute_sql with parameters
-            results = execute_sql(db_path, "SELECT * FROM fellowship WHERE name = ?", ('Gandalf Grey',))
+            results = execute_sql(
+                db_path, "SELECT * FROM fellowship WHERE name = ?", ("Gandalf Grey",)
+            )
             assert len(results) == 1
-            assert results[0] == (1, 'Gandalf Grey')
+            assert results[0] == (1, "Gandalf Grey")
 
         finally:
             if db_path.exists():
@@ -92,7 +94,9 @@ class TestDatabasePool:
                     cursor.execute("INVALID SQL STATEMENT")
 
             # Should still be able to use database after exception
-            results = execute_sql(db_path, "SELECT name FROM sqlite_master WHERE type='table'")
+            results = execute_sql(
+                db_path, "SELECT name FROM sqlite_master WHERE type='table'"
+            )
             assert len(results) >= 1
 
         finally:
