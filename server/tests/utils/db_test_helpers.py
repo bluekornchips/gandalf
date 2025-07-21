@@ -6,13 +6,13 @@ import sqlite3
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @contextmanager
 def temporary_sqlite_db(
-    schema_sql: Optional[str] = None,
-    data: Optional[Dict[str, List[Any]]] = None,
+    schema_sql: str | None = None,
+    data: dict[str, list[Any]] | None = None,
 ):
     """
     Context manager for a temporary SQLite database file.
@@ -39,7 +39,7 @@ def temporary_sqlite_db(
             db_file.unlink()
 
 
-def create_table_sql(table: str, columns: List[str]) -> str:
+def create_table_sql(table: str, columns: list[str]) -> str:
     """
     Helper to generate a CREATE TABLE statement for SQLite.
     """

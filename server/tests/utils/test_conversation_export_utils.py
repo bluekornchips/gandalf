@@ -160,7 +160,7 @@ class TestConversationExportUtils:
     def test_export_conversations_simple_ioerror(self, mock_cursor_query):
         """Test export handles IOError gracefully."""
         mock_instance = Mock()
-        mock_instance.export_to_file.side_effect = IOError("Permission denied")
+        mock_instance.export_to_file.side_effect = OSError("Permission denied")
         mock_instance.query_all_conversations.return_value = self.mock_conversation_data
         mock_cursor_query.return_value = mock_instance
 
@@ -346,7 +346,7 @@ class TestConversationExportUtils:
     def test_list_workspaces_ioerror(self, mock_cursor_query):
         """Test workspace listing handles IOError gracefully."""
         mock_instance = Mock()
-        mock_instance.query_all_conversations.side_effect = IOError("IO error")
+        mock_instance.query_all_conversations.side_effect = OSError("IO error")
         mock_cursor_query.return_value = mock_instance
 
         result = list_workspaces(silent=True)

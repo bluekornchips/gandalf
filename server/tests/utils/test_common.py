@@ -272,7 +272,7 @@ class TestLoggingEdgeCases:
     def test_log_error_with_complex_exception(self, mock_write_log):
         """Test log_error handles complex exception objects with structured data."""
 
-        class CustomException(Exception):
+        class CustomError(Exception):
             def __init__(self, message, code):
                 super().__init__(message)
                 self.code = code
@@ -280,12 +280,12 @@ class TestLoggingEdgeCases:
             def __str__(self):
                 return f"Error {self.code}: {super().__str__()}"
 
-        complex_error = CustomException("the ring is lost", 404)
+        complex_error = CustomError("the ring is lost", 404)
         log_error(complex_error, "ring bearer status")
 
         expected_message = "ring bearer status: Error 404: the ring is lost"
         expected_data = {
-            "error_type": "CustomException",
+            "error_type": "CustomError",
             "error_str": "Error 404: the ring is lost",
         }
         mock_write_log.assert_called_once_with(
@@ -310,7 +310,7 @@ class TestLoggingEdgeCases:
                 assert log_file is not None
                 assert log_file.exists()
 
-                with open(log_file, "r", encoding="utf-8") as f:
+                with open(log_file, encoding="utf-8") as f:
                     lines = f.readlines()
                     assert len(lines) >= 2
 

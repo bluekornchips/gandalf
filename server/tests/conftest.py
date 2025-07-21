@@ -4,9 +4,9 @@ Test configuration and utilities for database connection management.
 
 import sqlite3
 import weakref
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, List
 from unittest.mock import patch
 
 import pytest
@@ -16,7 +16,7 @@ class DatabaseConnectionManager:
     """Manages database connections to prevent leaks in tests."""
 
     def __init__(self):
-        self._connections: List[weakref.ref] = []
+        self._connections: list[weakref.ref] = []
 
     @contextmanager
     def managed_connection(
@@ -37,6 +37,38 @@ class DatabaseConnectionManager:
                 except Exception:
                     pass
         self._connections.clear()
+
+
+@contextmanager
+def safe_cursor(db_path: Path) -> Generator[sqlite3.Cursor, None, None]:
+    """Provide a safe database cursor that handles connections properly."""
+    conn = None
+    cursor = None
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        yield cursor
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+def execute_sql(db_path: Path, sql: str, params: tuple | None = None) -> list:
+    """Execute SQL and return results."""
+    conn = None
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        if params:
+            cursor.execute(sql, params)
+        else:
+            cursor.execute(sql)
+        return cursor.fetchall()
+    finally:
+        if conn:
+            conn.close()
 
 
 @pytest.fixture

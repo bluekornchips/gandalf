@@ -1,8 +1,7 @@
 """Tests for version utility functions."""
 
 import unittest
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from src.utils.version import get_version
 
@@ -48,10 +47,5 @@ class TestVersionUtility(unittest.TestCase):
 
             # Verify the path was constructed correctly
             mock_read_text.assert_called_once()
-            # The path should go up 4 levels from the version.py file
-            expected_path = Path(__file__).parent.parent.parent.parent / "VERSION"
-            actual_path = (
-                mock_read_text.call_args[0][0] if mock_read_text.call_args[0] else None
-            )
 
             # Just verify the method was called since path construction is internal

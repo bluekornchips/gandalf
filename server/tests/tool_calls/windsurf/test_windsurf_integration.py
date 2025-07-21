@@ -1,9 +1,8 @@
 """Test Windsurf integration with the conversation aggregator."""
 
 import json
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 from src.config.constants.agentic import AGENTIC_TOOL_CURSOR, AGENTIC_TOOL_WINDSURF
 from src.tool_calls.aggregator import (

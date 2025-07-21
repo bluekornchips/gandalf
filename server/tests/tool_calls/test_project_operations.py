@@ -101,7 +101,7 @@ class TestGetServerVersion:
 
         assert isinstance(content["server_version"], str)
         assert isinstance(content["protocol_version"], str)
-        assert isinstance(content["timestamp"], (int, float))
+        assert isinstance(content["timestamp"], int | float)
 
     def test_get_server_version_ignores_arguments(self):
         """Test that get_server_version ignores any arguments passed to it."""
@@ -1030,7 +1030,7 @@ class TestProjectOperations:
                 structured_content = result.get("structuredContent", {})
 
                 assert "processing_time" in content
-                assert isinstance(content["processing_time"], (int, float))
+                assert isinstance(content["processing_time"], int | float)
 
                 assert "metadata" in structured_content
                 assert "timestamp" in structured_content["metadata"]

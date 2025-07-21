@@ -4,7 +4,7 @@ Tests for conversation aggregator functionality.
 
 import json
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 from src.config.constants.agentic import (
     AGENTIC_TOOL_CLAUDE_CODE,
@@ -29,7 +29,6 @@ def extract_data_from_mcp_response(response):
     if not isinstance(response, dict) or "content" not in response:
         raise ValueError(f"Invalid MCP response format: {response}")
 
-    # Check if structuredContent is directly in the response (new format)
     if "structuredContent" in response:
         structured = response["structuredContent"]
 
