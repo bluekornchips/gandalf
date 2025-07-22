@@ -159,8 +159,9 @@ class TestConversationExport:
         # Should be MCP response format
         assert "content" in result
         content_text = result["content"][0]["text"]
-
-        result_data = json.loads(content_text)
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        result_data = mcp_response
         assert "exported_count" in result_data
         assert "files" in result_data
         assert "output_directory" in result_data
@@ -235,8 +236,11 @@ class TestConversationExport:
 
         assert result["content"][0]["type"] == "text"
 
-        # Parse the JSON response to verify export details
-        response_data = json.loads(result["content"][0]["text"])
+        # Parse the nested MCP response
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert response_data["exported_count"] == 2
         assert "files" in response_data
         assert response_data["output_directory"].endswith("/tmp/test_export")
@@ -277,8 +281,11 @@ class TestConversationExport:
         assert isinstance(result["content"], list)
         assert result["content"][0]["type"] == "text"
 
-        # Parse the JSON response to verify export details
-        response_data = json.loads(result["content"][0]["text"])
+        # Parse the nested MCP response
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert response_data["exported_count"] == 2
         assert "files" in response_data
         assert response_data["output_directory"].endswith("/tmp/test_export")
@@ -380,7 +387,10 @@ class TestConversationExportEdgeCases:
         )
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert response_data["exported_count"] == 0
         assert response_data["message"] == "No conversations found to export"
 
@@ -397,7 +407,10 @@ class TestConversationExportEdgeCases:
         )
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert response_data["exported_count"] == 0
         assert response_data["message"] == "No conversations found to export"
 
@@ -418,7 +431,10 @@ class TestConversationExportEdgeCases:
             )
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert response_data["format"] == "markdown"
         assert response_data["exported_count"] == 1
 
@@ -442,7 +458,10 @@ class TestConversationExportEdgeCases:
             )
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert response_data["format"] == "md"
         assert response_data["exported_count"] == 1
 
@@ -466,7 +485,10 @@ class TestConversationExportEdgeCases:
             )
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert response_data["format"] == "txt"
         assert response_data["exported_count"] == 1
 
@@ -497,7 +519,10 @@ class TestConversationExportEdgeCases:
             )
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert (
             response_data["exported_count"] == 1
         )  # Only one conversation matches filter
@@ -529,7 +554,10 @@ class TestConversationExportEdgeCases:
             )
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert response_data["exported_count"] == 0  # No conversations match filter
 
         mock_mkdir.assert_called_once()
@@ -549,7 +577,10 @@ class TestConversationExportEdgeCases:
             )
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         # Should use default GANDALF_HOME/exports
         assert "gandalf" in response_data["output_directory"].lower()
 
@@ -678,7 +709,10 @@ class TestHandleListCursorWorkspaces:
         result = handle_list_cursor_workspaces({}, project_root=Path("/test/project"))
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert "workspaces" in response_data
         assert "count" in response_data
         assert response_data["count"] == 3
@@ -697,7 +731,10 @@ class TestHandleListCursorWorkspaces:
         result = handle_list_cursor_workspaces({}, project_root=Path("/test/project"))
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert "workspaces" in response_data
         assert "count" in response_data
         assert response_data["count"] == 0
@@ -724,7 +761,10 @@ class TestHandleListCursorWorkspaces:
         )
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert "workspaces" in response_data
         assert "count" in response_data
         assert response_data["count"] == 1
@@ -762,7 +802,10 @@ class TestHandleListCursorWorkspaces:
         )
 
         assert "content" in result
-        response_data = json.loads(result["content"][0]["text"])
+        content_text = result["content"][0]["text"]
+        mcp_response = json.loads(content_text)
+        # The actual data is now directly in the mcp_response, not nested within another content field
+        response_data = mcp_response
         assert "workspaces" in response_data
         assert "count" in response_data
         assert response_data["count"] == 1

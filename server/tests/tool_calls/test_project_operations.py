@@ -54,11 +54,11 @@ class TestGetServerVersion:
         mock_project_root = Path("/path/to/project")
         arguments = {}
 
-        with patch.dict(os.environ, {"GANDALF_SERVER_VERSION": "2.3.0"}):
+        with patch.dict(os.environ, {"GANDALF_SERVER_VERSION": "2.31"}):
             # Need to reload the module to pick up the new env var
             with patch(
                 "src.tool_calls.project_operations.GANDALF_SERVER_VERSION",
-                "2.3.0",
+                "2.31",
             ):
                 with patch("time.time", return_value=1234567890.0):
                     result = handle_get_server_version(
@@ -67,7 +67,7 @@ class TestGetServerVersion:
 
         assert "content" in result
         content = json.loads(result["content"][0]["text"])
-        assert content["server_version"] == "2.3.0"
+        assert content["server_version"] == "2.31"
 
     @patch(
         "src.tool_calls.project_operations.GANDALF_SERVER_VERSION",
@@ -101,7 +101,7 @@ class TestGetServerVersion:
 
         assert isinstance(content["server_version"], str)
         assert isinstance(content["protocol_version"], str)
-        assert isinstance(content["timestamp"], (int, float))
+        assert isinstance(content["timestamp"], int | float)
 
     def test_get_server_version_ignores_arguments(self):
         """Test that get_server_version ignores any arguments passed to it."""
@@ -713,11 +713,14 @@ class TestProjectOperationsErrorHandling:
         ):
             result = handle_get_project_info(arguments, mock_project_root)
 
-            # Success response should not have isError field
-            assert "isError" not in result
+            assert result.get("isError", True) is False
             content = json.loads(result["content"][0]["text"])
+            structured_content = result.get("structuredContent", {})
+
             assert content["valid_path"] is False
             assert content["project_root"] == "/invalid/path"
+            assert structured_content["project"]["valid"] is False
+            assert structured_content["project"]["root"] == "/invalid/path"
 
     @patch("src.tool_calls.project_operations.get_project_info")
     @patch("src.tool_calls.project_operations.validate_project_root")
@@ -761,6 +764,7 @@ class TestProjectOperationsErrorHandling:
 
                 assert "content" in result
                 content = json.loads(result["content"][0]["text"])
+                structured_content = result.get("structuredContent", {})
 
                 assert content["project_root"] == "/path/to/shire"
                 assert content["project_name"] == "shire"
@@ -768,6 +772,10 @@ class TestProjectOperationsErrorHandling:
                 assert content["sanitized"] is False
                 assert "git" not in content
                 assert "file_stats" not in content
+
+                assert structured_content["project"]["root"] == "/path/to/shire"
+                assert structured_content["project"]["name"] == "shire"
+                assert structured_content["project"]["valid"] is True
 
     def test_handle_get_project_info_without_stats_sanitized(self):
         """Test get_project_info without statistics with sanitized name."""
@@ -795,10 +803,17 @@ class TestProjectOperationsErrorHandling:
 
                 assert "content" in result
                 content = json.loads(result["content"][0]["text"])
+                structured_content = result.get("structuredContent", {})
 
                 assert content["project_name"] == "shire_special"
                 assert content["raw_project_name"] == "shire-special!"
                 assert content["sanitized"] is True
+
+                assert structured_content["project"]["name"] == "shire_special"
+                assert (
+                    structured_content["project"]["original_name"] == "shire-special!"
+                )
+                assert structured_content["metadata"]["sanitized"] is True
 
     def test_handle_get_project_info_value_error(self):
         """Test get_project_info handler with ValueError."""
@@ -978,9 +993,13 @@ class TestProjectOperations:
 
             assert "content" in result
             content = json.loads(result["content"][0]["text"])
+            structured_content = result.get("structuredContent", {})
 
             assert content["valid_path"] is True
             assert content["project_name"] == project_root.name
+
+            assert structured_content["project"]["valid"] is True
+            assert structured_content["project"]["name"] == project_root.name
             assert "file_stats" in content
             assert "git" in content
 
@@ -1008,5 +1027,10 @@ class TestProjectOperations:
 
                 assert "content" in result
                 content = json.loads(result["content"][0]["text"])
+                structured_content = result.get("structuredContent", {})
+
                 assert "processing_time" in content
-                assert isinstance(content["processing_time"], (int, float))
+                assert isinstance(content["processing_time"], int | float)
+
+                assert "metadata" in structured_content
+                assert "timestamp" in structured_content["metadata"]

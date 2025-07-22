@@ -4,7 +4,7 @@ Tests for conversation aggregator functionality.
 
 import json
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 from src.config.constants.agentic import (
     AGENTIC_TOOL_CLAUDE_CODE,
@@ -25,13 +25,64 @@ from src.tool_calls.aggregator import (
 
 
 def extract_data_from_mcp_response(response):
-    """Extract data from MCP response format for testing."""
-    if isinstance(response, dict) and "content" in response:
-        content_items = response.get("content", [])
-        if content_items and isinstance(content_items, list):
-            content_text = content_items[0].get("text", "{}")
-            return json.loads(content_text)
-    return response
+    """Extract data from MCP 2025-06-18 response format for testing."""
+    if not isinstance(response, dict) or "content" not in response:
+        raise ValueError(f"Invalid MCP response format: {response}")
+
+    if "structuredContent" in response:
+        structured = response["structuredContent"]
+
+        # Also get the original content data which has additional fields
+        content_text = response["content"][0].get("text", "{}")
+        try:
+            content_data = json.loads(content_text)
+        except json.JSONDecodeError:
+            content_data = {}
+
+        # Start with the content data and overlay structured data
+        result = {**content_data, **structured}
+
+        # Flatten summary fields to top level for backwards compatibility
+        if "summary" in structured:
+            summary = structured["summary"]
+            result = {**result, **summary}
+            # Remove the nested summary to avoid duplication
+            result.pop("summary", None)
+
+        return result
+
+    # Fallback to old nested format for backwards compatibility
+    content_items = response.get("content", [])
+    if not content_items or not isinstance(content_items, list):
+        raise ValueError(f"Invalid MCP response content: {content_items}")
+
+    content_text = content_items[0].get("text", "{}")
+
+    try:
+        inner_mcp = json.loads(content_text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse MCP response: {e}")
+
+    # If the inner content is the actual data (not wrapped), return it directly
+    if not isinstance(inner_mcp, dict) or "structuredContent" not in inner_mcp:
+        # The data is directly in the parsed JSON, not wrapped with structuredContent
+        return inner_mcp
+
+    structured = inner_mcp["structuredContent"]
+
+    # Also include the original text data
+    if "content" in inner_mcp:
+        inner_content = inner_mcp["content"]
+        if inner_content and isinstance(inner_content, list):
+            inner_text = inner_content[0].get("text", "{}")
+            try:
+                text_data = json.loads(inner_text)
+                # Merge structured and text data
+                return {**text_data, **structured}
+            except json.JSONDecodeError:
+                pass
+
+    return structured
 
 
 class TestConversationAggregator(unittest.TestCase):

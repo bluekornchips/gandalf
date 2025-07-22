@@ -52,42 +52,8 @@ rm -rf ~/.gandalf/cache/*
 ./gandalf test --quick
 ```
 
-## Advanced Troubleshooting
+## Getting Help
 
-### Diagnostic Commands
-
-```bash
-# Full system check
-./gandalf lembas --all
-
-# Performance analysis
-./gandalf test --performance --verbose
-
-# Cache inspection
-ls -la ~/.gandalf/cache/*/
-
-# Database connectivity
-./gandalf test --db-only
-```
-
-### Recovery Strategies
-
-| Issue Type            | Quick Fix                         | Deep Fix                    |
-| --------------------- | --------------------------------- | --------------------------- |
-| **No Results**        | `min_score=0.1, days_lookback=30` | Clear cache + reinstall     |
-| **Slow Performance**  | `fast_mode=true, limit=20`        | Optimize database indexes   |
-| **Connection Errors** | Restart IDE                       | `./gandalf install --force` |
-| **Cache Issues**      | `rm -rf ~/.gandalf/cache/*`       | Reset all configurations    |
-
-### Performance Monitoring
-
-```bash
-# Monitor response times
-time recall_conversations(fast_mode=true)
-
-# Check memory usage
-./gandalf test --memory-profile
-
-# Database performance
-./gandalf test --db-performance
-```
+1. Check logs: `~/.gandalf/logs/`
+2. Run diagnostics: `./gandalf test --all`
+3. Submit issue with system info

@@ -49,6 +49,43 @@ Solutions:
    python3 --version  # Should be 3.12+
    ```
 
+3. Check structured logs:
+
+   ```bash
+   # View recent session logs
+   ls -la ~/.gandalf/logs/
+
+   # Monitor live logging (if session is active)
+   tail -f ~/.gandalf/logs/gandalf_session_*.log
+   ```
+
+### Debug with Enhanced Logging
+
+The server provides RFC 5424 structured logging for detailed diagnostics:
+
+**Enable Debug Logging:**
+
+- Use MCP `logging/setLevel` request with level "debug"
+- Or restart server with debug logging enabled
+
+**Log Locations:**
+
+- Session logs: `~/.gandalf/logs/gandalf_session_{id}_{timestamp}.log`
+- Each session has a unique identifier for tracking
+
+**Common Log Patterns:**
+
+```bash
+# Check for startup issues
+grep "session started" ~/.gandalf/logs/*.log
+
+# Find error patterns
+grep '"level":"error"' ~/.gandalf/logs/*.log
+
+# Monitor performance
+grep '"processing_time"' ~/.gandalf/logs/*.log
+```
+
 3. Test server directly:
    ```bash
    ./gandalf run --help

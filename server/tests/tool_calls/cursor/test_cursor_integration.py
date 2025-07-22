@@ -49,10 +49,31 @@ class TestCursorIntegration:
 
     def teardown_method(self):
         """Clean up test fixtures and database connections."""
+        import gc
         import shutil
-        from src.utils.database_pool import close_database_pool
+        import sqlite3
 
-        close_database_pool()
+        try:
+            # Force immediate garbage collection
+            for _ in range(5):
+                gc.collect()
+
+            # Close any SQLite connections found in garbage collector
+            for obj in gc.get_objects():
+                if isinstance(obj, sqlite3.Connection):
+                    try:
+                        if not obj.in_transaction:
+                            obj.close()
+                    except Exception:
+                        pass
+
+            # Force another round of garbage collection
+            for _ in range(3):
+                gc.collect()
+
+        except Exception:
+            # Ignore cleanup errors but ensure directory cleanup happens
+            pass
 
         # Clean up test directory
         if hasattr(self, "temp_dir") and self.temp_dir.exists():
@@ -314,7 +335,12 @@ class TestCursorIntegration:
                     # Extract data
                     if isinstance(result, dict) and "content" in result:
                         content_text = result["content"][0]["text"]
-                        data = json.loads(content_text)
+                        mcp_response = json.loads(content_text)
+                        # Handle the nested MCP structure
+                        if "content" in mcp_response:
+                            data = json.loads(mcp_response["content"][0]["text"])
+                        else:
+                            data = mcp_response
                     else:
                         data = result
 
@@ -508,10 +534,31 @@ class TestCursorRegressionTests:
 
     def teardown_method(self):
         """Clean up test fixtures and database connections."""
+        import gc
         import shutil
-        from src.utils.database_pool import close_database_pool
+        import sqlite3
 
-        close_database_pool()
+        try:
+            # Force immediate garbage collection
+            for _ in range(5):
+                gc.collect()
+
+            # Close any SQLite connections found in garbage collector
+            for obj in gc.get_objects():
+                if isinstance(obj, sqlite3.Connection):
+                    try:
+                        if not obj.in_transaction:
+                            obj.close()
+                    except Exception:
+                        pass
+
+            # Force another round of garbage collection
+            for _ in range(3):
+                gc.collect()
+
+        except Exception:
+            # Ignore cleanup errors but ensure directory cleanup happens
+            pass
 
         # Clean up test directory
         if hasattr(self, "temp_dir") and self.temp_dir.exists():
@@ -660,7 +707,12 @@ class TestCursorRegressionTests:
                     # Extract data
                     if isinstance(result, dict) and "content" in result:
                         content_text = result["content"][0]["text"]
-                        data = json.loads(content_text)
+                        mcp_response = json.loads(content_text)
+                        # Handle the nested MCP structure
+                        if "content" in mcp_response:
+                            data = json.loads(mcp_response["content"][0]["text"])
+                        else:
+                            data = mcp_response
                     else:
                         data = result
 

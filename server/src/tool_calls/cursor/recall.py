@@ -61,10 +61,16 @@ from src.core.conversation_analysis import (
 from src.core.conversation_analysis import (
     score_file_references as _score_file_references,
 )
-from src.utils.access_control import AccessValidator
+from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_debug, log_error, log_info
 from src.utils.cursor_chat_query import CursorQuery
 from src.utils.performance import get_duration, log_operation_time, start_timer
+
+# Global cache for context keywords and conversation data
+_context_keywords_cache = {}
+_context_keywords_cache_time = {}
+_conversation_cache = {}
+_conversation_cache_time = {}
 
 
 def create_lightweight_conversation(
@@ -932,18 +938,30 @@ def handle_recall_cursor_conversations(  # noqa: C901
         # Add top-level processing_time field for aggregator compatibility
         result["processing_time"] = round(query_time + analysis_time, 2)
 
-        efficiency = (
-            (processed_count / total_conversations * 100)
-            if total_conversations > 0
-            else 0
-        )
         log_info(
-            f"Enhanced analysis: {len(final_conversations)} relevant conversations "
-            f"in {query_time + analysis_time:.2f}s "
-            f"(analyzed {efficiency:.1f}% of conversations)"
+            f"Recalled {len(result['conversations'])} conversations "
+            f"in {result['processing_time']:.2f}s",
         )
 
-        return AccessValidator.create_success_response(json.dumps(result, indent=2))
+        structured_data = {
+            "summary": {
+                "total_conversations": len(result["conversations"]),
+                "processing_time": result["processing_time"],
+                "from_cache": result.get("from_cache", False),
+            },
+            "conversations": result["conversations"],
+            "context": {
+                "keywords": result.get("context_keywords", []),
+                "fast_mode": fast_mode,
+                "days_lookback": days_lookback,
+                "min_score": min_relevance_score,
+            },
+            "status": "cursor_recall_complete",
+        }
+
+        content_text = json.dumps(result, indent=2)
+        mcp_result = create_mcp_tool_result(content_text, structured_data)
+        return {"content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]}
 
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "recall_cursor_conversations")

@@ -6,9 +6,6 @@ format:
 lint:
 	ruff check src/
 
-fix:
-	ruff check --fix src/
-
 test:
 	pytest --cov=src
 

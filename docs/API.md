@@ -38,19 +38,42 @@ recall_conversations(tools=["cursor"], fast_mode=true)
 recall_conversations(min_score=0.5, tags=["api", "auth"])
 ```
 
-**Response Structure:**
+**Response Structure (MCP 2025-06-18 Format):**
 
 ```json
 {
-  "conversations": [...],
-  "total_conversations": 25,
-  "available_tools": ["cursor", "claude-code"],
-  "context_keywords": ["auth", "api"],
-  "processing_time": 0.045,
-  "tool_results": {
-    "cursor": {"total_conversations": 15},
-    "claude-code": {"total_conversations": 10}
-  }
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"conversations\": [...], \"total_conversations\": 25, ...}",
+      "annotations": {
+        "audience": ["assistant"],
+        "priority": 0.8
+      }
+    }
+  ],
+  "structuredContent": {
+    "summary": {
+      "total_conversations": 25,
+      "available_tools": ["cursor", "claude-code"],
+      "processing_time": 0.045
+    },
+    "conversations": [...],
+    "context": {
+      "keywords": ["auth", "api"],
+      "filters_applied": {
+        "fast_mode": true,
+        "days_lookback": 30,
+        "min_score": 1.0,
+        "limit": 60
+      }
+    },
+    "tool_results": {
+      "cursor": {"total_conversations": 15},
+      "claude-code": {"total_conversations": 10}
+    }
+  },
+  "isError": false
 }
 ```
 
@@ -62,22 +85,41 @@ Project metadata, Git status, and file statistics.
 
 - `include_stats` (boolean, default: true): Include file statistics
 
-**Response Structure:**
+**Response Structure (MCP 2025-06-18 Format):**
 
 ```json
 {
-  "project_root": "/path/to/project",
-  "project_name": "my-project",
-  "valid_path": true,
-  "git": {
-    "is_git_repo": true,
-    "current_branch": "main",
-    "repo_root": "/path/to/project"
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"project_root\": \"/path/to/project\", ...}",
+      "annotations": {
+        "audience": ["assistant"],
+        "priority": 0.8
+      }
+    }
+  ],
+  "structuredContent": {
+    "project": {
+      "name": "my-project",
+      "root": "/path/to/project",
+      "valid": true
+    },
+    "git": {
+      "is_git_repo": true,
+      "current_branch": "main",
+      "repo_root": "/path/to/project"
+    },
+    "statistics": {
+      "files": 150,
+      "directories": 25
+    },
+    "metadata": {
+      "timestamp": 1641234567.89,
+      "sanitized": false
+    }
   },
-  "file_stats": {
-    "total_files": 150,
-    "total_directories": 25
-  }
+  "isError": false
 }
 ```
 
@@ -167,7 +209,7 @@ Server version and protocol information.
 ```json
 {
   "server_version": "2.3.0",
-  "protocol_version": "2024-11-05",
+  "protocol_version": "2025-06-18",
   "server_name": "gandalf-mcp"
 }
 ```
@@ -176,6 +218,42 @@ Server version and protocol information.
 
 ```bash
 get_server_version()
+```
+
+## Logging & Diagnostics
+
+### Dynamic Log Level Control
+
+The server supports dynamic log level adjustment during runtime using the MCP `logging/setLevel` request:
+
+**Supported Log Levels** (RFC 5424):
+
+- `debug`: Detailed diagnostic information
+- `info`: General operational messages
+- `notice`: Normal but significant events
+- `warning`: Warning conditions
+- `error`: Error conditions
+- `critical`: Critical conditions
+- `alert`: Action must be taken immediately
+- `emergency`: System is unusable
+
+**Session Logs Location:**
+
+```bash
+~/.gandalf/logs/gandalf_session_{session_id}_{timestamp}.log
+```
+
+**Log Format:**
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123456",
+  "level": "info",
+  "message": "Operation completed successfully",
+  "session_id": "abc12345",
+  "logger": "tool_call_recall_conversations",
+  "data": { "processing_time": 0.045 }
+}
 ```
 
 ## Performance Guidelines
@@ -190,20 +268,68 @@ get_server_version()
 
 Automatically detects and aggregates from:
 
-- **Cursor**: SQLite database conversations
-- **Claude Code**: JSONL session files
-- **Windsurf**: State database integration
+- **Cursor**: SQLite database conversations with workspace detection
+- **Claude Code**: JSONL session files with project-specific context
+- **Windsurf**: State database integration with session tracking
+
+### MCP Protocol Compliance
+
+- **Protocol Version**: 2025-06-18
+- **Server Capabilities**:
+  - Tools with change notifications (`listChanged: true`)
+  - Dynamic logging level control
+  - Session-based structured logging
+- **JSON-RPC 2.0**: Full specification compliance with enhanced error handling
+
+### Enhanced Response Format
+
+All tools now return **structured content** alongside text content according to MCP 2025-06-18:
+
+- **Text Content**: Human-readable JSON for backward compatibility
+- **Structured Content**: Parsed data optimized for AI consumption
+- **Annotations**: Content metadata including audience and priority
+- **Error Handling**: Distinguishes protocol errors from tool execution errors
+
+### Tool Change Notifications
+
+The server automatically sends `notifications/tools/list_changed` when tool definitions are updated, ensuring clients stay synchronized with available capabilities.
 
 ## Error Handling
 
-All tools return consistent error responses:
+The server implements **two-tier error handling** according to MCP 2025-06-18:
+
+### Protocol Errors
+
+Standard JSON-RPC errors for structural issues:
 
 ```json
 {
+  "jsonrpc": "2.0",
+  "id": 3,
   "error": {
-    "code": "INVALID_PARAMS",
-    "message": "Description of the error"
+    "code": -32602,
+    "message": "Invalid params: missing required parameter 'name'"
   }
+}
+```
+
+### Tool Execution Errors
+
+Business logic errors returned in tool results:
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Failed to access conversation database: Permission denied",
+      "annotations": {
+        "audience": ["assistant"],
+        "priority": 0.9
+      }
+    }
+  ],
+  "isError": true
 }
 ```
 
@@ -213,5 +339,6 @@ Common error codes:
 - `ACCESS_DENIED`: Security restrictions
 - `NOT_FOUND`: Resource not found
 - `TIMEOUT`: Operation timed out
+- `INTERNAL_ERROR`: Server processing error
 
 For troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

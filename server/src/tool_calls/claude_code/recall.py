@@ -33,7 +33,7 @@ from src.core.conversation_analysis import (
     sort_conversations_by_relevance,
 )
 from src.tool_calls.claude_code.query import ClaudeCodeQuery
-from src.utils.access_control import AccessValidator
+from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_error, log_info
 from src.utils.performance import get_duration, start_timer
 
@@ -167,19 +167,34 @@ def handle_recall_claude_conversations(
         )  # Get more for filtering
 
         if not data.get("conversations"):
-            return AccessValidator.create_success_response(
-                json.dumps(
-                    {
-                        "conversations": [],
-                        "total_conversations": 0,
-                        "total_analyzed": 0,
-                        "context_keywords": context_keywords,
-                        "processing_time": get_duration(timer),
-                        "fast_mode": fast_mode,
-                    },
-                    indent=2,
-                )
-            )
+            result = {
+                "conversations": [],
+                "total_conversations": 0,
+                "total_analyzed": 0,
+                "context_keywords": context_keywords,
+                "processing_time": get_duration(timer),
+                "fast_mode": fast_mode,
+            }
+
+            structured_data = {
+                "summary": {
+                    "total_conversations": 0,
+                    "total_analyzed": 0,
+                    "processing_time": get_duration(timer),
+                },
+                "conversations": [],
+                "context": {
+                    "keywords": context_keywords,
+                    "fast_mode": fast_mode,
+                },
+                "status": "no_conversations_found",
+            }
+
+            content_text = json.dumps(result, indent=2)
+            mcp_result = create_mcp_tool_result(content_text, structured_data)
+            return {
+                "content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]
+            }
 
         # Filter by date using shared functionality
         filtered_conversations = filter_conversations_by_date(
@@ -290,7 +305,27 @@ def handle_recall_claude_conversations(
             f"Recalled {len(response_conversations)} relevant conversations "
             f"in {processing_time:.2f}s"
         )
-        return AccessValidator.create_success_response(json.dumps(result, indent=2))
+
+        structured_data = {
+            "summary": {
+                "total_conversations": len(response_conversations),
+                "total_analyzed": len(filtered_conversations),
+                "processing_time": processing_time,
+            },
+            "conversations": response_conversations,
+            "context": {
+                "keywords": context_keywords,
+                "fast_mode": fast_mode,
+                "days_lookback": days_lookback,
+                "min_score": min_score,
+            },
+            "claude_home": data.get("claude_home"),
+            "status": "recall_complete",
+        }
+
+        content_text = json.dumps(result, indent=2)
+        mcp_result = create_mcp_tool_result(content_text, structured_data)
+        return {"content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]}
 
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "recall_claude_conversations")

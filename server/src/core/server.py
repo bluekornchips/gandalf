@@ -3,7 +3,10 @@ MCP server implementation for Gandalf.
 Focuses on core conversation aggregation and project context.
 """
 
+import json
 import os
+import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -32,8 +35,7 @@ from src.tool_calls.project_operations import (
     PROJECT_TOOL_HANDLERS,
 )
 from src.utils.access_control import AccessValidator
-from src.utils.common import log_error, log_info
-from src.utils.database_pool import DatabaseService
+from src.utils.common import initialize_session_logging, log_error, log_info
 from src.utils.jsonrpc import (
     create_error_response,
     create_success_response,
@@ -67,7 +69,7 @@ class GandalfMCP:
     """Gandalf MCP server with 6 essential tools for conversation aggregation
     and project context."""
 
-    def __init__(self, project_root: Path | None = None):
+    def __init__(self, project_root: Path | str | None = None):
         """Initialize the Gandalf MCP server."""
         # Validate project_root if provided as string
         if isinstance(project_root, str):
@@ -80,15 +82,13 @@ class GandalfMCP:
         self.tool_handlers = TOOL_HANDLERS
         self.is_ready = False
 
-        self.db_service = DatabaseService()
-        self.db_service.initialize()
-
         # Request handlers
         self.handlers = {
             "initialize": self._initialize,
             "notifications/initialized": self._notifications_initialized,
             "tools/list": self._tools_list,
             "tools/call": self._tools_call,
+            "logging/setLevel": self._logging_setlevel,
         }
 
         self._validate_configuration()
@@ -104,18 +104,16 @@ class GandalfMCP:
                 log_info(f"Validation message: {validation_status['message']}")
 
                 # Log a helpful message about configuration issues
-                if validation_status["error_count"] > 0:
-                    log_info(
-                        f"gandalf-weights.yaml has "
-                        f"{validation_status['error_count']} errors. "
-                        "Server will use default values for invalid settings. "
-                        "Check the logs above for detailed error information."
-                    )
+                log_info(
+                    f"gandalf-weights.yaml has "
+                    f"{validation_status['error_count']} errors. "
+                    "Server will use default values for invalid settings. "
+                    "Check the logs above for detailed error information."
+                )
             else:
-                # Configuration is valid, log success message
                 log_info("Configuration validation passed - all settings are valid")
 
-        except Exception as e:
+        except (OSError, ValueError, TypeError, AttributeError) as e:
             log_error(e, "Error during configuration validation")
             log_info("Configuration validation failed, continuing with defaults")
 
@@ -182,9 +180,32 @@ class GandalfMCP:
         response = {"tools": self.tool_definitions}
         return response
 
+    def _logging_setlevel(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Handle logging/setLevel request."""
+        if "params" not in request or "level" not in request["params"]:
+            return {
+                "error": {
+                    "code": ErrorCodes.INVALID_PARAMS,
+                    "message": "Invalid params: missing level parameter",
+                }
+            }
+
+        level = request["params"]["level"]
+
+        from src.utils.common import set_min_log_level
+
+        if set_min_log_level(level):
+            return {}  # Empty success response
+        else:
+            return {
+                "error": {
+                    "code": ErrorCodes.INVALID_PARAMS,
+                    "message": f"Invalid log level: {level}. Must be one of: debug, info, notice, warning, error, critical, alert, emergency",
+                }
+            }
+
     def _tools_call(self, request: dict[str, Any]) -> dict[str, Any]:
         """Handle tool call request."""
-        # Check for missing params
         if "params" not in request:
             return {
                 "error": {
@@ -205,13 +226,11 @@ class GandalfMCP:
                 }
             }
 
-        # Centralized performance tracking starts here
         timer = start_timer()
         operation_name = f"tool_call_{tool_name}"
 
-        # Pass project root to tool handlers
         kwargs = {
-            "project_root": self.project_root,  # Already a Path object
+            "project_root": self.project_root,
             "server_instance": self,
         }
 
@@ -290,15 +309,44 @@ class GandalfMCP:
                 request_id,
             )
 
+    def send_notification(self, method: str, params: dict[str, Any]) -> None:
+        """Send an MCP notification"""
+        # placeholder, likely won't implement for a long time.
+        pass
+
+    def send_tools_list_changed_notification(self) -> None:
+        """Send tools/list_changed notification according to MCP 2025-06-18"""
+        if hasattr(self, "output_stream"):
+            notification = {
+                "jsonrpc": "2.0",
+                "method": "notifications/tools/list_changed",
+            }
+
+            print(
+                json.dumps(notification),
+                file=getattr(self, "output_stream", sys.stdout),
+            )
+            if hasattr(self, "output_stream"):
+                self.output_stream.flush()
+
+            log_info("Sent tools/list_changed notification")
+
+    def update_tool_definitions(self, new_definitions: list[dict]) -> None:
+        """Update tool definitions and notify clients of changes"""
+        old_count = len(self.tool_definitions)
+        self.tool_definitions = new_definitions
+        new_count = len(self.tool_definitions)
+
+        if old_count != new_count:
+            log_info(f"Tool definitions updated: {old_count} -> {new_count} tools")
+            self.send_tools_list_changed_notification()
+
     def run(self):
         """Run the server."""
         from src.core.message_loop import MessageLoopHandler
 
+        session_id = str(uuid.uuid4())[:8]
+        initialize_session_logging(session_id, self)
+
         message_loop = MessageLoopHandler(self)
         message_loop.run_message_loop()
-
-    def shutdown(self):
-        """Shutdown the server and cleanup resources."""
-        if self.db_service:
-            self.db_service.shutdown()
-            log_info("Server shutdown completed")

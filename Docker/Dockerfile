@@ -32,7 +32,7 @@ RUN chmod +x gandalf/gandalf \
 
 # Install Python dependencies for MCP server
 USER root
-RUN cd /app/gandalf/server && pip3 install --no-cache-dir -e .
+RUN cd /app/gandalf/server && pip3 install --no-cache-dir PyYAML>=6.0 pytest>=8.0.0 pytest-cov>=4.0.0 ruff>=0.1.0
 USER gandalf
 
 ENV GANDALF_ROOT=/app/gandalf \

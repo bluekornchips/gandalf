@@ -21,7 +21,7 @@ class TestWeightsConfig:
 
         # Test getting existing weights
         keyword_weight = config.get("conversation.keyword_weight")
-        assert isinstance(keyword_weight, (int, float))
+        assert isinstance(keyword_weight, int | float)
         assert keyword_weight > 0
 
         # Test getting non-existent key with default
@@ -96,7 +96,7 @@ class TestIntegrationScenarios:
 
         # Test that individual weight retrieval works
         keyword_weight = config.get("conversation.keyword_weight")
-        assert isinstance(keyword_weight, (int, float))
+        assert isinstance(keyword_weight, int | float)
 
     def test_error_recovery(self):
         """Test error recovery scenarios."""

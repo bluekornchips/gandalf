@@ -187,6 +187,15 @@ CONVERSATION_DOMAIN_WORD_EXCLUSIONS = {
     "we",
 }
 
+# Conversation classification types
+CONVERSATION_TYPES = [
+    "architecture",
+    "debugging",
+    "problem_solving",
+    "technical",
+    "code_discussion",
+    "general",
+]
 
 # Context analysis scoring thresholds
 CONTEXT_ANALYSIS_MIN_SCORE = 0.1

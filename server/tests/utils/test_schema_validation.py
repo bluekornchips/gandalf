@@ -482,8 +482,6 @@ class TestGandalfSchemaValidatorErrorHandling:
 
     def test_validate_with_invalid_schema_structure(self):
         """Test validator with schema that causes internal errors."""
-        from unittest.mock import Mock
-
         from src.utils.schema_validation import GandalfSchemaValidator
 
         # Create a normal schema
@@ -494,8 +492,6 @@ class TestGandalfSchemaValidatorErrorHandling:
         validator = GandalfSchemaValidator(schema)
 
         # Mock _validate_recursive to raise an exception
-        original_method = validator._validate_recursive
-
         def mock_validate_recursive(*args, **kwargs):
             raise ValueError("Test exception for coverage")
 
@@ -577,8 +573,6 @@ class TestFileOperationsErrorHandling:
 
     def test_create_default_weights_file_io_error(self, tmp_path, monkeypatch):
         """Test create_default_weights_file with IO errors."""
-        import yaml
-
         from src.utils.schema_validation import create_default_weights_file
 
         # Mock DEFAULT_WEIGHTS_FILE to point to a path we can't write to
@@ -744,7 +738,7 @@ directories:
 
         def mock_open(file, *args, **kwargs):
             if str(file) == str(spec_file):
-                raise IOError("Test IO error")
+                raise OSError("Test IO error")
             return original_open(file, *args, **kwargs)
 
         with monkeypatch.context() as m:

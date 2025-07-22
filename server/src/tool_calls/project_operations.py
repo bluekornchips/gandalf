@@ -14,7 +14,7 @@ from src.config.constants.server import (
     SUBPROCESS_TIMEOUT,
 )
 from src.core.file_scoring import get_files_list
-from src.utils.access_control import AccessValidator
+from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_debug, log_error, log_info
 from src.utils.performance import get_duration, start_timer
 from src.utils.project import ProjectContext
@@ -289,11 +289,38 @@ def handle_get_project_info(
                 project_info["raw_project_name"] = basic_info["raw_project_name"]
 
         log_info(f"Retrieved project info for {project_root}")
-        return AccessValidator.create_success_response(
-            json.dumps(project_info, indent=2)
-        )
 
-    except (OSError, ValueError, TypeError, json.JSONDecodeError) as e:
+        response_text = json.dumps(project_info, indent=2)
+
+        structured_data = {
+            "project": {
+                "name": project_info.get("project_name"),
+                "root": project_info.get("project_root"),
+                "valid": project_info.get("valid_path", False),
+            },
+            "git": project_info.get("git", {}),
+            "statistics": {
+                "files": project_info.get("file_stats", {}).get("total_files", 0),
+                "directories": project_info.get("file_stats", {}).get(
+                    "total_directories", 0
+                ),
+            },
+            "metadata": {
+                "timestamp": project_info.get("timestamp"),
+                "sanitized": project_info.get("sanitized", False),
+            },
+        }
+
+        if "raw_project_name" in project_info:
+            structured_data["project"]["original_name"] = project_info[
+                "raw_project_name"
+            ]
+
+        # Return MCP 2025-06-18 format with both text and structured content
+        mcp_result = create_mcp_tool_result(response_text, structured_data)
+        return mcp_result
+
+    except (OSError, ValueError, TypeError, KeyError) as e:
         log_error(e, f"get_project_info for {project_root}")
         return AccessValidator.create_error_response(
             f"Error retrieving project info: {str(e)}"
@@ -317,9 +344,9 @@ def handle_get_server_version(
         }
 
         log_debug(f"Retrieved server version: {GANDALF_SERVER_VERSION}")
-        return AccessValidator.create_success_response(
-            json.dumps(version_info, indent=2)
-        )
+        return {
+            "content": [{"type": "text", "text": json.dumps(version_info, indent=2)}]
+        }
 
     except (OSError, ValueError, RuntimeError) as e:
         log_error(e, "get_server_version")
@@ -330,6 +357,7 @@ def handle_get_server_version(
 
 TOOL_GET_PROJECT_INFO = {
     "name": "get_project_info",
+    "title": "Project Information & Statistics",
     "description": "Get project information including metadata and statistics",
     "inputSchema": {
         "type": "object",
@@ -341,6 +369,40 @@ TOOL_GET_PROJECT_INFO = {
             }
         },
         "required": [],
+    },
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "project_root": {
+                "type": "string",
+                "description": "Project root directory path",
+            },
+            "project_name": {
+                "type": "string",
+                "description": "Project name derived from directory",
+            },
+            "is_git_repo": {
+                "type": "boolean",
+                "description": "Whether this is a git repository",
+            },
+            "current_branch": {
+                "type": "string",
+                "description": "Current git branch (if applicable)",
+            },
+            "repo_root": {
+                "type": "string",
+                "description": "Git repository root path (if applicable)",
+            },
+            "file_count": {
+                "type": "integer",
+                "description": "Total number of files (if include_stats=true)",
+            },
+            "directory_count": {
+                "type": "integer",
+                "description": "Total number of directories (if include_stats=true)",
+            },
+        },
+        "required": ["project_root", "project_name", "is_git_repo"],
     },
     "annotations": {
         "title": "Get Project Information",
@@ -354,11 +416,40 @@ TOOL_GET_PROJECT_INFO = {
 
 TOOL_GET_SERVER_VERSION = {
     "name": "get_server_version",
+    "title": "Get Server Version",
     "description": "Get the current server version and protocol information",
     "inputSchema": {
         "type": "object",
         "properties": {},
         "required": [],
+    },
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "server_name": {"type": "string", "description": "MCP server name"},
+            "server_version": {
+                "type": "string",
+                "description": "Server version number",
+            },
+            "protocol_version": {
+                "type": "string",
+                "description": "MCP protocol version",
+            },
+            "capabilities": {
+                "type": "object",
+                "description": "Server capabilities",
+                "properties": {
+                    "tools": {"type": "object"},
+                    "logging": {"type": "object"},
+                },
+            },
+        },
+        "required": [
+            "server_name",
+            "server_version",
+            "protocol_version",
+            "capabilities",
+        ],
     },
     "annotations": {
         "title": "Get Server Version",
