@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from src.config.constants.file_system_context import FILE_SYSTEM_CONTEXT_INDICATORS
-from src.config.constants.server import (
+from src.config.constants.server_config import (
     MCP_PROTOCOL_VERSION,
     SERVER_CAPABILITIES,
     SERVER_INFO,
@@ -36,6 +36,7 @@ from src.tool_calls.project_operations import (
 )
 from src.utils.access_control import AccessValidator
 from src.utils.common import initialize_session_logging, log_error, log_info
+from src.utils.database_pool import DatabaseService
 from src.utils.jsonrpc import (
     create_error_response,
     create_success_response,
@@ -81,6 +82,9 @@ class GandalfMCP:
         self.tool_definitions = TOOL_DEFINITIONS
         self.tool_handlers = TOOL_HANDLERS
         self.is_ready = False
+
+        self.db_service = DatabaseService()
+        self.db_service.initialize()
 
         # Request handlers
         self.handlers = {
@@ -350,3 +354,9 @@ class GandalfMCP:
 
         message_loop = MessageLoopHandler(self)
         message_loop.run_message_loop()
+
+    def shutdown(self):
+        """Shutdown the server and cleanup resources."""
+        if self.db_service:
+            self.db_service.shutdown()
+            log_info("Server shutdown completed")

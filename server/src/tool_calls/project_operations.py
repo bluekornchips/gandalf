@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.server import (
+from src.config.constants.server_config import (
     GANDALF_SERVER_VERSION,
     MCP_PROTOCOL_VERSION,
     SUBPROCESS_TIMEOUT,

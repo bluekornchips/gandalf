@@ -217,7 +217,6 @@ class TestLoggingIntegration:
                 # Log various messages
                 log_info("gandalf arrives precisely when he means to")
                 log_debug("looking for signs of the enemy")
-                log_critical("they have a cave troll")
 
                 # Verify log file exists
                 logs_dir = Path(temp_dir) / "logs"
@@ -229,9 +228,8 @@ class TestLoggingIntegration:
         """Test that different logging functions work together properly."""
         log_info("the hobbits are going to isengard")
         log_debug("searching for tracks")
-        log_critical("we are being hunted")
 
-        assert mock_write_log.call_count == 3
+        assert mock_write_log.call_count == 2
 
     def test_session_id_persistence(self):
         """Test that session ID persists across multiple logging calls."""

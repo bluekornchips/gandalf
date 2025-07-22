@@ -5,6 +5,7 @@ Git activity tracking for intelligent file scoring.
 import subprocess
 import time
 from pathlib import Path
+from typing import Any
 
 from src.utils.common import log_debug, log_error, log_info
 
@@ -23,8 +24,8 @@ class GitActivityTracker:
 
     def __init__(self, project_root: Path):
         self.project_root = project_root
-        self._activity_data = {}
-        self._last_update = 0
+        self._activity_data: dict[str, float] = {}
+        self._last_update: float = 0.0
 
     def get_activity_score(self, file_path: str) -> float:
         """Get git activity score for a file."""
@@ -41,7 +42,7 @@ class GitActivityTracker:
         ):
             return CONTEXT_MIN_SCORE
 
-    def _refresh_activity_data(self):
+    def _refresh_activity_data(self) -> None:
         """Refresh git activity data with recent file modification data."""
         try:
             # Get git activity data
@@ -63,7 +64,7 @@ class GitActivityTracker:
                 files = [
                     line.strip() for line in result.stdout.split("\n") if line.strip()
                 ]
-                file_counts = {}
+                file_counts: dict[str, int] = {}
 
                 for file in files:
                     file_counts[file] = file_counts.get(file, 0) + 1
@@ -90,13 +91,13 @@ class GitActivityTracker:
             log_debug(f"Error refreshing git activity data: {e}")
             log_error(e, "Git activity refresh failed")
 
-    def clear_activity_data(self):
+    def clear_activity_data(self) -> None:
         """Clear the git activity data."""
         self._activity_data.clear()
         self._last_update = 0
         log_debug(f"Cleared git activity data for {self.project_root}")
 
-    def get_activity_info(self) -> dict:
+    def get_activity_info(self) -> dict[str, Any]:
         """Get activity information for debugging."""
         current_time = time.time()
         data_age = current_time - self._last_update

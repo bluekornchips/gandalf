@@ -52,7 +52,7 @@ class ClaudeCodeQuery:
 
     def find_session_files(self, project_root: Path | None = None) -> list[Path]:
         """Find Claude Code session files."""
-        session_files = []
+        session_files: list[Path] = []
 
         # Always search in all project directories since Claude Code stores
         # conversations by project
@@ -270,7 +270,7 @@ class ClaudeCodeQuery:
 
 
 def handle_query_claude_conversations(
-    arguments: dict[str, Any], project_root: Path, **kwargs
+    arguments: dict[str, Any], project_root: Path, **kwargs: Any
 ) -> dict[str, Any]:
     """Query Claude Code conversations with comprehensive data retrieval."""
     try:

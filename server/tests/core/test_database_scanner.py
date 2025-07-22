@@ -69,6 +69,10 @@ class TestDatabaseScanner(unittest.TestCase):
         """Clean up test fixtures."""
         import shutil
 
+        from src.utils.database_pool import close_database_pool
+
+        close_database_pool()
+
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 

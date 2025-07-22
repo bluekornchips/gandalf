@@ -33,6 +33,7 @@ from src.config.constants.windsurf import (
 )
 from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_error
+from src.utils.database_pool import get_database_connection
 
 
 class ConversationValidator:
@@ -133,13 +134,13 @@ class ConversationValidator:
 class DatabaseReader:
     """Handles database operations for Windsurf workspace data."""
 
-    def __init__(self, silent: bool = False):
+    def __init__(self, silent: bool = False) -> None:
         self.silent = silent
 
     def get_data(self, db_path: Path, key: str) -> Any | None:
         """Extract data from database using a specific key."""
         try:
-            with sqlite3.connect(str(db_path)) as conn:
+            with get_database_connection(db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
                 result = cursor.fetchone()
@@ -152,7 +153,7 @@ class DatabaseReader:
     def get_all_keys(self, db_path: Path) -> list[str]:
         """Get all keys from a database."""
         try:
-            with sqlite3.connect(str(db_path)) as conn:
+            with get_database_connection(db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT key FROM ItemTable")
                 return [row[0] for row in cursor.fetchall()]
@@ -178,7 +179,7 @@ class ConversationExtractor:
         self,
         db_reader: DatabaseReader,
         validator: ConversationValidator,
-        query_instance: "WindsurfQuery" = None,
+        query_instance: "WindsurfQuery | None" = None,
     ):
         self.db_reader = db_reader
         self.validator = validator
@@ -339,7 +340,7 @@ class ConversationExtractor:
         return conversations
 
     def _create_conversation_entry(
-        self, conv_id: str, data: Any, source: str, db_path: Path, **kwargs
+        self, conv_id: str, data: Any, source: str, db_path: Path, **kwargs: Any
     ) -> dict[str, Any]:
         """Create a standardized conversation entry."""
         entry = {
@@ -363,7 +364,7 @@ class ConversationExtractor:
 class WindsurfQuery:
     """Main query interface for Windsurf conversation data."""
 
-    def __init__(self, silent: bool = False):
+    def __init__(self, silent: bool = False) -> None:
         """Initialize with workspace storage and components."""
         self.silent = silent
         self.workspace_storage = WINDSURF_WORKSPACE_STORAGE
@@ -431,19 +432,20 @@ class WindsurfQuery:
         databases = []
 
         # Search workspace storage
-        if self.workspace_storage.exists():
-            try:
-                for workspace_dir in self.workspace_storage.iterdir():
-                    if workspace_dir.is_dir():
-                        db_file = workspace_dir / "state.vscdb"
-                        if db_file.exists():
-                            databases.append(db_file)
-            except (OSError, PermissionError) as e:
-                if not self.silent:
-                    log_error(
-                        e,
-                        f"scanning Windsurf workspace storage {self.workspace_storage}",
-                    )
+        for storage_path in self.workspace_storage:
+            if storage_path.exists():
+                try:
+                    for workspace_dir in storage_path.iterdir():
+                        if workspace_dir.is_dir():
+                            db_file = workspace_dir / "state.vscdb"
+                            if db_file.exists():
+                                databases.append(db_file)
+                except (OSError, PermissionError) as e:
+                    if not self.silent:
+                        log_error(
+                            e,
+                            f"scanning Windsurf workspace storage {storage_path}",
+                        )
 
         # Search global storage
         if self.global_storage.exists():
@@ -561,7 +563,7 @@ class WindsurfQuery:
 
 
 def handle_query_windsurf_conversations(
-    arguments: dict[str, Any], project_root: Path, **kwargs
+    arguments: dict[str, Any], project_root: Path, **kwargs: Any
 ) -> dict[str, Any]:
     """Query Windsurf conversations with comprehensive data retrieval."""
     try:

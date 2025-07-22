@@ -6,6 +6,7 @@ import pytest
 
 from src.config.enums import ErrorCodes
 from src.core.server import GandalfMCP
+from src.utils.database_pool import DatabaseService
 
 
 class TestGandalfMCPInputValidation:
@@ -15,11 +16,19 @@ class TestGandalfMCPInputValidation:
         """Test that valid project root is accepted."""
         server = GandalfMCP(project_root=str(temp_project_dir))
         assert server.project_root is not None
+        # Test database service is initialized
+        assert server.db_service is not None
+        assert server.db_service.is_initialized()
+        server.shutdown()
 
     def test_none_project_root(self):
         """Test that None project root is accepted."""
         server = GandalfMCP(project_root=None)
         assert server.project_root is not None
+        # Test database service is initialized
+        assert server.db_service is not None
+        assert server.db_service.is_initialized()
+        server.shutdown()
 
     def test_empty_project_root_raises_error(self):
         """Test that empty project root raises ValueError."""
@@ -41,18 +50,21 @@ class TestGandalfMCPInputValidation:
         """Test that server initializes without explicit IDE parameter (removed)."""
         server = GandalfMCP()
         assert server.project_root is not None
+        assert server.db_service is not None
+        assert server.db_service.is_initialized()
+        server.shutdown()
 
     def test_none_explicit_ide(self):
         """Test that server initializes without explicit IDE parameter (removed)."""
         server = GandalfMCP()
         assert server.project_root is not None
+        assert server.db_service is not None
+        assert server.db_service.is_initialized()
+        server.shutdown()
 
 
 class TestGandalfMCPInitialization:
     """Test GandalfMCP server initialization."""
-
-    def setUp(self):
-        """Set up test fixtures."""
 
     def test_init_with_project_root(self, temp_project_dir):
         """Test initialization with explicit project root."""
@@ -61,12 +73,26 @@ class TestGandalfMCPInitialization:
         assert server.project_root.resolve() == temp_project_dir.resolve()
         assert server.is_ready is False
 
+        # Test database service integration
+        assert server.db_service is not None
+        assert isinstance(server.db_service, DatabaseService)
+        assert server.db_service.is_initialized()
+
+        server.shutdown()
+
     def test_init_without_project_root(self):
         """Test initialization without explicit project root."""
         server = GandalfMCP()
 
         assert server.project_root is not None
         assert server.is_ready is False
+
+        # Test database service integration
+        assert server.db_service is not None
+        assert isinstance(server.db_service, DatabaseService)
+        assert server.db_service.is_initialized()
+
+        server.shutdown()
 
     def test_init_handlers_setup(self):
         """Test that all required handlers are set up."""
@@ -81,6 +107,115 @@ class TestGandalfMCPInitialization:
         }
 
         assert set(server.handlers.keys()) == expected_handlers
+        server.shutdown()
+
+    def test_database_service_initialization(self):
+        """Test that database service is properly initialized during server creation."""
+        server = GandalfMCP()
+
+        # Database service should be initialized
+        assert server.db_service is not None
+        assert server.db_service.is_initialized()
+
+        # Should be able to get pool stats
+        stats = server.db_service.get_pool_stats()
+        assert isinstance(stats, dict)
+
+        server.shutdown()
+
+    def test_server_shutdown(self, temp_db):
+        """Test that server shutdown properly closes database service."""
+        server = GandalfMCP()
+
+        # Use database service to create a connection
+        with server.db_service.get_connection(temp_db) as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT 1")
+                assert cursor.fetchone()[0] == 1
+            finally:
+                cursor.close()
+
+        # Verify service is initialized and has connections
+        assert server.db_service.is_initialized()
+        stats = server.db_service.get_pool_stats()
+        assert str(temp_db) in stats
+
+        # Shutdown server
+        server.shutdown()
+
+        # Database service should be shut down
+        assert not server.db_service.is_initialized()
+        assert server.db_service.get_pool_stats() == {}
+
+    def test_server_shutdown_idempotent(self):
+        """Test that server shutdown can be called multiple times safely."""
+        server = GandalfMCP()
+
+        assert server.db_service.is_initialized()
+
+        # First shutdown
+        server.shutdown()
+        assert not server.db_service.is_initialized()
+
+        # Second shutdown should not error
+        server.shutdown()
+        assert not server.db_service.is_initialized()
+
+
+class TestDatabaseServiceIntegration:
+    """Test database service integration with server tools."""
+
+    def test_tools_can_access_database_service(self, temp_db):
+        """Test that tools can access database service through server instance."""
+        server = GandalfMCP()
+
+        try:
+            # Simulate tool call that uses database service
+            with server.db_service.get_connection(temp_db) as conn:
+                cursor = conn.cursor()
+                cursor.execute("CREATE TABLE test_table (id INTEGER, value TEXT)")
+                cursor.execute("INSERT INTO test_table VALUES (1, 'test')")
+                cursor.execute("SELECT value FROM test_table WHERE id = 1")
+                result = cursor.fetchone()
+                assert result[0] == "test"
+        finally:
+            server.shutdown()
+
+    def test_tool_handlers_receive_server_instance(self):
+        """Test that tool handlers receive server instance with database service."""
+        mock_tool = mock.Mock(
+            return_value={"content": [{"type": "text", "text": "result"}]}
+        )
+
+        server = GandalfMCP()
+
+        try:
+            # Mock the tool handlers directly on the server instance
+            server.tool_handlers = {"test_tool": mock_tool}
+
+            request = {
+                "jsonrpc": "2.0",
+                "id": "test",
+                "method": "tools/call",
+                "params": {"name": "test_tool", "arguments": {"arg": "value"}},
+            }
+
+            response = server.handle_request(request)
+
+            assert "result" in response
+            assert "content" in response["result"]
+
+            # Verify tool was called with server_instance containing database service
+            mock_tool.assert_called_once()
+            call_args, call_kwargs = mock_tool.call_args
+
+            assert "server_instance" in call_kwargs
+            assert call_kwargs["server_instance"] is server
+            assert hasattr(call_kwargs["server_instance"], "db_service")
+            assert call_kwargs["server_instance"].db_service.is_initialized()
+        finally:
+            server.shutdown()
 
 
 class TestProjectRootDetection:
@@ -89,7 +224,10 @@ class TestProjectRootDetection:
     def test_server_project_root_resolution(self, temp_project_dir):
         """Test that server resolves project root correctly."""
         server = GandalfMCP(project_root=str(temp_project_dir))
-        assert server.project_root.resolve() == temp_project_dir.resolve()
+        try:
+            assert server.project_root.resolve() == temp_project_dir.resolve()
+        finally:
+            server.shutdown()
 
     def test_server_project_root_with_git(self, temp_project_dir):
         """Test server finds git repository root."""
@@ -105,12 +243,15 @@ class TestProjectRootDetection:
         import os
 
         original_cwd = os.getcwd()
+        server = None
         try:
             os.chdir(str(sub_dir))
             server = GandalfMCP()
             assert server.project_root.resolve() == temp_project_dir.resolve()
         finally:
             os.chdir(original_cwd)
+            if server:
+                server.shutdown()
 
 
 class TestMCPProtocolHandling:
@@ -119,37 +260,46 @@ class TestMCPProtocolHandling:
     def test_handle_initialize_request(self):
         """Test initialize request handling."""
         server = GandalfMCP()
-        request = {"method": "initialize", "id": "1"}
+        try:
+            request = {"method": "initialize", "id": "1"}
 
-        response = server.handle_request(request)
+            response = server.handle_request(request)
 
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == "1"
-        assert "protocolVersion" in response["result"]
-        assert "capabilities" in response["result"]
-        assert "serverInfo" in response["result"]
+            assert response["jsonrpc"] == "2.0"
+            assert response["id"] == "1"
+            assert "protocolVersion" in response["result"]
+            assert "capabilities" in response["result"]
+            assert "serverInfo" in response["result"]
+        finally:
+            server.shutdown()
 
     def test_handle_tools_list_request(self):
         """Test tools/list request handling."""
         server = GandalfMCP()
-        request = {"method": "tools/list", "id": "2"}
+        try:
+            request = {"method": "tools/list", "id": "2"}
 
-        response = server.handle_request(request)
+            response = server.handle_request(request)
 
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == "2"
-        assert "tools" in response["result"]
-        assert len(response["result"]["tools"]) > 0
+            assert response["jsonrpc"] == "2.0"
+            assert response["id"] == "2"
+            assert "tools" in response["result"]
+            assert len(response["result"]["tools"]) > 0
+        finally:
+            server.shutdown()
 
     def test_handle_notifications_initialized(self):
         """Test notifications/initialized handling."""
         server = GandalfMCP()
-        request = {"method": "notifications/initialized"}  # No id = notification
+        try:
+            request = {"method": "notifications/initialized"}  # No id = notification
 
-        response = server.handle_request(request)
+            response = server.handle_request(request)
 
-        assert response is None  # Notifications don't return responses
-        assert server.is_ready is True
+            assert response is None  # Notifications don't return responses
+            assert server.is_ready is True
+        finally:
+            server.shutdown()
 
     def test_handle_tools_call_request(self):
         """Test handling tools/call requests."""
@@ -158,54 +308,66 @@ class TestMCPProtocolHandling:
         )
 
         server = GandalfMCP()
-        # Mock the tool handlers directly on the server instance
-        server.tool_handlers = {"test_tool": mock_tool}
+        try:
+            # Mock the tool handlers directly on the server instance
+            server.tool_handlers = {"test_tool": mock_tool}
 
-        request = {
-            "jsonrpc": "2.0",
-            "id": "test",
-            "method": "tools/call",
-            "params": {"name": "test_tool", "arguments": {"arg": "value"}},
-        }
+            request = {
+                "jsonrpc": "2.0",
+                "id": "test",
+                "method": "tools/call",
+                "params": {"name": "test_tool", "arguments": {"arg": "value"}},
+            }
 
-        response = server.handle_request(request)
+            response = server.handle_request(request)
 
-        assert "result" in response
-        assert "content" in response["result"]
-        mock_tool.assert_called_once()
+            assert "result" in response
+            assert "content" in response["result"]
+            mock_tool.assert_called_once()
+        finally:
+            server.shutdown()
 
     def test_handle_unknown_method(self):
         """Test handling of unknown methods."""
         server = GandalfMCP()
-        request = {"method": "unknown_method", "id": "4"}
+        try:
+            request = {"method": "unknown_method", "id": "4"}
 
-        response = server.handle_request(request)
+            response = server.handle_request(request)
 
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == "4"
-        assert response["error"]["code"] == ErrorCodes.METHOD_NOT_FOUND
-        assert "Method not found" in response["error"]["message"]
+            assert response["jsonrpc"] == "2.0"
+            assert response["id"] == "4"
+            assert response["error"]["code"] == ErrorCodes.METHOD_NOT_FOUND
+            assert "Method not found" in response["error"]["message"]
+        finally:
+            server.shutdown()
 
     def test_handle_malformed_request_no_method(self):
         """Test handling of malformed requests without method."""
         server = GandalfMCP()
-        request = {"id": "5"}  # Missing method
+        try:
+            request = {"id": "5"}  # Missing method
 
-        response = server.handle_request(request)
+            response = server.handle_request(request)
 
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == "5"
-        assert response["error"]["code"] == ErrorCodes.INVALID_REQUEST
-        assert "missing method" in response["error"]["message"]
+            assert response["jsonrpc"] == "2.0"
+            assert response["id"] == "5"
+            assert response["error"]["code"] == ErrorCodes.INVALID_REQUEST
+            assert "missing method" in response["error"]["message"]
+        finally:
+            server.shutdown()
 
     def test_handle_notification_unknown_method(self):
         """Test notification with unknown method returns None."""
         server = GandalfMCP()
-        request = {"method": "unknown_notification"}  # No id = notification
+        try:
+            request = {"method": "unknown_notification"}  # No id = notification
 
-        response = server.handle_request(request)
+            response = server.handle_request(request)
 
-        assert response is None
+            assert response is None
+        finally:
+            server.shutdown()
 
 
 class TestToolCallHandling:
@@ -284,25 +446,32 @@ class TestProjectRootUpdating:
     def test_project_root_set_during_initialization(self):
         """Test that project root is set during initialization."""
         server = GandalfMCP(project_root="/explicit/path")
-
-        # Project root should be resolved during initialization
-        assert server.project_root is not None
-        # The adapter may resolve the path differently, but it should be set
+        try:
+            # Project root should be resolved during initialization
+            assert server.project_root is not None
+            # The adapter may resolve the path differently, but it should be set
+        finally:
+            server.shutdown()
 
     def test_project_root_dynamic_detection(self):
         """Test dynamic project root detection."""
         server = GandalfMCP()
-
-        # Project root should be automatically detected
-        assert server.project_root is not None
+        try:
+            # Project root should be automatically detected
+            assert server.project_root is not None
+        finally:
+            server.shutdown()
 
     def test_project_root_consistency(self):
         """Test project root remains consistent."""
         server = GandalfMCP()
-        original_root = server.project_root
+        try:
+            original_root = server.project_root
 
-        # Project root should remain stable
-        assert server.project_root == original_root
+            # Project root should remain stable
+            assert server.project_root == original_root
+        finally:
+            server.shutdown()
 
 
 class TestComponentSetup:
@@ -311,27 +480,35 @@ class TestComponentSetup:
     def test_server_initialization_success(self):
         """Test that server initializes successfully with all components."""
         server = GandalfMCP()
+        try:
+            # Server should initialize without exceptions
+            assert server.is_ready is False
+            assert server.project_root is not None
+            assert len(server.tool_handlers) > 0
+            assert len(server.tool_definitions) > 0
 
-        # Server should initialize without exceptions
-        assert server.is_ready is False
-        assert server.project_root is not None
-        assert len(server.tool_handlers) > 0
-        assert len(server.tool_definitions) > 0
+            # Database service should be initialized
+            assert server.db_service is not None
+            assert server.db_service.is_initialized()
+        finally:
+            server.shutdown()
 
     def test_server_ready_state_handling(self):
         """Test server ready state handling."""
         server = GandalfMCP()
+        try:
+            # Initially not ready
+            assert server.is_ready is False
 
-        # Initially not ready
-        assert server.is_ready is False
+            # Send initialized notification
+            request = {"method": "notifications/initialized"}
+            response = server.handle_request(request)
 
-        # Send initialized notification
-        request = {"method": "notifications/initialized"}
-        response = server.handle_request(request)
-
-        # Should be ready now
-        assert response is None  # Notifications return None
-        assert server.is_ready is True
+            # Should be ready now
+            assert response is None  # Notifications return None
+            assert server.is_ready is True
+        finally:
+            server.shutdown()
 
 
 class TestRequestHandlingEdgeCases:
@@ -340,39 +517,43 @@ class TestRequestHandlingEdgeCases:
     def test_handle_request_exception_in_handler(self):
         """Test exception handling within request handlers."""
         server = GandalfMCP()
-
-        # Replace the handler in the handlers dictionary to raise an exception
-        original_handler = server.handlers["initialize"]
-
-        def failing_handler(request):
-            raise ValueError("Handler error")
-
-        server.handlers["initialize"] = failing_handler
-
         try:
-            request = {"method": "initialize", "id": "1"}
-            response = server.handle_request(request)
+            # Replace the handler in the handlers dictionary to raise an exception
+            original_handler = server.handlers["initialize"]
 
-            assert "error" in response
-            assert response["error"]["code"] == ErrorCodes.INTERNAL_ERROR
-            assert "Internal error" in response["error"]["message"]
+            def failing_handler(request):
+                raise ValueError("Handler error")
+
+            server.handlers["initialize"] = failing_handler
+
+            try:
+                request = {"method": "initialize", "id": "1"}
+                response = server.handle_request(request)
+
+                assert "error" in response
+                assert response["error"]["code"] == ErrorCodes.INTERNAL_ERROR
+                assert "Internal error" in response["error"]["message"]
+            finally:
+                # Restore original handler
+                server.handlers["initialize"] = original_handler
         finally:
-            # Restore original handler
-            server.handlers["initialize"] = original_handler
+            server.shutdown()
 
     def test_handle_request_exception_in_notification_handler(self):
         """Test exception in notification handler returns None."""
         server = GandalfMCP()
+        try:
+            with mock.patch.object(
+                server,
+                "_notifications_initialized",
+                side_effect=ValueError("Handler error"),
+            ):
+                request = {"method": "notifications/initialized"}  # Notification
+                response = server.handle_request(request)
 
-        with mock.patch.object(
-            server,
-            "_notifications_initialized",
-            side_effect=ValueError("Handler error"),
-        ):
-            request = {"method": "notifications/initialized"}  # Notification
-            response = server.handle_request(request)
-
-            assert response is None
+                assert response is None
+        finally:
+            server.shutdown()
 
     def test_handle_request_top_level_exception(self):
         """Test top-level exception handling."""
@@ -408,26 +589,28 @@ class TestIntegrationScenarios:
     def test_full_initialization_flow(self, temp_project_dir):
         """Test complete initialization flow."""
         server = GandalfMCP(project_root=str(temp_project_dir))
+        try:
+            # Initialize
+            init_request = {"method": "initialize", "id": "1"}
+            init_response = server.handle_request(init_request)
 
-        # Initialize
-        init_request = {"method": "initialize", "id": "1"}
-        init_response = server.handle_request(init_request)
+            assert init_response["result"]["protocolVersion"]
+            assert not server.is_ready
 
-        assert init_response["result"]["protocolVersion"]
-        assert not server.is_ready
+            # Send initialized notification
+            notif_request = {"method": "notifications/initialized"}
+            notif_response = server.handle_request(notif_request)
 
-        # Send initialized notification
-        notif_request = {"method": "notifications/initialized"}
-        notif_response = server.handle_request(notif_request)
+            assert notif_response is None
+            assert server.is_ready
 
-        assert notif_response is None
-        assert server.is_ready
+            # List tools
+            tools_request = {"method": "tools/list", "id": "2"}
+            tools_response = server.handle_request(tools_request)
 
-        # List tools
-        tools_request = {"method": "tools/list", "id": "2"}
-        tools_response = server.handle_request(tools_request)
-
-        assert len(tools_response["result"]["tools"]) > 0
+            assert len(tools_response["result"]["tools"]) > 0
+        finally:
+            server.shutdown()
 
 
 class TestPerformanceTracking:
@@ -495,3 +678,28 @@ def sample_requests():
             "params": {"name": "test_tool", "arguments": {}},
         },
     }
+
+
+@pytest.fixture
+def temp_db():
+    """Create a temporary SQLite database for testing."""
+    import sqlite3
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = Path(f.name)
+
+    # Initialize database with basic table
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)")
+        conn.execute("INSERT INTO test (value) VALUES ('test_data')")
+        conn.commit()
+
+    yield db_path
+
+    # Cleanup
+    try:
+        db_path.unlink()
+    except FileNotFoundError:
+        pass

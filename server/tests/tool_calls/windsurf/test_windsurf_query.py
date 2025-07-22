@@ -46,31 +46,11 @@ class TestWindsurfQuery:
 
     def teardown_method(self):
         """Clean up test fixtures and database connections."""
-        import gc
         import shutil
-        import sqlite3
 
-        try:
-            # Force immediate garbage collection
-            for _ in range(5):
-                gc.collect()
+        from src.utils.database_pool import close_database_pool
 
-            # Close any SQLite connections found in garbage collector
-            for obj in gc.get_objects():
-                if isinstance(obj, sqlite3.Connection):
-                    try:
-                        if not obj.in_transaction:
-                            obj.close()
-                    except Exception:
-                        pass
-
-            # Force another round of garbage collection
-            for _ in range(3):
-                gc.collect()
-
-        except Exception:
-            # Ignore cleanup errors but ensure directory cleanup happens
-            pass
+        close_database_pool()
 
         # Clean up test directory
         if hasattr(self, "temp_dir") and self.temp_dir.exists():
@@ -310,7 +290,7 @@ class TestWindsurfQuery:
         query = WindsurfQuery()
 
         # Mock the storage paths to avoid accessing real system
-        with patch.object(query, "workspace_storage", self.temp_dir):
+        with patch.object(query, "workspace_storage", [self.temp_dir]):
             with patch.object(query, "global_storage", self.temp_dir):
                 # Create mock workspace structure
                 workspace_dir = self.temp_dir / "workspace1"
@@ -1076,7 +1056,7 @@ class TestWindsurfQueryMethods:
     def test_find_workspace_databases_permission_error(self):
         """Test _find_workspace_databases with permission errors."""
         # Mock paths that will cause permission errors
-        with patch.object(self.query, "workspace_storage", self.temp_dir):
+        with patch.object(self.query, "workspace_storage", [self.temp_dir]):
             with patch.object(self.query, "global_storage", self.temp_dir):
                 # Mock iterdir to raise PermissionError
                 with patch.object(

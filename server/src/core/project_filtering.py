@@ -2,8 +2,11 @@
 Project filtering and ignore patterns for the Gandalf MCP server.
 """
 
-import subprocess
+import fnmatch
+import time
+from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 
 from src.config.config_data import (
     EXCLUDE_DIRECTORIES,
@@ -17,7 +20,7 @@ from src.utils.common import log_debug, log_error
 
 
 def filter_project_files(project_root: Path) -> list[str]:
-    """Get filtered list of files using find command with exclusion patterns."""
+    """Get filtered list of files using pathlib with exclusion patterns."""
     if not isinstance(project_root, Path):
         raise TypeError("project_root must be a Path object")
 
@@ -28,58 +31,70 @@ def filter_project_files(project_root: Path) -> list[str]:
         raise ValueError(f"Project root is not a directory: {project_root}")
 
     try:
-        find_cmd = _build_find_command(project_root)
+        files = []
+        start_time = time.time()
 
-        result = subprocess.run(
-            find_cmd,
-            cwd=project_root,
-            capture_output=True,
-            text=True,
-            timeout=FIND_COMMAND_TIMEOUT,
-        )
+        for file_path in _iterate_project_files(project_root):
+            files.append(str(file_path))
 
-        if result.returncode != 0:
-            log_debug(f"Find command failed: {result.stderr}")
-            return []
+            # Early termination if we have enough files or timeout
+            if len(files) >= MAX_PROJECT_FILES:
+                log_debug(f"Reached maximum file limit: {MAX_PROJECT_FILES}")
+                break
 
-        files = _process_find_output(result.stdout)
+            if time.time() - start_time > FIND_COMMAND_TIMEOUT:
+                log_debug(f"File scanning timeout reached: {FIND_COMMAND_TIMEOUT}s")
+                break
 
-        # Limit the number of files stored in the cache
-        if len(files) > MAX_PROJECT_FILES:
-            log_debug(f"Limiting files from {len(files)} to {MAX_PROJECT_FILES}")
-            files = files[:MAX_PROJECT_FILES]
-
+        log_debug(f"Found {len(files)} files in {time.time() - start_time:.2f}s")
         return files
 
-    except subprocess.TimeoutExpired as e:
-        log_error(e, "filter_project_files")
-        return []
-    except (subprocess.SubprocessError, OSError, UnicodeDecodeError) as e:
+    except (OSError, PermissionError, ValueError) as e:
         log_error(e, "filter_project_files")
         return []
 
 
-def _build_find_command(project_root: Path) -> list[str]:
-    """Build the find command with comprehensive exclusion patterns."""
-    find_cmd = ["find", str(project_root), "-type", "f"]
+def _iterate_project_files(project_root: Path) -> Generator[Path, None, None]:
+    """Efficiently iterate through project files with exclusion patterns."""
 
-    # Exclude directories
-    for exclude_dir in EXCLUDE_DIRECTORIES:
-        find_cmd.extend(["-not", "-path", f"*/{exclude_dir}/*"])
+    def _should_exclude_directory(dir_path: Path) -> bool:
+        """Check if directory should be excluded."""
+        dir_name = dir_path.name
+        return dir_name in EXCLUDE_DIRECTORIES
 
-    # Exclude file patterns
-    for exclude_pattern in EXCLUDE_FILE_PATTERNS:
-        find_cmd.extend(["-not", "-name", exclude_pattern])
+    def _should_exclude_file(file_path: Path) -> bool:
+        """Check if file should be excluded based on patterns."""
+        filename = file_path.name
+        for pattern in EXCLUDE_FILE_PATTERNS:
+            if fnmatch.fnmatch(filename, pattern):
+                return True
+        return False
 
-    return find_cmd
+    def _walk_directory(
+        directory: Path, max_depth: int = 10
+    ) -> Generator[Path, None, None]:
+        """Recursively walk directory with depth limit and exclusion filters."""
+        if max_depth <= 0:
+            return
+
+        try:
+            # Use iterdir() for better performance than rglob()
+            # claude suggested this, I did not come up with it.
+            for item in directory.iterdir():
+                if item.is_file():
+                    if not _should_exclude_file(item):
+                        yield item
+                elif item.is_dir():
+                    if not _should_exclude_directory(item):
+                        # recursion recursion recursion
+                        yield from _walk_directory(item, max_depth - 1)
+        except (PermissionError, OSError):
+            pass
+
+    yield from _walk_directory(project_root)
 
 
-def _process_find_output(stdout: str) -> list[str]:
-    """Process find command output into a clean list of file paths."""
-    return [line.strip() for line in stdout.splitlines() if line.strip()]
-
-
-def get_excluded_patterns() -> dict:
+def get_excluded_patterns() -> dict[str, Any]:
     """Get current exclusion patterns for debugging and testing purposes."""
     return {
         "directories": list(EXCLUDE_DIRECTORIES),

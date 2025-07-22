@@ -1,4 +1,4 @@
-# Gandalf Rules
+# Enhanced Gandalf Rules
 
 Agent behavior rules for development tools using Gandalf MCP Server.
 

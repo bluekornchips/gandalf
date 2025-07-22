@@ -14,6 +14,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from src.config.config_data import (
     CLAUDE_CONVERSATION_PATTERNS,
@@ -47,6 +48,7 @@ from src.config.constants.paths import (
     WINDSURF_WORKSPACE_STORAGE,
 )
 from src.utils.common import log_debug, log_error, log_info
+from src.utils.database_pool import get_database_connection
 
 
 @contextmanager
@@ -98,10 +100,10 @@ class DatabaseScanner:
         return time.time() - self._last_scan_time > self._cache_ttl
 
     def _count_conversations_sqlite(self, db_path: Path) -> int | None:
-        """Count conversations in a SQLite database safely."""
+        """Count conversations in a SQLite database safely using connection pool."""
         try:
             with timeout_context(DATABASE_OPERATION_TIMEOUT):
-                with sqlite3.connect(str(db_path), timeout=2.0) as conn:
+                with get_database_connection(db_path) as conn:
                     cursor = conn.cursor()
 
                     # Check if this is a Cursor database with 'ItemTable' structure
@@ -302,9 +304,9 @@ class DatabaseScanner:
                         )
                         continue
 
-        except TimeoutError:
+        except TimeoutError as e:
             log_error(
-                None,
+                e,
                 f"Cursor database scan timed out after {self._scan_timeout} seconds",
             )
         except (OSError, ValueError, AttributeError) as e:
@@ -394,9 +396,9 @@ class DatabaseScanner:
                         log_debug(f"Cannot access Claude path {base_path}: {e}")
                         continue
 
-        except TimeoutError:
+        except TimeoutError as e:
             log_error(
-                None,
+                e,
                 f"Claude database scan timed out after {self._scan_timeout} seconds",
             )
         except (OSError, ValueError, AttributeError) as e:
@@ -489,9 +491,9 @@ class DatabaseScanner:
                         log_debug(f"Cannot access Windsurf path {base_path}: {e}")
                         continue
 
-        except TimeoutError:
+        except TimeoutError as e:
             log_error(
-                None,
+                e,
                 f"Windsurf database scan timed out after {self._scan_timeout} seconds",
             )
         except (OSError, ValueError, AttributeError) as e:
@@ -544,9 +546,9 @@ class DatabaseScanner:
                 f"found {len(all_databases)} total databases"
             )
 
-        except TimeoutError:
+        except TimeoutError as e:
             log_error(
-                None,
+                e,
                 f"Full database scan timed out after {self._scan_timeout * 2} seconds",
             )
         except (OSError, ValueError, AttributeError) as e:
@@ -561,7 +563,7 @@ class DatabaseScanner:
 
         return [db for db in self.databases if db.tool_type == tool_type]
 
-    def get_summary(self) -> dict[str, any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get a summary of discovered databases."""
         if not self.databases:
             self.scan()
@@ -612,10 +614,10 @@ def get_available_agentic_tools(silent: bool = False) -> list[str]:
 
             return result
 
-    except TimeoutError:
+    except TimeoutError as e:
         if not silent:
             log_error(
-                None,
+                e,
                 "detecting available agentic tools timed out after 45 seconds",
             )
         return []

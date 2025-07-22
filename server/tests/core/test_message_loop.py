@@ -197,8 +197,12 @@ class TestMessageLoop:
         mock_input_stream.__iter__ = Mock(side_effect=KeyboardInterrupt)
 
         with patch("src.core.message_loop.log_info") as mock_log_info:
-            self.handler.run_message_loop(mock_input_stream)
-
+            try:
+                self.handler.run_message_loop(mock_input_stream)
+            except KeyboardInterrupt:
+                pytest.fail(
+                    "KeyboardInterrupt should be handled internally and not propagate"
+                )
             mock_log_info.assert_called_once_with("Server shutdown requested")
 
     def test_run_message_loop_unexpected_exception(self):

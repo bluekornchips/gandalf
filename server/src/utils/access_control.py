@@ -364,7 +364,7 @@ def validate_file_types(file_types: Any) -> tuple[bool, str]:
     return True, ""
 
 
-def get_platform_blocked_paths(platform: str | None = None) -> set:
+def get_platform_blocked_paths(platform: str | None = None) -> set[str]:
     """Get platform-specific blocked paths."""
     if platform == "linux":
         return COMMON_BLOCKED_PATHS | LINUX_SPECIFIC_BLOCKED_PATHS
@@ -377,7 +377,9 @@ def get_platform_blocked_paths(platform: str | None = None) -> set:
 
 
 def create_mcp_tool_result(
-    content_text: str, structured_content: dict | None = None, is_error: bool = False
+    content_text: str,
+    structured_content: dict[str, Any] | None = None,
+    is_error: bool = False,
 ) -> dict[str, Any]:
     """
     Create MCP-compliant tool result with optional structured content.
@@ -406,7 +408,7 @@ def create_mcp_tool_result(
 
 
 def create_tool_execution_error(
-    error_message: str, details: dict | None = None
+    error_message: str, details: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """Create tool execution error (not protocol error) according to MCP 2025-06-18."""
     content_text = error_message
