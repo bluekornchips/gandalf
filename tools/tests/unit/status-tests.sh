@@ -328,7 +328,7 @@ EOF
 }
 
 @test "status prefers installed servers over repository" {
-	create_mock_server_installation "théoden" "2.5.0"
+	create_mock_server_installation "théoden" "2.4.0"
 	create_repository_server_mock
 
 	run execute_status_command

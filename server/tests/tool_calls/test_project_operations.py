@@ -96,12 +96,20 @@ class TestGetServerVersion:
         result = handle_get_server_version(arguments, project_root=mock_project_root)
         content = json.loads(result["content"][0]["text"])
 
-        expected_fields = {"server_version", "protocol_version", "timestamp"}
+        expected_fields = {
+            "server_name",
+            "server_version",
+            "protocol_version",
+            "timestamp",
+            "capabilities",
+        }
         assert set(content.keys()) == expected_fields
 
+        assert isinstance(content["server_name"], str)
         assert isinstance(content["server_version"], str)
         assert isinstance(content["protocol_version"], str)
         assert isinstance(content["timestamp"], int | float)
+        assert isinstance(content["capabilities"], dict)
 
     def test_get_server_version_ignores_arguments(self):
         """Test that get_server_version ignores any arguments passed to it."""

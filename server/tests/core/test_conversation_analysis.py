@@ -13,15 +13,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from src.config.constants.cache import CONTEXT_CACHE_TTL_SECONDS
+from src.config.config_data import FILE_REFERENCE_PATTERNS
 from src.core.conversation_analysis import (
-    FILE_REFERENCE_PATTERNS,
-    _extract_keywords_from_file,
-    _extract_project_keywords,
-    _extract_tech_keywords_from_files,
     analyze_session_relevance,
     classify_conversation_type,
     extract_conversation_content,
+    extract_keywords_from_file,
+    extract_tech_keywords_from_files,
     filter_conversations_by_date,
     generate_shared_context_keywords,
     get_conversation_type_bonus,
@@ -29,6 +27,9 @@ from src.core.conversation_analysis import (
     score_keyword_matches,
     score_session_recency,
     sort_conversations_by_relevance,
+)
+from src.core.keyword_extractor import (
+    _extract_project_keywords,
 )
 from src.utils.memory_cache import get_keyword_cache
 
@@ -82,7 +83,7 @@ class TestGenerateSharedContextKeywords(unittest.TestCase):
 
             # Second call should use cache
             with patch(
-                "src.core.conversation_analysis._extract_project_keywords"
+                "src.core.keyword_extractor._extract_project_keywords"
             ) as mock_extract:
                 keywords2 = generate_shared_context_keywords(tmp_path)
                 mock_extract.assert_not_called()
@@ -172,7 +173,7 @@ class TestExtractProjectKeywords(unittest.TestCase):
             # Should still return project name despite file error
             self.assertIn(tmp_path.name, keywords)
 
-    @patch("src.core.conversation_analysis.log_error")
+    @patch("src.core.keyword_extractor.log_error")
     def test_extract_keywords_exception_handling(self, mock_log):
         """Test exception handling in keyword extraction."""
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -180,7 +181,7 @@ class TestExtractProjectKeywords(unittest.TestCase):
             # Create a scenario that will trigger the exception handling
             # in _extract_project_keywords
             with patch(
-                "src.core.conversation_analysis._extract_tech_keywords_from_files",
+                "src.core.keyword_extractor.extract_tech_keywords_from_files",
                 side_effect=OSError("Test error"),
             ):
                 keywords = _extract_project_keywords(tmp_path)
@@ -206,7 +207,7 @@ class TestExtractKeywordsFromFile(unittest.TestCase):
             }
         )
 
-        keywords = _extract_keywords_from_file("package.json", content)
+        keywords = extract_keywords_from_file("package.json", content)
 
         self.assertIn("my-app", keywords)
         self.assertIn("react", keywords)
@@ -218,7 +219,7 @@ class TestExtractKeywordsFromFile(unittest.TestCase):
         """Test keyword extraction from README.md."""
         content = "# My Project\nBuilt with Python Django and React TypeScript"
 
-        keywords = _extract_keywords_from_file("README.md", content)
+        keywords = extract_keywords_from_file("README.md", content)
 
         # Should extract technology terms
         self.assertTrue(
@@ -236,7 +237,7 @@ class TestExtractKeywordsFromFile(unittest.TestCase):
         dependencies = ["django", "fastapi"]
         """
 
-        keywords = _extract_keywords_from_file("pyproject.toml", content)
+        keywords = extract_keywords_from_file("pyproject.toml", content)
 
         self.assertIn("django", keywords)
 
@@ -247,7 +248,7 @@ name = "my-python-app"
 dependencies = ["django", "flask"]
 """
 
-        keywords = _extract_keywords_from_file("pyproject.toml", content)
+        keywords = extract_keywords_from_file("pyproject.toml", content)
 
         self.assertIn("django", keywords)
         self.assertIn("flask", keywords)
@@ -263,7 +264,7 @@ django = "^4.0"
 flask = "^2.0"
 """
 
-        keywords = _extract_keywords_from_file("pyproject.toml", content)
+        keywords = extract_keywords_from_file("pyproject.toml", content)
 
         self.assertIn("django", keywords)
         self.assertIn("flask", keywords)
@@ -273,7 +274,7 @@ flask = "^2.0"
         """Test handling of invalid JSON in package.json."""
         content = "{ invalid json }"
 
-        keywords = _extract_keywords_from_file("package.json", content)
+        keywords = extract_keywords_from_file("package.json", content)
 
         # Should return empty list without crashing
         self.assertEqual(keywords, [])
@@ -281,7 +282,7 @@ flask = "^2.0"
     def test_extract_with_exception(self):
         """Test exception handling in file keyword extraction."""
         with patch("json.loads", side_effect=TypeError("Unexpected error")):
-            keywords = _extract_keywords_from_file("package.json", '{"name": "test"}')
+            keywords = extract_keywords_from_file("package.json", '{"name": "test"}')
 
         # Should handle exception gracefully
         self.assertIsInstance(keywords, list)
@@ -297,7 +298,7 @@ class TestExtractTechKeywordsFromFiles(unittest.TestCase):
             (tmp_path / "main.py").write_text("# Python file")
             (tmp_path / "app.py").write_text("# Another Python file")
 
-            keywords = _extract_tech_keywords_from_files(tmp_path)
+            keywords = extract_tech_keywords_from_files(tmp_path)
 
             self.assertIn("python", keywords)
 
@@ -308,7 +309,7 @@ class TestExtractTechKeywordsFromFiles(unittest.TestCase):
             (tmp_path / "index.js").write_text("// JavaScript file")
             (tmp_path / "app.tsx").write_text("// React TypeScript file")
 
-            keywords = _extract_tech_keywords_from_files(tmp_path)
+            keywords = extract_tech_keywords_from_files(tmp_path)
 
             self.assertIn("javascript", keywords)
             self.assertIn("react", keywords)
@@ -326,7 +327,7 @@ class TestExtractTechKeywordsFromFiles(unittest.TestCase):
             (src_dir / "main.py").write_text("# Python file")
             (src_dir / "utils.py").write_text("# Another Python file")
 
-            keywords = _extract_tech_keywords_from_files(tmp_path)
+            keywords = extract_tech_keywords_from_files(tmp_path)
 
             self.assertIn("python", keywords)
 
@@ -342,7 +343,7 @@ class TestExtractTechKeywordsFromFiles(unittest.TestCase):
             # Create files in normal directory
             (tmp_path / "app.py").write_text("# Python file")
 
-            keywords = _extract_tech_keywords_from_files(tmp_path)
+            keywords = extract_tech_keywords_from_files(tmp_path)
 
             self.assertIn("python", keywords)
             # Should not include keywords from node_modules
@@ -355,7 +356,7 @@ class TestExtractTechKeywordsFromFiles(unittest.TestCase):
             for i in range(150):
                 (tmp_path / f"file{i}.py").write_text("# Python file")
 
-            keywords = _extract_tech_keywords_from_files(tmp_path)
+            keywords = extract_tech_keywords_from_files(tmp_path)
 
             # Should still work despite many files
             self.assertIn("python", keywords)
@@ -370,7 +371,7 @@ class TestExtractTechKeywordsFromFiles(unittest.TestCase):
             with patch.object(
                 Path, "iterdir", side_effect=PermissionError("Access denied")
             ):
-                keywords = _extract_tech_keywords_from_files(tmp_path)
+                keywords = extract_tech_keywords_from_files(tmp_path)
 
             # Should handle error gracefully
             self.assertIsInstance(keywords, list)

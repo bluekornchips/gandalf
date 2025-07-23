@@ -335,10 +335,7 @@ def handle_query_claude_conversations(
             }
 
             content_text = json.dumps(summary_data, indent=2)
-            mcp_result = create_mcp_tool_result(content_text, structured_data)
-            return {
-                "content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]
-            }
+            return create_mcp_tool_result(content_text, structured_data)
 
         # Format output based on requested format
         if format_type == "markdown":
@@ -361,8 +358,7 @@ def handle_query_claude_conversations(
             "status": "query_complete",
         }
 
-        mcp_result = create_mcp_tool_result(content, structured_data)
-        return {"content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]}
+        return create_mcp_tool_result(content, structured_data)
 
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "query_claude_conversations")

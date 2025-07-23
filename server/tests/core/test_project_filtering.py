@@ -2,8 +2,6 @@
 Tests for project filtering functionality.
 """
 
-import os
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -177,7 +175,7 @@ class TestFilterProjectFiles:
             result = filter_project_files(tmp_path)
 
             # Should log timeout message if timeout was hit
-            timeout_calls = [
+            [
                 call
                 for call in mock_log_debug.call_args_list
                 if "timeout" in str(call).lower()

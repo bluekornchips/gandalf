@@ -3,9 +3,13 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-readonly GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-readonly GANDALF_HOME="${GANDALF_HOME:-$HOME/.gandalf}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+GANDALF_HOME="${GANDALF_HOME:-$HOME/.gandalf}"
+
+readonly SCRIPT_DIR
+readonly GANDALF_ROOT
+readonly GANDALF_HOME
 
 # Find available server installations
 get_available_servers() {
@@ -45,18 +49,19 @@ get_server_version() {
 	fi
 }
 
-# Check if server is healthy with a simple JSON-RPC request
+# Check if server is healthy with a proper JSON-RPC request
 check_server_health() {
 	local server_name="$1"
-	local timeout_duration=3
+	local timeout_duration=5
 
-	# Try to get server status via JSON-RPC
+	# For MCP servers, send a proper JSON-RPC tools/list request
 	local health_response
 	if health_response=$(timeout "$timeout_duration" bash -c '
 		echo "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}" | 
-		'$GANDALF_ROOT'/gandalf run --server "'$server_name'" 2>/dev/null
+		"'$GANDALF_ROOT'/gandalf" run 2>/dev/null
 	' 2>/dev/null); then
-		if echo "$health_response" | jq -e '.result' >/dev/null 2>&1; then
+		# Check if we got a valid JSON-RPC response with tools
+		if echo "$health_response" | jq -e '.result.tools' >/dev/null 2>&1; then
 			echo "healthy"
 			return 0
 		fi
@@ -66,11 +71,15 @@ check_server_health() {
 	return 1
 }
 
-# Get server PID (simplified - look for python processes with gandalf)
+# Get server PID (look for python processes running this specific gandalf instance)
 get_server_pid() {
 	local server_name="$1"
-	# Look for gandalf server processes
-	pgrep -f "gandalf.*server.*$server_name" 2>/dev/null | head -n1 || echo "none"
+	
+	# Look for python processes with --project-root pointing to our server directory
+	# This handles multiple gandalf instances in different directories
+	local server_path="$GANDALF_ROOT/server"
+	local gandalf_pattern="python.*src\.main.*--project-root.*${server_path//\//\\\/}"
+	pgrep -f "$gandalf_pattern" 2>/dev/null | head -n1 || echo "none"
 }
 
 # Get default server name (first available or global)

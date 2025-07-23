@@ -43,7 +43,7 @@ def main() -> None:
             print(f"Error: Invalid project root path: {e}", file=sys.stderr)
             sys.exit(1)
 
-    server = None
+    server: GandalfMCP | None = None
     try:
         server = GandalfMCP(project_root=project_root)
         server.run()

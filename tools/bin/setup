@@ -22,9 +22,9 @@ MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 _get_version() {
     local version_file="$GANDALF_ROOT/VERSION"
     if [[ -f "$version_file" && -r "$version_file" ]]; then
-        cat "$version_file" 2>/dev/null || echo "2.3.0"
+        cat "$version_file" 2>/dev/null || echo "2.4.0"
     else
-        echo "2.3.0"
+        echo "2.4.0"
     fi
 }
 

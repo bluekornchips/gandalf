@@ -36,7 +36,7 @@ from src.core.conversation_analysis import (
     generate_shared_context_keywords,
     sort_conversations_by_relevance,
 )
-from src.tool_calls.windsurf.query import WindsurfQuery
+from src.tool_calls.windsurf.windsurf_query import WindsurfQuery
 from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_error, log_info
 from src.utils.performance import get_duration, start_timer
@@ -129,7 +129,7 @@ def standardize_conversation(
 
 
 def handle_recall_windsurf_conversations(
-    arguments: dict[str, Any], project_root: Path, **kwargs
+    arguments: dict[str, Any], project_root: Path, **kwargs: Any
 ) -> dict[str, Any]:
     """
     Intelligent conversation recall for Windsurf IDE with relevance analysis.
@@ -206,10 +206,7 @@ def handle_recall_windsurf_conversations(
             }
 
             content_text = json.dumps(response_data, indent=2, default=str)
-            mcp_result = create_mcp_tool_result(content_text, structured_data)
-            return {
-                "content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]
-            }
+            return create_mcp_tool_result(content_text, structured_data)
 
         # Generate context keywords for relevance analysis
         context_keywords = generate_shared_context_keywords(project_root)
@@ -329,7 +326,7 @@ def handle_recall_windsurf_conversations(
             f"in {get_duration(start_time):.3f}s"
         )
 
-        structured_data = {
+        final_structured_data: dict[str, Any] = {
             "summary": {
                 "total_conversations": len(final_conversations),
                 "total_analyzed": total_found,
@@ -346,8 +343,7 @@ def handle_recall_windsurf_conversations(
         }
 
         content_text = json.dumps(response_data, indent=2, default=str)
-        mcp_result = create_mcp_tool_result(content_text, structured_data)
-        return {"content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]}
+        return create_mcp_tool_result(content_text, final_structured_data)
 
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "handle_recall_windsurf_conversations")

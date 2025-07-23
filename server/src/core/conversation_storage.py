@@ -20,7 +20,7 @@ from src.config.constants.paths import (
     CONVERSATION_CACHE_FILE,
     CONVERSATION_CACHE_METADATA_FILE,
 )
-from src.core.conversation_analysis import generate_shared_context_keywords
+from src.core.keyword_extractor import generate_shared_context_keywords
 from src.utils.common import log_debug, log_error, log_info
 
 
@@ -57,14 +57,16 @@ def get_project_storage_hash(project_root: Path, context_keywords: list[str]) ->
         # Add context keywords
         hash_input += "".join(sorted(context_keywords))
 
-        return hashlib.md5(hash_input.encode()).hexdigest()[:16]
+        return hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest()[:16]
     except (OSError, ValueError, UnicodeDecodeError):
         try:
             fallback_input = f"{project_root}{time.time()}"
         except (OSError, ValueError, TypeError):
             # if everything fails, we at least have each other as fallback
             fallback_input = f"fallback{time.time()}"
-        return hashlib.md5(fallback_input.encode()).hexdigest()[:16]
+        return hashlib.md5(fallback_input.encode(), usedforsecurity=False).hexdigest()[
+            :16
+        ]
 
 
 def is_storage_valid(project_root: Path, context_keywords: list[str]) -> bool:
@@ -115,6 +117,9 @@ def load_stored_conversations(project_root: Path) -> dict[str, Any] | None:
 
         with open(storage_file_path) as f:
             stored_data = json.load(f)
+
+        if not isinstance(stored_data, dict):
+            return None
 
         conversation_count = len(stored_data.get("conversations", []))
         log_info(f"Loaded {conversation_count} conversations from storage")
@@ -178,7 +183,7 @@ def save_conversations_to_storage(
 generate_context_keywords = generate_shared_context_keywords
 
 
-def clear_conversation_storage():
+def clear_conversation_storage() -> None:
     """Clear all conversation storage and reset caches."""
     log_debug("Cleared conversation storage caches")
 
@@ -188,7 +193,7 @@ def get_conversation_storage_info() -> dict[str, Any]:
     storage_file = get_storage_file_path()
     metadata_file = get_storage_metadata_path(Path.cwd())  # Default path
 
-    info = {
+    info: dict[str, Any] = {
         "storage_file_exists": storage_file.exists(),
         "metadata_file_exists": metadata_file.exists(),
         "cache_entries": 0,
@@ -196,6 +201,8 @@ def get_conversation_storage_info() -> dict[str, Any]:
     }
 
     if storage_file.exists():
-        info["storage_file_size_mb"] = storage_file.stat().st_size / (1024 * 1024)
+        info["storage_file_size_mb"] = round(
+            storage_file.stat().st_size / (1024 * 1024), 2
+        )
 
     return info

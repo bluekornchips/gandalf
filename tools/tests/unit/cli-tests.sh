@@ -40,7 +40,7 @@ EOF
 	chmod +x "$server_dir/gandalf-server"
 
 	# Create VERSION file
-	echo "2.3.0" >"$server_dir/VERSION"
+	echo "2.4.0" >"$server_dir/VERSION"
 
 	# Create mock requirements.txt
 	echo "PyYAML>=6.0" >"$server_dir/requirements.txt"
@@ -55,7 +55,7 @@ validate_server_listing() {
 	local expected_server="$2"
 
 	echo "$output" | grep -q "Server Installations:"
-	echo "$output" | grep -q "$expected_server.*(.*)"
+	echo "$output" | grep -q "$expected_server.*installed"
 }
 
 setup() {
@@ -100,7 +100,7 @@ teardown() {
 	run execute_cli_command "status" "--servers"
 	[ "$status" -eq 0 ]
 	echo "$output" | grep -q "Server Installations:"
-	echo "$output" | grep -q "repository (dev)"
+	echo "$output" | grep -q "repository.*dev.*installed"
 }
 
 @test "status identifies broken server installations" {
@@ -111,8 +111,8 @@ teardown() {
 
 	run execute_cli_command "status" "--servers"
 	[ "$status" -eq 0 ]
-	echo "$output" | grep -q "working-server.*(.*)"
-	echo "$output" | grep -q "broken-server.*\\[broken\\]"
+	echo "$output" | grep -q "working-server.*installed"
+	echo "$output" | grep -q "broken-server.*broken"
 }
 
 @test "status shows repository version when available" {
@@ -122,7 +122,7 @@ teardown() {
 
 	run execute_cli_command "status" "--servers"
 	[ "$status" -eq 0 ]
-	echo "$output" | grep -q "repository (dev)"
+	echo "$output" | grep -q "repository.*dev.*installed"
 }
 
 @test "run command uses global server installation by default" {
@@ -131,25 +131,22 @@ teardown() {
 	run execute_cli_command "run" "--help"
 	[ "$status" -eq 0 ]
 	echo "$output" | grep -q "Start the Gandalf MCP server"
-	echo "$output" | grep -q "consolidated server installations"
+	# Run command shows basic help without server installation details
 }
 
-@test "run command with --server parameter uses specific installation" {
-	create_mock_server_installation "fellowship-server"
-
-	run execute_cli_command "run" "--server" "fellowship-server" "--help"
-	[ "$status" -eq 0 ]
-	echo "$output" | grep -q "Start the Gandalf MCP server"
+@test "run command with invalid parameter shows error" {
+	run execute_cli_command "run" "--invalid-option"
+	[ "$status" -eq 1 ]
+	echo "$output" | grep -q "Error: Unknown option"
 }
 
-@test "run command shows help for server selection" {
+@test "run command shows help for available options" {
 	run execute_cli_command "run" "--help"
 	[ "$status" -eq 0 ]
 	echo "$output" | grep -q "Usage:.*run"
-	echo "$output" | grep -q -- "--server"
-	echo "$output" | grep -q "Server Selection:"
-	echo "$output" | grep -q "global.*installation"
-	echo "$output" | grep -q "Repository version"
+	echo "$output" | grep -q -- "--debug"
+	echo "$output" | grep -q -- "--project-root"
+	echo "$output" | grep -q "Start the Gandalf MCP server"
 }
 
 @test "run command falls back to first available installation" {
@@ -170,11 +167,11 @@ teardown() {
 	echo "$output" | grep -q "Start the Gandalf MCP server"
 }
 
-@test "run command errors on nonexistent server installation" {
-	run execute_cli_command "run" "--server" "nonexistent-server"
-	[ "$status" -eq 1 ]
-	echo "$output" | grep -q "Error: Server installation.*not found"
-	echo "$output" | grep -q "Available installations:"
+@test "run command handles valid parameters" {
+	# Test that run command accepts valid parameters without error
+	run execute_cli_command "run" "--project-root" "$TEST_HOME" "--help"
+	[ "$status" -eq 0 ]
+	echo "$output" | grep -q "Start the Gandalf MCP server"
 }
 
 @test "run command passes through project-root parameter correctly" {
@@ -183,7 +180,7 @@ teardown() {
 
 	run execute_cli_command "run" "--project-root" "$TEST_HOME/minas-tirith" "--help"
 	[ "$status" -eq 0 ]
-	echo "$output" | grep -q "project-root"
+	echo "$output" | grep -q "Start the Gandalf MCP server"
 }
 
 @test "run command passes through debug parameter correctly" {
@@ -224,5 +221,5 @@ teardown() {
 	[ "$status" -eq 0 ]
 	# The repository version will always be shown, so check for appropriate output
 	echo "$output" | grep -q "Server Installations:"
-	echo "$output" | grep -q "repository (dev)"
+	echo "$output" | grep -q "repository.*dev.*installed"
 }

@@ -2,7 +2,7 @@
 
 Model Context Protocol (MCP) Server for Agentic Development Tools
 
-[![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](https://github.com/bluekornchips/gandalf/releases)
+[![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/bluekornchips/gandalf/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![MCP](https://img.shields.io/badge/protocol-MCP%202025--06--18-purple.svg)](https://modelcontextprotocol.io)
@@ -29,7 +29,7 @@ In the Lord of the Rings, Gandalf is a powerful wizard, but he is not omnipotent
 git clone https://github.com/bluekornchips/gandalf.git
 cd gandalf
 
-# Install and configure
+# Install and configure (auto-detects tools & sets up registry)
 ./gandalf install
 
 # Verify installation
@@ -60,17 +60,17 @@ list_project_files()
 - Smart Detection: Auto-configures development environment
 - Zero Configuration: Works immediately with intelligent defaults
 
-### Performance Optimized
+### Processing Features
 
-- Connection pooling with health monitoring
-- 100MB intelligent least recently used (LRU) cache with automatic eviction and TTL management
-- Optimized conversation aggregation and analysis
-- Adapts to project size automatically with streaming file iteration
+- Connection Pooling: SQLite connection pools with health monitoring
+- Intelligent Caching: Memory-managed cache with automatic eviction
+- Streaming Processing: Memory-efficient file iteration
+- Parallel Aggregation: Concurrent processing across multiple tools
 
 ### Team Ready
 
 - Relevance Scoring: Multi-point analysis for optimal context prioritization
-- Project Awareness: Deep understanding of codebase structure
+- Project Awareness: Deep understanding of codebase structure through context intelligence
 - MCP 2025-06-18: Latest protocol version with enhanced capabilities
 - Robust Error Handling: Comprehensive request validation and error recovery
 
@@ -104,22 +104,29 @@ list_project_files()
 - Session tracking
 - Flow-based architecture
 
-## Performance Guidelines
+## Usage Guidelines
 
-Gandalf now automatically optimizes performance for any project size with intelligent resource management.
+Gandalf automatically optimizes for different project sizes:
 
-| Project Size             | Automatic Optimization                   | Manual Tuning                            |
-| ------------------------ | ---------------------------------------- | ---------------------------------------- |
-| Small (<50 files)        | Instant response with memory caching     | `list_project_files()`                   |
-| Medium (50-500 files)    | Connection pooling + intelligent cache   | `recall_conversations(fast_mode=true)`   |
-| Large (500+ files)       | Streaming processing + early termination | `list_project_files(file_types=['.py'])` |
-| Enterprise (1000+ files) | Memory-aware limits + depth control      | `list_project_files(max_files=1000)`     |
+| Project Size             | Recommended Usage | Manual Tuning                            |
+| ------------------------ | ----------------- | ---------------------------------------- |
+| Small (<50 files)        | Default settings  | `list_project_files()`                   |
+| Medium (50-500 files)    | Enable fast mode  | `recall_conversations(fast_mode=true)`   |
+| Large (500+ files)       | Limit scope       | `list_project_files(file_types=['.py'])` |
+| Enterprise (1000+ files) | Use filtering     | `list_project_files(max_files=1000)`     |
+
+The modular system automatically adapts resource usage based on:
+
+- Available system memory
+- Project complexity
+- Database sizes
+- Tool availability
 
 ## Documentation
 
 - [Installation](docs/INSTALLATION.md): Setup instructions for all platforms
 - [API Reference](docs/API.md): Complete tool documentation with examples
-- [Performance Guide](PERFORMANCE.md): Detailed optimization documentation and tuning guide
+- [Database Layer](server/src/utils/README.md): Connection pooling and caching implementation
 - [Troubleshooting](docs/TROUBLESHOOTING.md): Common issues and solutions
 - [Contributing](docs/CONTRIBUTING.md): Development guidelines
 
@@ -138,10 +145,20 @@ Test Coverage: 959 comprehensive tests with 90%+ coverage across all optimized m
 ## Commands
 
 ```bash
-./gandalf install     # Configure MCP
-./gandalf test        # Run tests
-./gandalf lembas      # Full validation
-./gandalf uninstall   # Remove configuration
+./gandalf install           # Configure MCP & setup registry
+./gandalf test              # Run tests
+./gandalf lembas            # Full validation
+./gandalf registry          # Manage agentic tools registry
+./gandalf uninstall         # Remove configuration
+```
+
+### Registry Management
+
+```bash
+./gandalf registry auto-register    # Auto-detect and register tools
+./gandalf registry list             # Show registered tools
+./gandalf registry register <tool>  # Register specific tool
+./gandalf registry unregister <tool># Remove tool registration
 ```
 
 ## Contributing

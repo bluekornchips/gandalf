@@ -40,6 +40,32 @@ CONVERSATION_TITLE_DISPLAY_LIMIT = 100
 CONVERSATION_MATCHES_OUTPUT_LIMIT = 100
 CONVERSATION_PATTERN_MATCHES_LIMIT = 50
 
+# Optional fields for conversation standardization
+CONVERSATION_OPTIONAL_FIELDS = [
+    "snippet",
+    "conversation_type",
+    "tags",
+    "analysis",
+    "workspace_id",
+    "database_path",
+    "session_data",
+    "session_id",
+    "project_context",
+    "context",
+    "source",
+    "windsurf_source",
+    "chat_session_id",
+    "windsurf_metadata",
+    "ai_model",
+    "user_query",
+    "ai_response",
+    "file_references",
+    "code_blocks",
+    "metadata",
+    "keyword_matches",
+    "updated_at",
+]
+
 # Domain word filtering
 CONVERSATION_DOMAIN_WORD_LIMIT = 100
 CONVERSATION_DOMAIN_WORD_MIN_LENGTH = 3

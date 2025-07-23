@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+from src.core.database_counter import ConversationCounter
 from src.core.database_scanner import (
     ConversationDatabase,
     DatabaseScanner,
@@ -79,28 +80,12 @@ class TestDatabaseScanner(unittest.TestCase):
     def test_scanner_initialization(self):
         """Test DatabaseScanner initialization."""
         scanner = DatabaseScanner()
-        self.assertEqual(scanner.project_root, Path.cwd())
+        self.assertEqual(scanner.config.project_root, Path.cwd())
         self.assertEqual(scanner.databases, [])
-        self.assertEqual(scanner._cache_ttl, 300.0)
+        self.assertIsNotNone(scanner.config.cache_ttl)
 
         custom_scanner = DatabaseScanner(project_root=self.temp_dir)
-        self.assertEqual(custom_scanner.project_root, self.temp_dir)
-
-    def test_should_rescan_initial(self):
-        """Test should_rescan returns True initially."""
-        self.assertTrue(self.scanner._should_rescan())
-
-    def test_should_rescan_after_scan(self):
-        """Test should_rescan returns False immediately after scan."""
-        self.scanner._last_scan_time = 1000.0
-        with patch("time.time", return_value=1200.0):  # 200s later, within TTL
-            self.assertFalse(self.scanner._should_rescan())
-
-    def test_should_rescan_after_ttl(self):
-        """Test should_rescan returns True after TTL expires."""
-        self.scanner._last_scan_time = 1000.0
-        with patch("time.time", return_value=1400.0):  # 400s later, beyond TTL
-            self.assertTrue(self.scanner._should_rescan())
+        self.assertEqual(custom_scanner.config.project_root, self.temp_dir)
 
     @patch("src.core.database_scanner.log_debug")
     def test_count_conversations_sqlite_success(self, mock_log):
@@ -116,17 +101,21 @@ class TestDatabaseScanner(unittest.TestCase):
                 cursor.execute(
                     "CREATE TABLE conversations (id INTEGER PRIMARY KEY, text TEXT)"
                 )
-                cursor.execute("INSERT INTO conversations (text) VALUES ('Hello')")
-                cursor.execute("INSERT INTO conversations (text) VALUES ('World')")
+                cursor.execute(
+                    "INSERT INTO conversations (text) VALUES ('Frodo needs help with the One Ring')"
+                )
+                cursor.execute(
+                    "INSERT INTO conversations (text) VALUES ('Gandalf provides guidance in Rivendell')"
+                )
                 conn.commit()
 
-            count = self.scanner._count_conversations_sqlite(db_path)
+            count = ConversationCounter.count_conversations_sqlite(db_path)
             self.assertEqual(count, 2)
 
         finally:
             db_path.unlink(missing_ok=True)
 
-    @patch("src.core.database_scanner.log_error")
+    @patch("src.core.database_counter.log_error")
     def test_count_conversations_sqlite_failure(self, mock_log):
         """Test counting conversations when SQLite fails."""
         # Create a file that's not a valid SQLite database
@@ -135,7 +124,7 @@ class TestDatabaseScanner(unittest.TestCase):
             db_path = Path(temp_db.name)
 
         try:
-            count = self.scanner._count_conversations_sqlite(db_path)
+            count = ConversationCounter.count_conversations_sqlite(db_path)
             self.assertIsNone(count)
             mock_log.assert_called()
 
@@ -154,86 +143,15 @@ class TestDatabaseScanner(unittest.TestCase):
                 cursor.execute("CREATE TABLE unrelated_table (id INTEGER PRIMARY KEY)")
                 conn.commit()
 
-            count = self.scanner._count_conversations_sqlite(db_path)
+            count = ConversationCounter.count_conversations_sqlite(db_path)
             self.assertEqual(count, 0)
 
         finally:
             db_path.unlink(missing_ok=True)
 
-    @patch("src.core.database_scanner.CURSOR_WORKSPACE_STORAGE")
-    def test_scan_cursor_databases_no_paths(self, mock_cursor_paths):
-        """Test scanning when no Cursor paths exist."""
-        mock_cursor_paths.return_value = []
-        databases = self.scanner._scan_cursor_databases()
-        self.assertEqual(databases, [])
-
-    @patch("src.core.database_scanner.CURSOR_WORKSPACE_STORAGE")
-    def test_scan_cursor_databases_with_files(self, mock_cursor_paths):
-        """Test scanning Cursor databases with mock files."""
-        workspace_storage1 = self.temp_dir / "workspace_storage1"
-        workspace_storage2 = self.temp_dir / "workspace_storage2"
-        workspace_storage1.mkdir(parents=True)
-        workspace_storage2.mkdir(parents=True)
-
-        mock_cursor_paths.__iter__.return_value = iter(
-            [workspace_storage1, workspace_storage2]
-        )
-
-        # Create mock workspace with database files
-        workspace1 = workspace_storage1 / "workspace1_hash"
-        workspace1.mkdir()
-        db1 = workspace1 / "conversations.vscdb"
-        db1.touch()
-
-        workspace2 = workspace_storage2 / "workspace2_hash"
-        workspace2.mkdir()
-        db2 = workspace2 / "other.db"
-        db2.touch()
-
-        with patch.object(self.scanner, "_count_conversations_sqlite", return_value=5):
-            databases = self.scanner._scan_cursor_databases()
-
-        self.assertEqual(len(databases), 2)
-        self.assertTrue(all(db.tool_type == "cursor" for db in databases))
-        self.assertTrue(all(db.conversation_count == 5 for db in databases))
-
-    @patch("src.core.database_scanner.CLAUDE_HOME")
-    def test_scan_claude_databases_no_paths(self, mock_claude_paths):
-        """Test scanning when no Claude paths exist."""
-        mock_claude_paths.return_value = []
-        databases = self.scanner._scan_claude_databases()
-        self.assertEqual(databases, [])
-
-    @patch("src.core.database_scanner.CLAUDE_HOME")
-    def test_scan_claude_databases_with_files(self, mock_claude_paths):
-        """Test scanning Claude Code databases with mock files."""
-        claude_dir1 = self.temp_dir / "claude1"
-        claude_dir2 = self.temp_dir / "claude2"
-        claude_dir1.mkdir()
-        claude_dir2.mkdir()
-
-        mock_claude_paths.__iter__.return_value = iter([claude_dir1, claude_dir2])
-
-        # Create mock conversation files
-        conv1 = claude_dir1 / "session1.json"
-        conv1.touch()
-        conv2 = claude_dir2 / "session2.json"
-        conv2.touch()
-
-        databases = self.scanner._scan_claude_databases()
-
-        self.assertEqual(len(databases), 2)
-        self.assertTrue(all(db.tool_type == "claude-code" for db in databases))
-        self.assertTrue(all(db.conversation_count == 1 for db in databases))
-
-    @patch.object(DatabaseScanner, "_scan_windsurf_databases")
-    @patch.object(DatabaseScanner, "_scan_claude_databases")
-    @patch.object(DatabaseScanner, "_scan_cursor_databases")
-    def test_scan_all_tools(
-        self, mock_cursor_scan, mock_claude_scan, mock_windsurf_scan
-    ):
+    @patch.object(DatabaseScanner, "_scan_tool_databases")
+    def test_scan_all_tools(self, mock_scan_tool):
         """Test scanning all supported tools."""
-        # Mock scan results
         cursor_db = ConversationDatabase(
             path="/cursor/path.vscdb",
             tool_type="cursor",
@@ -249,15 +167,24 @@ class TestDatabaseScanner(unittest.TestCase):
             conversation_count=3,
         )
 
-        mock_cursor_scan.return_value = [cursor_db]
-        mock_claude_scan.return_value = [claude_db]
-        mock_windsurf_scan.return_value = []
+        # Mock _scan_tool_databases to return different results based on tool_type
+        def mock_scan_side_effect(tool_type):
+            if tool_type == "cursor":
+                return [cursor_db]
+            elif tool_type == "claude-code":
+                return [claude_db]
+            else:  # windsurf
+                return []
+
+        mock_scan_tool.side_effect = mock_scan_side_effect
 
         databases = self.scanner.scan()
 
         self.assertEqual(len(databases), 2)
-        self.assertEqual(databases[0], cursor_db)
-        self.assertEqual(databases[1], claude_db)
+        # Note: Order may vary based on tool scanning order
+        db_paths = {db.path for db in databases}
+        self.assertIn("/cursor/path.vscdb", db_paths)
+        self.assertIn("/claude/session.json", db_paths)
 
     def test_scan_uses_cache(self):
         """Test that scan uses cache when appropriate."""
@@ -270,11 +197,11 @@ class TestDatabaseScanner(unittest.TestCase):
             conversation_count=1,
         )
 
-        self.scanner.databases = [mock_db]
-        self.scanner._last_scan_time = 1000.0
-
-        with patch("time.time", return_value=1100.0):  # Within TTL
-            with patch.object(self.scanner, "_scan_cursor_databases") as mock_scan:
+        # Mock cache to return databases
+        with patch.object(
+            self.scanner.cache, "get_cached_databases", return_value=[mock_db]
+        ):
+            with patch.object(self.scanner, "_scan_tool_databases") as mock_scan:
                 databases = self.scanner.scan()
                 mock_scan.assert_not_called()
                 self.assertEqual(databases, [mock_db])
@@ -293,17 +220,9 @@ class TestDatabaseScanner(unittest.TestCase):
         self.scanner._last_scan_time = 1000.0
 
         with patch("time.time", return_value=1100.0):  # Within TTL
-            with patch.object(self.scanner, "_scan_cursor_databases", return_value=[]):
-                with patch.object(
-                    self.scanner, "_scan_claude_databases", return_value=[]
-                ):
-                    with patch.object(
-                        self.scanner,
-                        "_scan_windsurf_databases",
-                        return_value=[],
-                    ):
-                        databases = self.scanner.scan(force_rescan=True)
-                        self.assertEqual(databases, [])
+            with patch.object(self.scanner, "_scan_tool_databases", return_value=[]):
+                databases = self.scanner.scan(force_rescan=True)
+                self.assertEqual(databases, [])
 
     def test_get_databases_by_tool(self):
         """Test filtering databases by tool type."""
@@ -333,27 +252,22 @@ class TestDatabaseScanner(unittest.TestCase):
         unknown_dbs = self.scanner.get_databases_by_tool("unknown")
         self.assertEqual(unknown_dbs, [])
 
-    @patch.object(DatabaseScanner, "_scan_windsurf_databases")
-    @patch.object(DatabaseScanner, "_scan_claude_databases")
-    @patch.object(DatabaseScanner, "_scan_cursor_databases")
-    def test_get_summary_empty(
-        self, mock_cursor_scan, mock_claude_scan, mock_windsurf_scan
-    ):
+    @patch.object(DatabaseScanner, "_scan_tool_databases")
+    def test_get_summary_empty(self, mock_scan_tool):
         """Test getting summary with no databases."""
-        # Mock empty scan results
-        mock_cursor_scan.return_value = []
-        mock_claude_scan.return_value = []
-        mock_windsurf_scan.return_value = []
+        # Mock empty scan results for all tool types
+        mock_scan_tool.return_value = []
 
         summary = self.scanner.get_summary()
 
-        expected = {
-            "total_databases": 0,
-            "accessible_databases": 0,
-            "total_conversations": 0,
-            "tools": {},
-        }
-        self.assertEqual(summary, expected)
+        # Check all fields except the dynamic cache_info
+        self.assertEqual(summary["total_databases"], 0)
+        self.assertEqual(summary["accessible_databases"], 0)
+        self.assertEqual(summary["databases_with_conversations"], 0)
+        self.assertEqual(summary["total_conversations"], 0)
+        self.assertEqual(summary["tools"], {})
+        self.assertIn("cache_info", summary)
+        self.assertIsInstance(summary["cache_info"], dict)
 
     def test_get_summary_with_databases(self):
         """Test getting summary with various databases."""
@@ -385,24 +299,33 @@ class TestDatabaseScanner(unittest.TestCase):
         self.scanner.databases = [cursor_db1, cursor_db2, claude_db]
         summary = self.scanner.get_summary()
 
-        expected = {
-            "total_databases": 3,
-            "accessible_databases": 2,
-            "total_conversations": 8,  # 5 + 0 + 3
-            "tools": {
-                "cursor": {
-                    "database_count": 2,
-                    "conversation_count": 5,  # Only accessible one counts
-                    "accessible_count": 1,
-                },
-                "claude-code": {
-                    "database_count": 1,
-                    "conversation_count": 3,
-                    "accessible_count": 1,
-                },
-            },
-        }
-        self.assertEqual(summary, expected)
+        # Check top-level summary fields
+        self.assertEqual(summary["total_databases"], 3)
+        self.assertEqual(summary["accessible_databases"], 2)
+        self.assertEqual(summary["databases_with_conversations"], 2)
+        self.assertEqual(summary["total_conversations"], 8)  # 5 + 0 + 3
+
+        # Check tools section
+        self.assertIn("cursor", summary["tools"])
+        self.assertIn("claude-code", summary["tools"])
+
+        cursor_info = summary["tools"]["cursor"]
+        self.assertEqual(cursor_info["database_count"], 2)
+        self.assertEqual(cursor_info["accessible_count"], 1)
+        self.assertEqual(cursor_info["with_conversations"], 1)
+        self.assertEqual(cursor_info["conversation_count"], 5)
+        self.assertIn("total_size_mb", cursor_info)
+
+        claude_info = summary["tools"]["claude-code"]
+        self.assertEqual(claude_info["database_count"], 1)
+        self.assertEqual(claude_info["accessible_count"], 1)
+        self.assertEqual(claude_info["with_conversations"], 1)
+        self.assertEqual(claude_info["conversation_count"], 3)
+        self.assertIn("total_size_mb", claude_info)
+
+        # Check cache_info exists (dynamic content)
+        self.assertIn("cache_info", summary)
+        self.assertIsInstance(summary["cache_info"], dict)
 
     def test_get_summary_only_includes_tools_with_databases(self):
         """Test that summary only includes tools that have databases."""

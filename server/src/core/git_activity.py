@@ -2,7 +2,7 @@
 Git activity tracking for intelligent file scoring.
 """
 
-import subprocess
+import subprocess  # nosec B404 - safe git operations with fixed commands
 import time
 from pathlib import Path
 from typing import Any
@@ -46,7 +46,7 @@ class GitActivityTracker:
         """Refresh git activity data with recent file modification data."""
         try:
             # Get git activity data
-            result = subprocess.run(
+            result = subprocess.run(  # nosec - safe read-only git operation with validated paths
                 [
                     "git",
                     "log",

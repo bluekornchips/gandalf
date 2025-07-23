@@ -37,6 +37,7 @@ CURSOR_CONVERSATION_KEYS = [
 
 # Windsurf database keys
 WINDSURF_KEY_CHAT_SESSION_STORE = "windsurf.chatSessionStore"
+WINDSURF_KEY_CHAT_SESSION_INDEX = "chat.ChatSessionStore.index"
 
 # Database metadata
 CONVERSATION_TABLE_NAMES = [
@@ -53,3 +54,6 @@ DATABASE_STRUCTURE_LIMITATION_NOTE = (
 
 # Unix timestamp in milliseconds
 TIMESTAMP_MILLISECOND_THRESHOLD = 1000000000000
+
+# Database operation timeout in seconds
+DATABASE_OPERATION_TIMEOUT = 30

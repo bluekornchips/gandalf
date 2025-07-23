@@ -247,10 +247,7 @@ class AccessValidator:
     @classmethod
     def create_success_response(cls, content: str) -> dict[str, Any]:
         """Create a standardized MCP success response."""
-        return {
-            "content": [{"type": "text", "text": content}],
-            "isError": False,
-        }
+        return create_mcp_tool_result(content)
 
     @classmethod
     def validate_conversation_content(

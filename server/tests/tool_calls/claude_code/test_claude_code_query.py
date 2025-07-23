@@ -329,7 +329,12 @@ class TestClaudeCodeQueryHandlers:
         mock_query = Mock()
         mock_query_class.return_value = mock_query
         mock_query.query_conversations.return_value = {
-            "conversations": [{"test": "data"}],
+            "conversations": [
+                {
+                    "message_count": 4,
+                    "session_metadata": {"session_id": "test-session"},
+                }
+            ],
             "total_sessions": 1,
             "query_timestamp": "2024-01-01T00:00:00",
             "claude_home": "/test/claude",
@@ -343,8 +348,7 @@ class TestClaudeCodeQueryHandlers:
         assert len(result["content"]) == 1
         assert result["content"][0]["type"] == "text"
         content_text = result["content"][0]["text"]
-        mcp_response = json.loads(content_text)
-        data = json.loads(mcp_response["content"][0]["text"])
+        data = json.loads(content_text)
         assert "conversations" in data
         assert data["total_sessions"] == 1
 
@@ -378,8 +382,7 @@ class TestClaudeCodeQueryHandlers:
         assert len(result["content"]) == 1
         assert result["content"][0]["type"] == "text"
         content_text = result["content"][0]["text"]
-        mcp_response = json.loads(content_text)
-        data = json.loads(mcp_response["content"][0]["text"])
+        data = json.loads(content_text)
         assert data["total_conversations"] == 2
         assert data["total_messages"] == 8  # 5 + 3
 
@@ -404,14 +407,11 @@ class TestClaudeCodeQueryHandlers:
         arguments = {"format": "markdown"}
         result = handle_query_claude_conversations(arguments, self.project_root)
 
-        # Parse the nested MCP response
         assert "content" in result
         assert len(result["content"]) == 1
         assert result["content"][0]["type"] == "text"
         content_text = result["content"][0]["text"]
-        mcp_response = json.loads(content_text)
-        actual_content = mcp_response["content"][0]["text"]
-        assert actual_content == "# Test Markdown"
+        assert content_text == "# Test Markdown"
 
     @patch("src.tool_calls.claude_code.query.ClaudeCodeQuery")
     def test_handle_query_claude_conversations_exception(self, mock_query_class):

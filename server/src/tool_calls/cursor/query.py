@@ -12,7 +12,7 @@ from src.utils.cursor_chat_query import CursorQuery, list_cursor_workspaces
 
 
 def handle_query_cursor_conversations(
-    arguments: dict[str, Any], project_root: Path, **kwargs
+    arguments: dict[str, Any], project_root: Path, **kwargs: Any
 ) -> dict[str, Any]:
     """Query cursor conversations with comprehensive data retrieval."""
     try:
@@ -85,10 +85,7 @@ def handle_query_cursor_conversations(
             }
 
             content_text = json.dumps(summary_data, indent=2)
-            mcp_result = create_mcp_tool_result(content_text, structured_data)
-            return {
-                "content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]
-            }
+            return create_mcp_tool_result(content_text, structured_data)
 
         # Format output based on requested format
         if format_type == "markdown":
@@ -114,8 +111,7 @@ def handle_query_cursor_conversations(
             "status": "cursor_query_complete",
         }
 
-        mcp_result = create_mcp_tool_result(content, structured_data)
-        return {"content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]}
+        return create_mcp_tool_result(content, structured_data)
 
     except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
         log_error(e, "query_cursor_conversations")
@@ -125,7 +121,7 @@ def handle_query_cursor_conversations(
 
 
 def handle_list_cursor_workspaces(
-    arguments: dict[str, Any], project_root: Path, **kwargs
+    arguments: dict[str, Any], project_root: Path, **kwargs: Any
 ) -> dict[str, Any]:
     """List available Cursor workspace databases."""
     try:

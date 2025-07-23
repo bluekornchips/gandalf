@@ -22,7 +22,7 @@ class ContextIntelligence:
     def __init__(self, project_root: Path, weights_config: Any | None = None):
         """Initialize context intelligence for a project."""
         self.project_root = project_root
-        self._import_cache = {}
+        self._import_cache: dict[str, Any] = {}
 
         # dependency injection, great, this is a good idea me
         self.weights = weights_config or WeightsManager.get_default()
@@ -78,23 +78,25 @@ class ContextIntelligence:
             recent_week_threshold = self.weights.get(
                 "context.recent_modifications.week_threshold"
             )
-            recent_day_multiplier = self.weights.get(
-                "context.recent_modifications.day_multiplier"
+            recent_day_multiplier = float(
+                self.weights.get("context.recent_modifications.day_multiplier")
             )
-            recent_week_multiplier = self.weights.get(
-                "context.recent_modifications.week_multiplier"
+            recent_week_multiplier = float(
+                self.weights.get("context.recent_modifications.week_multiplier")
             )
 
             if hours_ago < recent_hour_threshold:
-                return context_weights.get("recent_modification", CONTEXT_MIN_SCORE)
+                return float(
+                    context_weights.get("recent_modification", CONTEXT_MIN_SCORE)
+                )
             elif hours_ago < recent_day_threshold:
                 return (
-                    context_weights.get("recent_modification", CONTEXT_MIN_SCORE)
+                    float(context_weights.get("recent_modification", CONTEXT_MIN_SCORE))
                     * recent_day_multiplier
                 )
             elif hours_ago < recent_week_threshold:
                 return (
-                    context_weights.get("recent_modification", CONTEXT_MIN_SCORE)
+                    float(context_weights.get("recent_modification", CONTEXT_MIN_SCORE))
                     * recent_week_multiplier
                 )
             else:
@@ -111,21 +113,25 @@ class ContextIntelligence:
             context_weights = self.weights.get_dict("weights")
             optimal_min = self.weights.get("context.file_size.optimal_min")
             optimal_max = self.weights.get("context.file_size.optimal_max")
-            acceptable_multiplier = self.weights.get(
-                "context.file_size.acceptable_multiplier"
+            acceptable_multiplier = float(
+                self.weights.get("context.file_size.acceptable_multiplier")
             )
-            large_multiplier = self.weights.get("context.file_size.large_multiplier")
+            large_multiplier = float(
+                self.weights.get("context.file_size.large_multiplier")
+            )
 
             if optimal_min <= size <= optimal_max:
-                return context_weights.get("file_size_optimal", CONTEXT_MIN_SCORE)
+                return float(
+                    context_weights.get("file_size_optimal", CONTEXT_MIN_SCORE)
+                )
             elif optimal_max < size <= CONTEXT_FILE_SIZE_ACCEPTABLE_MAX:
                 return (
-                    context_weights.get("file_size_optimal", CONTEXT_MIN_SCORE)
+                    float(context_weights.get("file_size_optimal", CONTEXT_MIN_SCORE))
                     * acceptable_multiplier
                 )
             elif size > CONTEXT_FILE_SIZE_ACCEPTABLE_MAX:
                 return (
-                    context_weights.get("file_size_optimal", CONTEXT_MIN_SCORE)
+                    float(context_weights.get("file_size_optimal", CONTEXT_MIN_SCORE))
                     * large_multiplier
                 )
             else:
@@ -141,8 +147,8 @@ class ContextIntelligence:
             suffix, CONTEXT_MIN_SCORE
         )
         context_weights = self.weights.get_dict("weights")
-        return extension_score * context_weights.get(
-            "file_type_priority", CONTEXT_MIN_SCORE
+        return extension_score * float(
+            context_weights.get("file_type_priority", CONTEXT_MIN_SCORE)
         )
 
     def _score_directory_importance(self, file_path: str) -> float:
@@ -155,8 +161,8 @@ class ContextIntelligence:
 
         for part in parts[:-1]:  # Exclude filename
             dir_score = directory_weights.get(part.lower(), CONTEXT_MIN_SCORE)
-            score += dir_score * context_weights.get(
-                "directory_importance", CONTEXT_MIN_SCORE
+            score += dir_score * float(
+                context_weights.get("directory_importance", CONTEXT_MIN_SCORE)
             )
 
         return score
@@ -166,8 +172,8 @@ class ContextIntelligence:
         try:
             activity_score = self.git_tracker.get_activity_score(file_path)
             context_weights = self.weights.get_dict("weights")
-            return activity_score * context_weights.get(
-                "git_activity", CONTEXT_MIN_SCORE
+            return activity_score * float(
+                context_weights.get("git_activity", CONTEXT_MIN_SCORE)
             )
         except (AttributeError, TypeError):
             return CONTEXT_MIN_SCORE
@@ -255,7 +261,7 @@ class ContextIntelligence:
         top_files = scored_files[:CONTEXT_TOP_FILES_COUNT]
 
         # Generate file type distribution
-        file_type_dist = {}
+        file_type_dist: dict[str, int] = {}
         for file_path in files:
             suffix = Path(file_path).suffix.lower()
             if suffix:

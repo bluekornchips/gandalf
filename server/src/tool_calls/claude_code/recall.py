@@ -131,7 +131,7 @@ def standardize_conversation(
 
 
 def handle_recall_claude_conversations(
-    arguments: dict[str, Any], project_root: Path, **kwargs
+    arguments: dict[str, Any], project_root: Path, **kwargs: Any
 ) -> dict[str, Any]:
     """Recall and analyze Claude Code conversations for context."""
     try:
@@ -191,10 +191,7 @@ def handle_recall_claude_conversations(
             }
 
             content_text = json.dumps(result, indent=2)
-            mcp_result = create_mcp_tool_result(content_text, structured_data)
-            return {
-                "content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]
-            }
+            return create_mcp_tool_result(content_text, structured_data)
 
         # Filter by date using shared functionality
         filtered_conversations = filter_conversations_by_date(
@@ -238,12 +235,18 @@ def handle_recall_claude_conversations(
         # Format response
         response_conversations = []
         for item in analyzed_conversations:
-            conv = item["session_data"]
-            analysis = item["analysis"]
-            session_meta = conv.get("session_metadata", {})
+            session_data = item["session_data"]
+            analysis_data = item["analysis"]
+            session_conv: dict[str, Any] = (
+                session_data if isinstance(session_data, dict) else {}
+            )
+            session_analysis: dict[str, Any] = (
+                analysis_data if isinstance(analysis_data, dict) else {}
+            )
+            session_meta = session_conv.get("session_metadata", {})
 
             # Create conversation summary
-            messages = conv.get("messages", [])
+            messages = session_conv.get("messages", [])
             first_message = messages[0] if messages else {}
             first_content = first_message.get("content", "")
 
@@ -264,25 +267,30 @@ def handle_recall_claude_conversations(
                 else str(first_content)
             )
 
+            # Get the relevance score properly typed
+            relevance_score = item.get("relevance_score", 0.0)
+            if not isinstance(relevance_score, int | float):
+                relevance_score = 0.0
+
             response_conversations.append(
                 {
                     # Standardized fields for aggregator
                     "id": session_meta.get("session_id", "Unknown"),
                     "title": summary,
                     "created_at": session_meta.get("start_time", "Unknown"),
-                    "updated_at": conv.get("last_modified", "Unknown"),
+                    "updated_at": session_conv.get("last_modified", "Unknown"),
                     "snippet": summary,
                     "message_count": len(messages),
-                    "relevance_score": round(item["relevance_score"], 2),
+                    "relevance_score": round(relevance_score, 2),
                     # Tool-specific fields
                     "session_id": session_meta.get("session_id", "Unknown"),
                     "start_time": session_meta.get("start_time", "Unknown"),
                     "working_directory": session_meta.get("cwd", "Unknown"),
-                    "conversation_type": analysis["conversation_type"],
+                    "conversation_type": session_analysis["conversation_type"],
                     "summary": summary,
-                    "keyword_matches": analysis["keyword_matches"],
-                    "file_references": analysis["file_references"],
-                    "last_modified": conv.get("last_modified", "Unknown"),
+                    "keyword_matches": session_analysis["keyword_matches"],
+                    "file_references": session_analysis["file_references"],
+                    "last_modified": session_conv.get("last_modified", "Unknown"),
                 }
             )
 
@@ -306,7 +314,7 @@ def handle_recall_claude_conversations(
             f"in {processing_time:.2f}s"
         )
 
-        structured_data = {
+        final_structured_data: dict[str, Any] = {
             "summary": {
                 "total_conversations": len(response_conversations),
                 "total_analyzed": len(filtered_conversations),
@@ -324,8 +332,7 @@ def handle_recall_claude_conversations(
         }
 
         content_text = json.dumps(result, indent=2)
-        mcp_result = create_mcp_tool_result(content_text, structured_data)
-        return {"content": [{"type": "text", "text": json.dumps(mcp_result, indent=2)}]}
+        return create_mcp_tool_result(content_text, final_structured_data)
 
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         log_error(e, "recall_claude_conversations")

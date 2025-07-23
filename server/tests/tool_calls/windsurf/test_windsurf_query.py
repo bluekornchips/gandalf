@@ -24,15 +24,15 @@ from src.config.constants.windsurf import (
     WINDSURF_MESSAGE_INDICATORS,
     WINDSURF_STRONG_CONVERSATION_INDICATORS,
 )
+from src.tool_calls.windsurf.conversation_extractor import ConversationExtractor
+from src.tool_calls.windsurf.database_reader import DatabaseReader
 from src.tool_calls.windsurf.query import (
     TOOL_QUERY_WINDSURF_CONVERSATIONS,
-    ConversationExtractor,
-    ConversationValidator,
-    DatabaseReader,
-    WindsurfQuery,
     _format_response,
     handle_query_windsurf_conversations,
 )
+from src.tool_calls.windsurf.query_validator import ConversationValidator
+from src.tool_calls.windsurf.windsurf_query import WindsurfQuery
 
 
 class TestWindsurfQuery:
@@ -398,10 +398,8 @@ class TestWindsurfQuery:
             result = handle_query_windsurf_conversations(arguments, self.project_root)
 
             assert "content" in result
-            # Parse the nested MCP response
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            response_data = json.loads(mcp_response["content"][0]["text"])
+            response_data = json.loads(content_text)
             assert len(response_data["conversations"]) == 5
             assert response_data["limited_results"] is True
             assert response_data["limit_applied"] == 5

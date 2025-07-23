@@ -10,14 +10,18 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.tool_calls.cursor.recall import (
-    TOOL_RECALL_CURSOR_CONVERSATIONS,
+from src.tool_calls.cursor.conversation_analyzer import (
     analyze_conversation_relevance,
+)
+from src.tool_calls.cursor.conversation_cache import (
     get_project_cache_hash,
-    handle_recall_cursor_conversations,
     is_cache_valid,
     load_cached_conversations,
     save_conversations_to_cache,
+)
+from src.tool_calls.cursor.recall import (
+    TOOL_RECALL_CURSOR_CONVERSATIONS,
+    handle_recall_cursor_conversations,
 )
 
 
@@ -27,7 +31,7 @@ class TestConversationRecall:
     @pytest.fixture
     def mock_cursor_query(self):
         """Mock CursorQuery for testing."""
-        with patch("src.tool_calls.cursor.query.CursorQuery") as mock:
+        with patch("src.utils.cursor_chat_query.CursorQuery") as mock:
             yield mock
 
     @pytest.fixture
@@ -49,7 +53,7 @@ class TestConversationRecall:
             (project_root / "src" / "main.py").write_text("print('hello')")
             yield project_root
 
-    @patch("src.tool_calls.cursor.query.CursorQuery")
+    @patch("src.utils.cursor_chat_query.CursorQuery")
     def test_recall_cursor_conversations_basic(self, mock_cursor_query):
         """Test basic conversation recall functionality."""
         arguments = {"limit": 10, "days_lookback": 7}
@@ -77,7 +81,7 @@ class TestConversationRecall:
         assert "content" in result
         assert len(result["content"]) > 0
 
-    @patch("src.tool_calls.cursor.query.CursorQuery")
+    @patch("src.utils.cursor_chat_query.CursorQuery")
     def test_recall_cursor_conversations_fast_mode(self, mock_cursor_query):
         """Test fast mode conversation recall."""
         arguments = {"fast_mode": True, "limit": 10, "days_lookback": 7}
@@ -214,14 +218,14 @@ class TestConversationRecall:
         # Test basic save functionality
         conversations = [{"id": "test1", "title": "Test"}]
         keywords = ["test"]
-        metadata = {"count": 1}
+        processing_time = 0.5
+        total_found = 1
 
         mock_cache_dir.return_value = Path("/tmp/test_cache")
-        result = save_conversations_to_cache(
-            Path("/tmp/project"), conversations, keywords, metadata
+        save_conversations_to_cache(
+            Path("/tmp/project"), conversations, keywords, processing_time, total_found
         )
-        # Function should return True on success or False on failure
-        assert isinstance(result, bool)
+        # Function returns None on success
 
     def test_extract_keywords_from_content(self, temp_project_root):
         """Test keyword extraction from file content."""
@@ -232,14 +236,14 @@ class TestConversationRecall:
             "lastUpdatedAt": int(time.time() * 1000),
         }
 
-        prompts = [
+        _prompts = [
             {
                 "conversationId": "test-conv-id",
                 "text": "This is a Python web API project with Django framework",
             }
         ]
 
-        generations = [
+        _generations = [
             {
                 "conversationId": "test-conv-id",
                 "text": "Here's how to structure your Python project",
@@ -248,20 +252,19 @@ class TestConversationRecall:
 
         context_keywords = ["python", "web", "api", "django"]
 
-        score, analysis = analyze_conversation_relevance(
+        analysis = analyze_conversation_relevance(
             conversation,
-            prompts,
-            generations,
             context_keywords,
             temp_project_root,
-            include_detailed_analysis=True,
+            include_analysis=True,
         )
+        score = analysis.get("relevance_score", 0.0)
 
         assert isinstance(score, float)
         assert isinstance(analysis, dict)
         assert score > 0  # Should have some relevance due to keyword matches
 
-    @patch("src.tool_calls.cursor.query.CursorQuery")
+    @patch("src.utils.cursor_chat_query.CursorQuery")
     def test_recall_cursor_conversations_with_error(self, mock_cursor_query):
         """Test conversation recall with error handling."""
         arguments = {"limit": 10, "days_lookback": 7}
@@ -280,7 +283,7 @@ class TestConversationRecall:
             # If it does raise an exception, that's also acceptable behavior
             pass
 
-    @patch("src.tool_calls.cursor.query.CursorQuery")
+    @patch("src.utils.cursor_chat_query.CursorQuery")
     def test_recall_cursor_conversations_empty_result(self, mock_cursor_query):
         """Test conversation recall with empty results."""
         arguments = {"limit": 10, "days_lookback": 7}
@@ -345,14 +348,14 @@ class TestConversationRecall:
             "lastUpdatedAt": int(time.time() * 1000),
         }
 
-        prompts = [
+        _prompts = [
             {
                 "conversationId": "test-conv-id",
                 "text": "This is a Python Development Guide about writing Python code and following PEP8",
             }
         ]
 
-        generations = [
+        _generations = [
             {
                 "conversationId": "test-conv-id",
                 "text": "Here are the best practices for Python development",
@@ -361,14 +364,13 @@ class TestConversationRecall:
 
         context_keywords = ["python", "development"]
 
-        score, analysis = analyze_conversation_relevance(
+        analysis = analyze_conversation_relevance(
             conversation,
-            prompts,
-            generations,
             context_keywords,
             temp_project_root,
-            include_detailed_analysis=True,
+            include_analysis=True,
         )
+        score = analysis.get("relevance_score", 0.0)
 
         assert isinstance(score, float)
         assert isinstance(analysis, dict)

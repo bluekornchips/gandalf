@@ -4,10 +4,7 @@ Tests for memory-aware LRU cache functionality.
 
 import json
 import threading
-import time
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 from src.utils.memory_cache import (
     MemoryAwareLRUCache,

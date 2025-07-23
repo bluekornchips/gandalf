@@ -3,9 +3,13 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-readonly GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-export GANDALF_HOME="${GANDALF_HOME:-$HOME/.gandalf}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+GANDALF_HOME="${GANDALF_HOME:-$HOME/.gandalf}"
+
+export GANDALF_HOME
+readonly SCRIPT_DIR
+readonly GANDALF_ROOT
 
 cleanup_handler() {
 	echo -e "\nLembas interrupted. Cleaning up..." >&2
@@ -55,18 +59,21 @@ Usage: $0 [OPTIONS]
 Options:
     --fast              fast tests only (core + essential, ~2min)
     --core              core tests only (default)
-    --all               all tests (shell + python, ~8min)
+    --all               all tests (MCP + shell + python, ~10min)
     --shell-only        shell tests only
     --python-only       python tests only
+    --validate-mcp      validate MCP installation in temporary directory
     --timeout SECONDS   Set test timeout (default: $DEFAULT_TIMEOUT)
     --verbose           Enable verbose output
     --help, -h          Show this help message
 
 Examples:
-    $0                  # Run core tests
+    $0                    # Run core tests
+    $0 --all              # Run all tests
+    $0 --validate-mcp     # Validate MCP installation in temporary directory
+
 The name 'Lembas' comes from the Elvish waybread that sustained travelers
 on long journeys, just as this test suite sustains the development process.
-    $0 --all            # Run all tests
 
 EOF
 }
@@ -235,8 +242,16 @@ run_all_tests() {
 		return 1
 	fi
 
-	print_header "Running All Tests"
+	print_header "Running All Tests (MCP + Shell + Python)"
 
+	echo "Step 1: MCP validation..."
+	if ! validate_mcp_installation; then
+		echo "MCP validation failed, stopping all tests" >&2
+		return 1
+	fi
+	echo "MCP validation passed"
+
+	echo "Step 2: Shell and Python tests..."
 	local test_args=()
 
 	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" ${test_args[@]+"${test_args[@]}"} &
@@ -247,7 +262,85 @@ run_all_tests() {
 		echo "All tests completed successfully"
 		return 0
 	else
-		echo "All tests failed" >&2
+		echo "Shell/Python tests failed" >&2
+		return 1
+	fi
+}
+
+validate_mcp_installation() {
+	echo "Creating temporary directory for MCP validation."
+	local temp_dir
+	temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/gandalf-mcp-validation-XXXXXX")
+
+	echo "Starting temporary MCP server in: $temp_dir"
+	cd "$temp_dir"
+
+	echo "Testing minimum required method: tools/list"
+	local request='{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+	echo "Request: $request"
+	local response
+
+	if response=$(echo "$request" | "$GANDALF_ROOT/gandalf" run --project-root "$temp_dir" 2>&1); then
+		echo "Response:"
+		if command -v jq >/dev/null 2>&1; then
+			echo "$response" | jq . 2>/dev/null || echo "$response"
+		else
+			echo "$response"
+		fi
+		echo "tools/list working"
+		echo "---"
+	else
+		echo "Response: $response"
+		echo "tools/list failed" >&2
+		return 1
+	fi
+
+	local test_tools=(
+		"get_project_info"
+		"list_project_files"
+		"recall_conversations"
+		"export_individual_conversations"
+	)
+
+	for tool in "${test_tools[@]}"; do
+		echo "Testing tool: $tool"
+		local request="{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"$tool\",\"arguments\":{}}}"
+
+		echo "Request: $request"
+		local response
+		if response=$(echo "$request" | "$GANDALF_ROOT/gandalf" run --project-root "$temp_dir" 2>&1); then
+			echo "Response:"
+			if command -v jq >/dev/null 2>&1; then
+				echo "$response" | jq . 2>/dev/null || echo "$response"
+			else
+				echo "$response"
+			fi
+			echo "$tool working"
+			echo "---"
+		else
+			echo "Response: $response"
+			echo "$tool failed" >&2
+			return 1
+		fi
+	done
+
+	echo "MCP validation completed successfully"
+	return 0
+}
+
+run_mcp_validation_tests() {
+	print_header "Running MCP Installation Validation"
+
+	local start_time end_time duration
+	start_time=$(date +%s)
+
+	if validate_mcp_installation; then
+		end_time=$(date +%s)
+		duration=$((end_time - start_time))
+		echo "MCP validation completed successfully in ${duration}s"
+		return 0
+	else
+		echo "MCP validation failed" >&2
 		return 1
 	fi
 }
@@ -277,6 +370,10 @@ parse_arguments() {
 			;;
 		--python-only)
 			test_type="python"
+			shift
+			;;
+		--validate-mcp)
+			test_type="mcp"
 			shift
 			;;
 		--verbose)
@@ -343,6 +440,9 @@ EOF
 		;;
 	python)
 		run_python_tests "$LEMBAS_VERBOSE" "$LEMBAS_TIMEOUT"
+		;;
+	mcp)
+		run_mcp_validation_tests
 		;;
 	*)
 		echo "Unknown test type: $LEMBAS_TEST_TYPE" >&2

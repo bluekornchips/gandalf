@@ -1,6 +1,5 @@
 """Test performance monitoring utilities."""
 
-import time
 import unittest.mock as mock
 
 from src.utils.performance import (

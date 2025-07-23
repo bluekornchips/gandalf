@@ -22,7 +22,11 @@ cd gandalf
 ./gandalf test
 ```
 
-The installer automatically detects your IDE and configures everything needed.
+The installer automatically:
+- Detects your IDE and configures MCP settings
+- Initializes the agentic tools registry
+- Sets up conversation database detection
+- Creates global rules files for each tool
 
 ## Manual Configuration
 
@@ -74,6 +78,51 @@ Create or update `~/.windsurf/mcp.json`:
     }
   }
 }
+```
+
+## Registry System
+
+Gandalf uses an automated registry system to detect and manage agentic tools:
+
+### Automatic Registry Setup
+
+The registry is automatically initialized during:
+- First server startup (self-healing)
+- Installation (`./gandalf install`)
+- Manual registration
+
+### Manual Registry Commands
+
+```bash
+# Auto-detect and register all tools
+./gandalf registry auto-register
+
+# List registered tools
+./gandalf registry list
+
+# Register specific tool
+./gandalf registry register cursor ~/.cursor
+
+# Remove tool registration
+./gandalf registry unregister cursor
+
+# Check current registrations
+cat ~/.gandalf/registry.json
+```
+
+### Registry Troubleshooting
+
+If conversation recall returns empty results:
+
+```bash
+# Check registry status
+./gandalf registry list
+
+# Re-initialize if empty
+./gandalf registry auto-register
+
+# Verify detection
+./gandalf test --quick
 ```
 
 ## Verification
@@ -131,9 +180,9 @@ GANDALF_DEBUG=true ./gandalf run
 
 ### Common Issues
 
-1. **Tools not appearing**: Restart IDE completely (Cmd/Ctrl + Q)
-2. **Server not responding**: Check Python version and dependencies
-3. **Permission errors**: Ensure execute permissions on `./gandalf`
+1. Tools not appearing: Restart IDE completely (Cmd/Ctrl + Q)
+2. Server not responding: Check Python version and dependencies
+3. Permission errors: Ensure execute permissions on `./gandalf`
 
 ### Reset Installation
 

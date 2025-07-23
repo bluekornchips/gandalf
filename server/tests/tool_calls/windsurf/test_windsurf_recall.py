@@ -176,8 +176,7 @@ class TestWindsurfRecall:
 
             assert "content" in result
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            data = json.loads(mcp_response["content"][0]["text"])
+            data = json.loads(content_text)
 
             assert "conversations" in data
             assert "total_conversations" in data
@@ -206,8 +205,7 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            data = json.loads(mcp_response["content"][0]["text"])
+            data = json.loads(content_text)
 
             assert data["total_conversations"] == 0
             assert data["total_analyzed"] == 0
@@ -267,8 +265,7 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            data = json.loads(mcp_response["content"][0]["text"])
+            data = json.loads(content_text)
 
             assert len(data["conversations"]) == 4  # 4 conversations have scores >= 4.0
             assert data["total_analyzed"] == 5
@@ -316,8 +313,7 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            data = json.loads(mcp_response["content"][0]["text"])
+            data = json.loads(content_text)
 
             assert len(data["conversations"]) == 2
             assert data["total_analyzed"] == 5
@@ -359,8 +355,7 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            data = json.loads(mcp_response["content"][0]["text"])
+            data = json.loads(content_text)
 
             for conv in data["conversations"]:
                 assert "id" in conv
@@ -416,8 +411,7 @@ class TestWindsurfRecall:
                 )
 
                 content_text = result["content"][0]["text"]
-                mcp_response = json.loads(content_text)
-                data = json.loads(mcp_response["content"][0]["text"])
+                data = json.loads(content_text)
 
                 assert data["parameters"]["fast_mode"] == fast_mode
                 assert len(data["conversations"]) > 0
@@ -453,8 +447,7 @@ class TestWindsurfRecall:
                 )
 
                 content_text = result["content"][0]["text"]
-                mcp_response = json.loads(content_text)
-                data = json.loads(mcp_response["content"][0]["text"])
+                data = json.loads(content_text)
 
                 assert "parameters" in data
                 params = data["parameters"]
@@ -500,8 +493,7 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            data = json.loads(mcp_response["content"][0]["text"])
+            data = json.loads(content_text)
 
             assert len(data["conversations"]) >= 4  # at least 4 should succeed
             assert data["total_analyzed"] == 5
@@ -553,8 +545,7 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            data = json.loads(mcp_response["content"][0]["text"])
+            data = json.loads(content_text)
 
             assert data["context_keywords"] == self.context_keywords
             mock_keywords.assert_called_once_with(self.project_root)
@@ -606,8 +597,7 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            data = json.loads(mcp_response["content"][0]["text"])
+            data = json.loads(content_text)
 
             # Should only process filtered conversations
             assert data["total_filtered"] == 2
@@ -658,8 +648,7 @@ class TestWindsurfRecall:
             result = handle_recall_windsurf_conversations(arguments, self.project_root)
 
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            data = json.loads(mcp_response["content"][0]["text"])
+            data = json.loads(content_text)
 
             # Should be sorted by relevance score (highest first)
             scores = [conv["relevance_score"] for conv in data["conversations"]]
