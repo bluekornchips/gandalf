@@ -373,6 +373,22 @@ class TestLoadStoredConversations:
             assert result is None
 
     @patch("src.core.conversation_storage.get_storage_file_path")
+    def test_load_stored_conversations_non_dict_json(self, mock_storage_path):
+        """Test loading when JSON file contains valid JSON that's not a dict."""
+        mock_storage_file = Mock()
+        mock_storage_file.exists.return_value = True
+        mock_storage_path.return_value = mock_storage_file
+
+        # Test with list instead of dict
+        non_dict_data = ["conversation1", "conversation2"]
+
+        with patch("builtins.open", mock_open(read_data=json.dumps(non_dict_data))):
+            project_root = Path("/test")
+            result = load_stored_conversations(project_root)
+
+            assert result is None
+
+    @patch("src.core.conversation_storage.get_storage_file_path")
     def test_load_stored_conversations_os_error(self, mock_storage_path):
         """Test loading handles OS errors."""
         mock_storage_file = Mock()
@@ -528,7 +544,7 @@ class TestUtilityFunctions:
             "metadata_file_exists": True,
             "cache_entries": 0,
             "keyword_cache_entries": 0,
-            "storage_file_size_mb": 2048 / (1024 * 1024),
+            "storage_file_size_mb": round(2048 / (1024 * 1024), 2),
         }
 
         assert result == expected
@@ -560,10 +576,10 @@ class TestUtilityFunctions:
 
     def test_generate_context_keywords_alias(self):
         """Test that generate_context_keywords is properly aliased."""
-        from src.core.conversation_analysis import (
+        from src.core.conversation_storage import generate_context_keywords
+        from src.core.keyword_extractor import (
             generate_shared_context_keywords,
         )
-        from src.core.conversation_storage import generate_context_keywords
 
         # Check that they point to the same function (same name)
         assert (
@@ -571,10 +587,8 @@ class TestUtilityFunctions:
             == generate_shared_context_keywords.__name__
         )
         # Check that they're both from conversation_analysis module (ignoring src. prefix)
-        assert generate_context_keywords.__module__.endswith("conversation_analysis")
-        assert generate_shared_context_keywords.__module__.endswith(
-            "conversation_analysis"
-        )
+        assert generate_context_keywords.__module__.endswith("keyword_extractor")
+        assert generate_shared_context_keywords.__module__.endswith("keyword_extractor")
 
 
 class TestIntegration:
@@ -638,4 +652,4 @@ class TestIntegration:
 
             assert info["storage_file_exists"] is True
             assert info["metadata_file_exists"] is True
-            assert info["storage_file_size_mb"] > 0
+            assert info["storage_file_size_mb"] >= 0.0  # Small files may round to 0.0

@@ -8,52 +8,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd -P)"
 
 cleanup_handler() {
-	echo -e "\nTest suite interrupted. Cleaning up..." >&2
-
-	if [[ -n "${CHILD_PIDS:-}" ]]; then
-		for pid in "${CHILD_PIDS[@]}"; do
-			if kill -0 "$pid" 2>/dev/null; then
-				kill -TERM "$pid" 2>/dev/null || true
-			fi
-		done
-	fi
-
+	echo -e "\nTest suite interrupted" >&2
 	exit 130
 }
-declare -a CHILD_PIDS=()
 trap cleanup_handler INT TERM
 
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
-export GANDALF_TEST_MODE="true"
-
-SHELL_MANAGER="$GANDALF_ROOT/tools/tests/shell-tests-manager.sh"
-
-# Source shell test manager to make functions available
-if [[ -f "$SHELL_MANAGER" ]]; then
-	source "$SHELL_MANAGER"
-else
-	echo "Error: Shell test manager not found: $SHELL_MANAGER" >&2
-	exit 1
-fi
 
 usage() {
 	cat <<EOF
-Test Suite Coordinator for $MCP_SERVER_NAME MCP Server
-
-USAGE:
-    test-suite.sh [OPTIONS]
+Test Suite for $MCP_SERVER_NAME
 
 OPTIONS:
     --shell             Run shell tests only
     --python            Run Python tests only
+    --suites SUITES     Run specific shell suites (comma-separated)
     --help, -h          Show this help
-
-EXAMPLES:
-    test-suite.sh                   # Run all tests (shell + python)
-    test-suite.sh --shell           # Run shell tests only
-    test-suite.sh --python          # Run Python tests only
-
-"You shall not pass...if tests are failing." - Gandalf
 
 EOF
 }
@@ -68,188 +38,81 @@ run_python_tests() {
 		return 0
 	fi
 
-	echo "Running Python tests with pytest..."
-
-	local start_time end_time duration
-	start_time=$(date +%s)
-
+	echo "Running Python tests..."
 	cd "$GANDALF_ROOT/server"
-
-	if python3 -m pytest tests/ --tb=line --no-header --no-summary; then
-		end_time=$(date +%s)
-		duration=$((end_time - start_time))
-		echo "Python tests completed in ${duration}s"
-		return 0
-	else
-		end_time=$(date +%s)
-		duration=$((end_time - start_time))
-		echo "Python tests completed in ${duration}s"
-		return 1
-	fi
-}
-
-count_python_tests() {
-	if ! python_tests_exist; then
-		echo "0"
-		return
-	fi
-
-	local count
-	count=$(find "$GANDALF_ROOT/server/tests" -name "test_*.py" -exec grep -c "^def test_" {} \; 2>/dev/null | awk '{sum += $1} END {print sum+0}')
-	echo "$count"
+	python3 -m pytest tests/ --tb=short
 }
 
 main() {
-	local FORCE_SHELL=false
-	local FORCE_PYTHON=false
-	local SUITE_LIST=""
+	local run_shell=true
+	local run_python=true
+	local suite_list=""
 
 	while [[ $# -gt 0 ]]; do
-		case "$1" in
+		case $1 in
+		--shell)
+			run_python=false
+			shift
+			;;
+		--python)
+			run_shell=false
+			shift
+			;;
+		--suites)
+			suite_list="$2"
+			shift 2
+			;;
 		--help | -h)
 			usage
 			exit 0
 			;;
-		--shell)
-			FORCE_SHELL=true
-			;;
-		--python)
-			FORCE_PYTHON=true
-			;;
-		--suites)
-			SUITE_LIST="$2"
-			shift
-			;;
-		--worker-count)
-			# Ignore worker-count parameter for compatibility
-			if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
-				shift
-			else
-				echo "Error: --worker-count requires a numeric argument" >&2
-				exit 1
-			fi
-			;;
-		--*)
-			echo "Error: Unknown option: $1" >&2
-			exit 1
-			;;
 		*)
-			echo "Error: Unexpected argument: $1" >&2
+			echo "Error: Unknown option $1" >&2
+			usage
 			exit 1
 			;;
 		esac
-		shift
 	done
-
-	# Validate conflicting flags
-	if [[ "$FORCE_SHELL" == "true" && "$FORCE_PYTHON" == "true" ]]; then
-		echo "Error: Cannot specify both --shell and --python" >&2
-		exit 1
-	fi
-
-	local shell_count python_count
-
-	# Count shell tests
-	shell_count=0
-	local tests_dir="$GANDALF_ROOT/tools/tests"
-	local -A test_suites=(
-		["context-intelligence"]="unit/context-intelligence-tests.sh"
-		["conversation-export"]="unit/conversation-export-tests.sh"
-		["core"]="unit/core-tests.sh"
-		["file"]="unit/file-tests.sh"
-		["project"]="unit/project-tests.sh"
-		["workspace-detection"]="unit/workspace-detection-tests.sh"
-		["install"]="integration/install-tests.sh"
-		["integration"]="integration/integration-tests.sh"
-		["performance"]="integration/performance-tests.sh"
-		["platform-compatibility"]="integration/platform-compatibility-tests.sh"
-		["security"]="integration/security-tests.sh"
-		["uninstall"]="integration/uninstall-tests.sh"
-	)
-
-	for suite in "${!test_suites[@]}"; do
-		local test_file="${test_suites[$suite]}"
-		local test_path="$tests_dir/$test_file"
-		if [[ -f "$test_path" ]]; then
-			local count
-			count=$(grep -c "^@test" "$test_path" 2>/dev/null || echo "0")
-			shell_count=$((shell_count + count))
-		fi
-	done
-
-	python_count=$(count_python_tests)
 
 	cat <<EOF
-Test counts:
-    Shell tests: $shell_count
-    Python tests: $python_count
-    Total tests: $((shell_count + python_count))
-
 $MCP_SERVER_NAME Test Suite
 =========================================
 EOF
 
 	local start_time end_time duration
 	start_time=$(date +%s)
-
-	local total_passed=0
-	local total_failed=0
+	local total_passed=0 total_failed=0
 	local failed_suites=()
 
-	if [[ "$FORCE_PYTHON" != "true" ]]; then
-		echo "Running shell test suites..."
-
-		# Determine which suites to run
-		local suites_to_run=()
-		if [[ -n "$SUITE_LIST" ]]; then
-			# Parse comma-separated suite list
-			IFS=',' read -ra requested_suites <<< "$SUITE_LIST"
-			for suite in "${requested_suites[@]}"; do
-				suite=$(echo "$suite" | xargs) # trim whitespace
-				if [[ -n "${test_suites[$suite]:-}" ]]; then
-					suites_to_run+=("$suite")
-				else
-					echo "Warning: Unknown suite: $suite"
-				fi
-			done
-		else
-			# Run all suites
-			for suite in "${!test_suites[@]}"; do
-				suites_to_run+=("$suite")
-			done
-		fi
-
-		# Run each selected test suite directly
-		for suite in "${suites_to_run[@]}"; do
-			local test_file="${test_suites[$suite]}"
-			local test_path="$tests_dir/$test_file"
-
-			if [[ -f "$test_path" ]]; then
-				echo "Running $suite test suite..."
-
-				if bats --pretty "$test_path"; then
+	if [[ "$run_shell" == "true" ]]; then
+		echo "Running shell tests..."
+		if [[ -n "$suite_list" ]]; then
+			IFS=',' read -ra suites <<<"$suite_list"
+			for suite in "${suites[@]}"; do
+				if bash "$GANDALF_ROOT/tools/tests/shell-tests-manager.sh" run "$suite"; then
 					total_passed=$((total_passed + 1))
-					echo "$suite: PASSED"
 				else
 					total_failed=$((total_failed + 1))
 					failed_suites+=("$suite")
-					echo "$suite: FAILED"
 				fi
-				echo ""
+			done
+		else
+			if bash "$GANDALF_ROOT/tools/tests/shell-tests-manager.sh"; then
+				total_passed=$((total_passed + 1))
 			else
-				echo "Warning: Test file not found: $test_file"
+				total_failed=$((total_failed + 1))
+				failed_suites+=("shell")
 			fi
-		done
+		fi
 	fi
 
-	if [[ "$FORCE_SHELL" != "true" ]]; then
+	if [[ "$run_python" == "true" ]]; then
 		if run_python_tests; then
 			total_passed=$((total_passed + 1))
 		else
 			total_failed=$((total_failed + 1))
 			failed_suites+=("python")
 		fi
-		echo ""
 	fi
 
 	end_time=$(date +%s)

@@ -5,13 +5,8 @@ Quick solutions for common Gandalf MCP Server issues.
 ## Quick Diagnosis
 
 ```bash
-# Test server functionality
 ./gandalf test
-
-# Full validation
 ./gandalf lembas --all
-
-# Check installation status
 cat ~/.gandalf/installation-state
 ```
 
@@ -19,358 +14,122 @@ cat ~/.gandalf/installation-state
 
 ### Tools Not Appearing in IDE
 
-Symptoms: Development tool doesn't show Gandalf tools or capabilities
+**Solutions:**
 
-Solutions:
-
-1. Restart IDE completely: Exit fully (Cmd/Ctrl + Q), wait 5 seconds, reopen
-2. Reset configuration: `./gandalf install --force`
+1. Restart IDE completely (Cmd/Ctrl + Q)
+2. `./gandalf install --force`
 3. Check MCP logs:
    - Cursor: View > Output > MCP Logs
    - Claude Code: Check terminal output
    - Windsurf: View > Output > MCP Logs
 
-### Server Not Responding
+### Empty Conversation Results
 
-Symptoms: Error messages about server connectivity or timeouts
+**Solutions:**
 
-Solutions:
-
-1. Check dependencies:
-
+1. **Registry Auto-Initialization (Automatic)** - System self-repairs on startup
+2. **Manual Registry Setup:**
    ```bash
-   cd gandalf/server
-   pip install -e .
+   ./gandalf registry auto-register
+   ./gandalf registry list
+   ```
+3. **Check Registry Status:**
+   ```bash
+   cat ~/.gandalf/registry.json
    ```
 
-2. Verify Python version:
+### Server Not Responding
 
+**Solutions:**
+
+1. Check dependencies:
+   ```bash
+   cd gandalf/server && pip install -e .
+   ```
+2. Verify Python version:
    ```bash
    python3 --version  # Should be 3.12+
    ```
-
-3. Check structured logs:
-
+3. Registry issues:
    ```bash
-   # View recent session logs
-   ls -la ~/.gandalf/logs/
-
-   # Monitor live logging (if session is active)
-   tail -f ~/.gandalf/logs/gandalf_session_*.log
-   ```
-
-### Debug with Enhanced Logging
-
-The server provides RFC 5424 structured logging for detailed diagnostics:
-
-**Enable Debug Logging:**
-
-- Use MCP `logging/setLevel` request with level "debug"
-- Or restart server with debug logging enabled
-
-**Log Locations:**
-
-- Session logs: `~/.gandalf/logs/gandalf_session_{id}_{timestamp}.log`
-- Each session has a unique identifier for tracking
-
-**Common Log Patterns:**
-
-```bash
-# Check for startup issues
-grep "session started" ~/.gandalf/logs/*.log
-
-# Find error patterns
-grep '"level":"error"' ~/.gandalf/logs/*.log
-
-# Monitor performance
-grep '"processing_time"' ~/.gandalf/logs/*.log
-```
-
-3. Test server directly:
-   ```bash
-   ./gandalf run --help
-   ```
-
-### Empty or No Conversation Results
-
-Symptoms: Can't recall conversations or get empty results
-
-Solutions:
-
-1. Check database permissions:
-
-   ```bash
-   # Check access to IDE databases
-   ls -la "$HOME/Library/Application Support/Cursor"
-   ls -la ~/.claude
-   ```
-
-2. Restart development tool to reinitialize database connections
-
-3. Use broader search parameters:
-   ```bash
-   recall_conversations(min_score=0.5, days_lookback=60)
+   rm ~/.gandalf/registry.json
+   ./gandalf registry auto-register
    ```
 
 ### No Cursor Conversations Found
 
-Symptoms: `recall_conversations()` returns 0 cursor conversations despite having used Cursor
+**Solutions:**
 
-Solutions:
-
-1. Check Cursor database location:
-
+1. Check database location:
    ```bash
-   # macOS
    ls -la "$HOME/Library/Application Support/Cursor"
-
-   # Linux
-   ls -la "$HOME/.config/Cursor"
    ```
-
-2. Verify Cursor workspace database exists:
-
+2. Verify workspace database:
    ```bash
-   find "$HOME/Library/Application Support/Cursor" -name "*.vscdb" 2>/dev/null
+   find "$HOME/Library/Application Support/Cursor" -name "*.vscdb"
    ```
-
-3. Restart Cursor to ensure database is properly closed and accessible
-
-4. Check if conversations exist in current workspace:
-   ```bash
-   # Should show recent conversation data
-   get_project_info()
-   ```
+3. Restart Cursor
+4. Check project info: `get_project_info()`
 
 ### Command Execution Failures
 
-Symptoms: `./gandalf test` or `./gandalf lembas` commands fail or hang
+**Solutions:**
 
-Solutions:
+1. Fix permissions: `chmod +x gandalf`
+2. Kill hanging processes: `pkill -f gandalf`
+3. Clear cache: `rm -rf ~/.gandalf/cache/*`
 
-1. Check execute permissions:
+### Slow Response Times
 
-   ```bash
-   chmod +x gandalf
-   ls -la gandalf
-   ```
+**Solutions:**
 
-2. Run with explicit shell:
-
-   ```bash
-   bash ./gandalf test
-   ```
-
-3. Check for background processes:
-
-   ```bash
-   # Kill any hanging gandalf processes
-   pkill -f gandalf
-   ```
-
-4. Clear test cache:
-   ```bash
-   rm -rf ~/.gandalf/cache/test-*
-   ```
-
-### Validation Test Failures
-
-Symptoms: `./gandalf lembas --all` reports test failures
-
-Solutions:
-
-1. Run specific test suites to isolate issues:
-
-   ```bash
-   # Python tests only
-   cd gandalf/server && pytest
-
-   # Shell tests only
-   cd gandalf/tools/tests && bash shell-tests-manager.sh
-   ```
-
-2. Check for missing dependencies:
-
-   ```bash
-   cd gandalf/server
-   pip install -e .
-   ```
-
-3. Verify all required tools are installed:
-   ```bash
-   which python3 shellcheck bats
-   ```
-
-### Slow Performance
-
-Symptoms: Tools take a long time to respond
-
-Solutions:
-
-1. Enable fast mode: `recall_conversations(fast_mode=true)`
-2. Limit scope: `list_project_files(file_types=[".py"], max_files=50)`
-3. Reduce lookback: `recall_conversations(days_lookback=7, limit=10)`
-4. Clear cache: `rm -rf ~/.gandalf/cache/*`
+1. `recall_conversations(fast_mode=true)`
+2. `list_project_files(file_types=[".py"], max_files=50)`
+3. `recall_conversations(days_lookback=7, limit=10)`
+4. `rm -rf ~/.gandalf/cache/*`
 
 ## IDE-Specific Issues
 
 ### Cursor IDE
 
-Configuration problems:
-
 ```bash
-# Check configuration
 cat ~/.cursor/mcp.json
-
-# Reset configuration
 ./gandalf install --force
-```
-
-Common MCP log errors:
-
-- "Command not found": Check absolute paths in configuration
-- "Permission denied": `chmod +x gandalf`
-- "Module not found": `cd gandalf/server && pip install -e .`
-
-Database access issues:
-
-```bash
-# Check if Cursor is running (may lock database)
 ps aux | grep -i cursor
-
-# Verify database permissions
-ls -la "$HOME/Library/Application Support/Cursor/workspaceStorage"
 ```
 
 ### Claude Code
 
-Connection problems:
-
 ```bash
-# Check MCP server status
 claude mcp list
-
-# Reset configuration
 ./gandalf install --force
 ```
 
 ### Windsurf
 
-Empty conversations: Normal behavior due to flow-based architecture
-
-Configuration issues:
-
 ```bash
-# Check configuration
 cat ~/.windsurf/mcp.json
-
-# Reset configuration
 ./gandalf install --force
 ```
 
-## Installation Problems
-
-### Permission Errors
+## Reset Everything
 
 ```bash
-# Fix file permissions
-chmod +x gandalf
-
-# Fix directory permissions
-sudo chown -R $(whoami) ~/.gandalf
-```
-
-### Python Dependencies
-
-```bash
-# Check Python version
-python3 --version
-
-# Install dependencies
-cd gandalf/server
-pip install -e .
-
-# Test dependencies
-python3 -c "import yaml, sqlite3, json, pathlib; print('Dependencies OK')"
-```
-
-## Advanced Debugging
-
-### Enable Debug Logging
-
-Add to MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "gandalf": {
-      "env": {
-        "GANDALF_DEBUG": "true",
-        "PYTHONPATH": "/absolute/path/to/gandalf/server"
-      }
-    }
-  }
-}
-```
-
-### Test Server Manually
-
-```bash
-# Test server startup
-cd gandalf
-echo '{"method": "tools/list"}' | ./gandalf run
-
-# Test specific tool
-echo '{"method": "tools/call", "params": {"name": "get_server_version", "arguments": {}}}' | ./gandalf run
-```
-
-### Reset Everything
-
-```bash
-# Complete reset
 ./gandalf uninstall --force
 ./gandalf install --force
-
-# Clear all cache
 rm -rf ~/.gandalf/cache/*
-```
-
-## Performance Optimization
-
-### Memory Usage
-
-```bash
-# Limit conversations
-recall_conversations(limit=10, days_lookback=7)
-
-# Filter file types
-list_project_files(file_types=[".py"], max_files=50)
-```
-
-### Response Time
-
-```bash
-# Enable fast mode
-recall_conversations(fast_mode=true)
-
-# Use specific filters
-recall_conversations(tools=["cursor"], conversation_types=["debugging"])
 ```
 
 ## Getting Help
 
-If issues persist:
+Run diagnostics: `./gandalf lembas --all`
 
-1. Run diagnostics: `./gandalf lembas --all`
-2. Check IDE MCP logs for specific error messages
-3. Create GitHub issue with:
-   - Operating system and version
-   - Python version (`python3 --version`)
-   - IDE name and version
-   - Error messages from logs
-   - Output of `./gandalf test`
-   - MCP configuration (remove sensitive paths)
+Create GitHub issue with:
 
-Documentation: [README](../README.md) | [Installation](INSTALLATION.md) | [API](API.md)
+- OS and Python version
+- IDE name and version
+- Error messages
+- Output of `./gandalf test`
+- MCP configuration (remove sensitive paths)
 
-Support: [GitHub Issues](https://github.com/bluekornchips/gandalf/issues)
+[GitHub Issues](https://github.com/bluekornchips/gandalf/issues)

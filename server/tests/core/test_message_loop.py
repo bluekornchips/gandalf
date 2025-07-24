@@ -68,7 +68,8 @@ class TestSingleRequestHandling:
 
         # Check response was written to output
         output = self.output_stream.getvalue()
-        assert json.dumps(response) in output
+        actual_response = json.loads(output.strip())
+        assert actual_response == response
 
     def test_handle_valid_request_no_response(self):
         """Test handling valid JSON-RPC request that returns no response (notification)."""
@@ -167,7 +168,8 @@ class TestMessageLoop:
 
         self.mock_server.handle_request.assert_called_once_with(request)
         output = self.output_stream.getvalue()
-        assert json.dumps(response) in output
+        actual_response = json.loads(output.strip())
+        assert actual_response == response
 
     def test_run_message_loop_multiple_requests(self):
         """Test running message loop with multiple requests."""
@@ -197,8 +199,12 @@ class TestMessageLoop:
         mock_input_stream.__iter__ = Mock(side_effect=KeyboardInterrupt)
 
         with patch("src.core.message_loop.log_info") as mock_log_info:
-            self.handler.run_message_loop(mock_input_stream)
-
+            try:
+                self.handler.run_message_loop(mock_input_stream)
+            except KeyboardInterrupt:
+                pytest.fail(
+                    "KeyboardInterrupt should be handled internally and not propagate"
+                )
             mock_log_info.assert_called_once_with("Server shutdown requested")
 
     def test_run_message_loop_unexpected_exception(self):
@@ -270,7 +276,22 @@ class TestMessageLoop:
 
         # Should have one error response for the invalid JSON
         output = self.output_stream.getvalue()
-        responses = [json.loads(line) for line in output.strip().split("\n") if line]
+
+        # Parse multiple JSON objects from pretty-printed output
+        responses = []
+        decoder = json.JSONDecoder()
+        idx = 0
+        output = output.strip()
+        while idx < len(output):
+            try:
+                obj, end_idx = decoder.raw_decode(output, idx)
+                responses.append(obj)
+                # Skip whitespace after the JSON object
+                idx += end_idx
+                while idx < len(output) and output[idx].isspace():
+                    idx += 1
+            except json.JSONDecodeError:
+                break
 
         error_responses = [r for r in responses if "error" in r]
         assert len(error_responses) == 1
@@ -358,6 +379,8 @@ class TestIntegrationScenarios:
         assert mock_server.handle_request.call_count == 4
 
         output_lines = [
-            line for line in output_stream.getvalue().strip().split("\n") if line
+            line
+            for line in output_stream.getvalue().strip().split("\n")
+            if line.strip()
         ]
-        assert len(output_lines) == 3  # 3 responses (notification has no response)
+        assert len(output_lines) == 3

@@ -72,5 +72,5 @@ class MessageLoopHandler:
 
     def _send_response(self, response: dict[str, Any]) -> None:
         """Send JSON-RPC response to output stream."""
-        print(json.dumps(response), file=self.output_stream)
+        print(json.dumps(response, separators=(",", ":")), file=self.output_stream)
         self.output_stream.flush()

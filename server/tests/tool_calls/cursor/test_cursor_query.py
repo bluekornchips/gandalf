@@ -1,6 +1,5 @@
 """Test cursor query functionality."""
 
-import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -107,9 +106,7 @@ class TestCursorQuery:
             assert "content" in result
             # Check that we get markdown-like content (starts with #)
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            content = mcp_response["content"][0]["text"]
-            assert content.startswith("#")
+            assert content_text.startswith("#")
 
     def test_handle_query_cursor_conversations_cursor_format(self):
         """Test cursor format output."""
@@ -133,9 +130,7 @@ class TestCursorQuery:
             assert "content" in result
             # Check that we get markdown-like content (starts with #)
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            content = mcp_response["content"][0]["text"]
-            assert content.startswith("#")
+            assert content_text.startswith("#")
 
     def test_handle_query_cursor_conversations_empty_data(self):
         """Test with no workspaces or conversations."""

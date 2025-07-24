@@ -24,15 +24,15 @@ from src.config.constants.windsurf import (
     WINDSURF_MESSAGE_INDICATORS,
     WINDSURF_STRONG_CONVERSATION_INDICATORS,
 )
+from src.tool_calls.windsurf.conversation_extractor import ConversationExtractor
+from src.tool_calls.windsurf.database_reader import DatabaseReader
 from src.tool_calls.windsurf.query import (
     TOOL_QUERY_WINDSURF_CONVERSATIONS,
-    ConversationExtractor,
-    ConversationValidator,
-    DatabaseReader,
-    WindsurfQuery,
     _format_response,
     handle_query_windsurf_conversations,
 )
+from src.tool_calls.windsurf.query_validator import ConversationValidator
+from src.tool_calls.windsurf.windsurf_query import WindsurfQuery
 
 
 class TestWindsurfQuery:
@@ -46,31 +46,11 @@ class TestWindsurfQuery:
 
     def teardown_method(self):
         """Clean up test fixtures and database connections."""
-        import gc
         import shutil
-        import sqlite3
 
-        try:
-            # Force immediate garbage collection
-            for _ in range(5):
-                gc.collect()
+        from src.utils.database_pool import close_database_pool
 
-            # Close any SQLite connections found in garbage collector
-            for obj in gc.get_objects():
-                if isinstance(obj, sqlite3.Connection):
-                    try:
-                        if not obj.in_transaction:
-                            obj.close()
-                    except Exception:
-                        pass
-
-            # Force another round of garbage collection
-            for _ in range(3):
-                gc.collect()
-
-        except Exception:
-            # Ignore cleanup errors but ensure directory cleanup happens
-            pass
+        close_database_pool()
 
         # Clean up test directory
         if hasattr(self, "temp_dir") and self.temp_dir.exists():
@@ -120,7 +100,7 @@ class TestWindsurfQuery:
                 INSERT INTO ItemTable (key, value)
                 VALUES (?, ?)
             """,
-                (WINDSURF_KEY_CHAT_SESSION_STORE, json.dumps(chat_data)),
+                (WINDSURF_KEY_CHAT_SESSION_STORE[0], json.dumps(chat_data)),
             )
 
             conn.commit()
@@ -292,7 +272,9 @@ class TestWindsurfQuery:
         mock_db_path = self.create_mock_database()
 
         # Test successful data retrieval
-        result = query.get_data_from_db(mock_db_path, WINDSURF_KEY_CHAT_SESSION_STORE)
+        result = query.get_data_from_db(
+            mock_db_path, WINDSURF_KEY_CHAT_SESSION_STORE[0]
+        )
         assert result is not None
         assert isinstance(result, dict)
         assert "entries" in result
@@ -310,7 +292,7 @@ class TestWindsurfQuery:
         query = WindsurfQuery()
 
         # Mock the storage paths to avoid accessing real system
-        with patch.object(query, "workspace_storage", self.temp_dir):
+        with patch.object(query, "workspace_storage", [self.temp_dir]):
             with patch.object(query, "global_storage", self.temp_dir):
                 # Create mock workspace structure
                 workspace_dir = self.temp_dir / "workspace1"
@@ -418,10 +400,8 @@ class TestWindsurfQuery:
             result = handle_query_windsurf_conversations(arguments, self.project_root)
 
             assert "content" in result
-            # Parse the nested MCP response
             content_text = result["content"][0]["text"]
-            mcp_response = json.loads(content_text)
-            response_data = json.loads(mcp_response["content"][0]["text"])
+            response_data = json.loads(content_text)
             assert len(response_data["conversations"]) == 5
             assert response_data["limited_results"] is True
             assert response_data["limit_applied"] == 5
@@ -718,7 +698,7 @@ class TestConversationExtractor:
 
             cursor.execute(
                 "INSERT INTO ItemTable (key, value) VALUES (?, ?)",
-                (WINDSURF_KEY_CHAT_SESSION_STORE, json.dumps(chat_data)),
+                (WINDSURF_KEY_CHAT_SESSION_STORE[0], json.dumps(chat_data)),
             )
             conn.commit()
 
@@ -773,7 +753,7 @@ class TestConversationExtractor:
         """Test extraction using query instance."""
         db_path = self.create_test_database_with_chat_sessions()
         mock_query = Mock()
-        mock_query.get_data_from_db.return_value = {
+        mock_query.get_chat_session_data.return_value = {
             "entries": {
                 "test_session": {
                     "messages": [{"content": "test message"}],
@@ -786,9 +766,7 @@ class TestConversationExtractor:
         conversations = extractor.extract_from_chat_sessions(db_path)
 
         assert len(conversations) == 1
-        mock_query.get_data_from_db.assert_called_once_with(
-            db_path, WINDSURF_KEY_CHAT_SESSION_STORE
-        )
+        mock_query.get_chat_session_data.assert_called_once_with(db_path)
 
     def test_extract_from_database_keys(self):
         """Test extraction from database keys."""
@@ -1076,7 +1054,7 @@ class TestWindsurfQueryMethods:
     def test_find_workspace_databases_permission_error(self):
         """Test _find_workspace_databases with permission errors."""
         # Mock paths that will cause permission errors
-        with patch.object(self.query, "workspace_storage", self.temp_dir):
+        with patch.object(self.query, "workspace_storage", [self.temp_dir]):
             with patch.object(self.query, "global_storage", self.temp_dir):
                 # Mock iterdir to raise PermissionError
                 with patch.object(

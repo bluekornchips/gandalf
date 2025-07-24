@@ -136,10 +136,6 @@ class TestConversationExport:
         """Test individual conversation export functionality."""
         mock_instance = Mock()
         mock_instance.query_all_conversations.return_value = mock_conversation_data
-        mock_instance._create_message_map.return_value = {
-            "prompts": {"conv-bilbo-1": [{"text": "Good morning."}]},
-            "generations": {"conv-bilbo-1": [{"text": "Good morning."}]},
-        }
         mock_cursor_query.return_value = mock_instance
 
         # Mock file operations to prevent actual file creation
@@ -215,10 +211,6 @@ class TestConversationExport:
         """Test individual conversation export functionality with args."""
         mock_instance = Mock()
         mock_instance.query_all_conversations.return_value = mock_conversation_data
-        mock_instance._create_message_map.return_value = {
-            "prompts": {"conv-bilbo-1": [{"text": "Good morning."}]},
-            "generations": {"conv-bilbo-1": [{"text": "Good morning."}]},
-        }
         mock_cursor_query.return_value = mock_instance
 
         with (
@@ -257,10 +249,6 @@ class TestConversationExport:
         """Test individual conversation export functionality with kwargs."""
         mock_instance = Mock()
         mock_instance.query_all_conversations.return_value = mock_conversation_data
-        mock_instance._create_message_map.return_value = {
-            "prompts": {"conv-bilbo-1": [{"text": "Good morning."}]},
-            "generations": {"conv-bilbo-1": [{"text": "Good morning."}]},
-        }
         mock_cursor_query.return_value = mock_instance
 
         with (

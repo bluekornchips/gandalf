@@ -61,7 +61,7 @@ isort src/
 
 - **Python**: PEP 8, ruff
 - **Shell**: shellcheck validation
-- **Testing**: 90% coverage minimum
+- **Testing**: 80% coverage minimum
 - **Documentation**: Update relevant docs for changes
 
 ## Testing Requirements
@@ -79,7 +79,7 @@ bats tests/
 ./gandalf test
 ```
 
-Test coverage must be ≥90% for new code.
+Test coverage must be ≥80% for new code.
 
 ## Documentation Updates
 

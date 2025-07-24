@@ -29,7 +29,7 @@ from src.config.constants.security import (
     QUERY_SANITIZE_PATTERN,
     WSL_SPECIFIC_BLOCKED_PATHS,
 )
-from src.utils.common import log_debug, log_info
+from src.utils.common import format_json_response, log_debug, log_info
 
 
 class AccessValidator:
@@ -247,10 +247,7 @@ class AccessValidator:
     @classmethod
     def create_success_response(cls, content: str) -> dict[str, Any]:
         """Create a standardized MCP success response."""
-        return {
-            "content": [{"type": "text", "text": content}],
-            "isError": False,
-        }
+        return create_mcp_tool_result(content)
 
     @classmethod
     def validate_conversation_content(
@@ -364,7 +361,7 @@ def validate_file_types(file_types: Any) -> tuple[bool, str]:
     return True, ""
 
 
-def get_platform_blocked_paths(platform: str | None = None) -> set:
+def get_platform_blocked_paths(platform: str | None = None) -> set[str]:
     """Get platform-specific blocked paths."""
     if platform == "linux":
         return COMMON_BLOCKED_PATHS | LINUX_SPECIFIC_BLOCKED_PATHS
@@ -377,7 +374,10 @@ def get_platform_blocked_paths(platform: str | None = None) -> set:
 
 
 def create_mcp_tool_result(
-    content_text: str, structured_content: dict | None = None, is_error: bool = False
+    content_text: str,
+    structured_content: dict[str, Any] | None = None,
+    is_error: bool = False,
+    client_info: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Create MCP-compliant tool result with optional structured content.
@@ -387,6 +387,15 @@ def create_mcp_tool_result(
     - Structured content should be validated against output schema
     - Error handling should distinguish protocol vs tool execution errors
     """
+    # Format JSON content for better readability
+    if content_text.strip().startswith("{") and not is_error:
+        try:
+            parsed_json = json.loads(content_text)
+            content_text = format_json_response(parsed_json)
+        except (json.JSONDecodeError, TypeError):
+            # If it's not valid JSON, use as-is
+            pass
+
     result = {
         "content": [
             {
@@ -406,11 +415,11 @@ def create_mcp_tool_result(
 
 
 def create_tool_execution_error(
-    error_message: str, details: dict | None = None
+    error_message: str, details: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """Create tool execution error (not protocol error) according to MCP 2025-06-18."""
     content_text = error_message
     if details:
-        content_text += f"\nDetails: {json.dumps(details, indent=2)}"
+        content_text += f"\nDetails: {format_json_response(details)}"
 
     return create_mcp_tool_result(content_text, is_error=True)

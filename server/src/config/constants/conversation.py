@@ -6,7 +6,7 @@ import os
 CONVERSATION_DEFAULT_FAST_MODE = True
 CONVERSATION_DEFAULT_RECENT_DAYS = 7
 CONVERSATION_DEFAULT_LIMIT = 60
-CONVERSATION_DEFAULT_MIN_SCORE = 1.0
+CONVERSATION_DEFAULT_MIN_SCORE = 0.0
 CONVERSATION_DEFAULT_LOOKBACK_DAYS = 30
 CONVERSATION_MAX_LIMIT = 100
 CONVERSATION_MAX_LOOKBACK_DAYS = 60
@@ -39,6 +39,32 @@ CONVERSATION_SNIPPET_DISPLAY_LIMIT = 150
 CONVERSATION_TITLE_DISPLAY_LIMIT = 100
 CONVERSATION_MATCHES_OUTPUT_LIMIT = 100
 CONVERSATION_PATTERN_MATCHES_LIMIT = 50
+
+# Optional fields for conversation standardization
+CONVERSATION_OPTIONAL_FIELDS = [
+    "snippet",
+    "conversation_type",
+    "tags",
+    "analysis",
+    "workspace_id",
+    "database_path",
+    "session_data",
+    "session_id",
+    "project_context",
+    "context",
+    "source",
+    "windsurf_source",
+    "chat_session_id",
+    "windsurf_metadata",
+    "ai_model",
+    "user_query",
+    "ai_response",
+    "file_references",
+    "code_blocks",
+    "metadata",
+    "keyword_matches",
+    "updated_at",
+]
 
 # Domain word filtering
 CONVERSATION_DOMAIN_WORD_LIMIT = 100
@@ -187,15 +213,6 @@ CONVERSATION_DOMAIN_WORD_EXCLUSIONS = {
     "we",
 }
 
-# Conversation classification types
-CONVERSATION_TYPES = [
-    "architecture",
-    "debugging",
-    "problem_solving",
-    "technical",
-    "code_discussion",
-    "general",
-]
 
 # Context analysis scoring thresholds
 CONTEXT_ANALYSIS_MIN_SCORE = 0.1

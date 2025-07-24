@@ -3,12 +3,12 @@ Project-level operations for Gandalf MCP server.
 """
 
 import json
-import subprocess
+import subprocess  # nosec B404 - safe git/find operations with fixed commands
 import time
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.server import (
+from src.config.constants.server_config import (
     GANDALF_SERVER_VERSION,
     MCP_PROTOCOL_VERSION,
     SUBPROCESS_TIMEOUT,
@@ -37,7 +37,7 @@ def get_git_info(project_root: Path) -> dict[str, Any]:
     log_debug(f"Checking if {project_root} is a git repository")
 
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603,B607 - safe read-only git operation with fixed command array
             ["git", "rev-parse", "--is-inside-work-tree"],
             cwd=project_root,
             capture_output=True,
@@ -51,7 +51,7 @@ def get_git_info(project_root: Path) -> dict[str, Any]:
             log_debug(f"Project {project_root} is a git repository")
 
             try:
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603,B607 - safe read-only git operation with fixed command array
                     ["git", "branch", "--show-current"],
                     cwd=project_root,
                     capture_output=True,
@@ -71,7 +71,7 @@ def get_git_info(project_root: Path) -> dict[str, Any]:
                 log_debug(f"Failed to get current branch for {project_root}")
 
             try:
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603,B607 - safe read-only git operation with fixed command array
                     ["git", "rev-parse", "--show-toplevel"],
                     cwd=project_root,
                     capture_output=True,
@@ -109,7 +109,7 @@ def get_git_info(project_root: Path) -> dict[str, Any]:
 def _get_file_stats_fast(project_root: Path) -> dict[str, Any]:
     """Get file statistics using fast shell 'find' commands."""
     try:
-        file_result = subprocess.run(
+        file_result = subprocess.run(  # nosec B603,B607 - safe read-only find operation with fixed command array
             ["find", str(project_root), "-type", "f"],
             capture_output=True,
             text=True,
@@ -117,7 +117,7 @@ def _get_file_stats_fast(project_root: Path) -> dict[str, Any]:
             check=False,
         )
 
-        dir_result = subprocess.run(
+        dir_result = subprocess.run(  # nosec B603,B607 - safe read-only find operation with fixed command array
             ["find", str(project_root), "-type", "d"],
             capture_output=True,
             text=True,
@@ -169,7 +169,7 @@ def _get_file_stats_with_cache_optimization(
 
         if cached_files:
             # Use cached count as baseline and just count directories with find
-            dir_result = subprocess.run(
+            dir_result = subprocess.run(  # nosec B603,B607 - safe read-only find operation with fixed command array
                 ["find", str(project_root), "-type", "d"],
                 capture_output=True,
                 text=True,
@@ -258,7 +258,7 @@ def get_project_info(project_root: Path) -> dict[str, Any]:
 
 
 def handle_get_project_info(
-    arguments: dict[str, Any], project_root: Path, **_kwargs
+    arguments: dict[str, Any], project_root: Path, **_kwargs: Any
 ) -> dict[str, Any]:
     """Handle get_project_info tool call."""
     try:
@@ -290,35 +290,41 @@ def handle_get_project_info(
 
         log_info(f"Retrieved project info for {project_root}")
 
-        response_text = json.dumps(project_info, indent=2)
-
-        structured_data = {
-            "project": {
-                "name": project_info.get("project_name"),
-                "root": project_info.get("project_root"),
-                "valid": project_info.get("valid_path", False),
-            },
-            "git": project_info.get("git", {}),
-            "statistics": {
-                "files": project_info.get("file_stats", {}).get("total_files", 0),
-                "directories": project_info.get("file_stats", {}).get(
-                    "total_directories", 0
+        structured_data: dict[str, Any] = {
+            "summary": {
+                "project_root": project_info.get("project_root"),
+                "project_name": project_info.get("project_name"),
+                "is_git_repo": project_info.get("git", {}).get("is_git_repo", False),
+                "current_branch": project_info.get("git", {}).get("current_branch"),
+                "repo_root": project_info.get("git", {}).get("repo_root"),
+                "file_count": project_info.get("file_stats", {}).get("total_files"),
+                "directory_count": project_info.get("file_stats", {}).get(
+                    "total_directories"
                 ),
             },
-            "metadata": {
-                "timestamp": project_info.get("timestamp"),
-                "sanitized": project_info.get("sanitized", False),
+            "project": {
+                "valid": project_info.get("valid_path", True),
+                "root": project_info.get("project_root"),
+                "name": project_info.get("project_name"),
             },
+            "metadata": {
+                "sanitized": project_info.get("sanitized", False),
+                "timestamp": project_info.get("timestamp", time.time()),
+            },
+            "conversations": [],
+            "status": "project_info_retrieved",
         }
 
         if "raw_project_name" in project_info:
+            structured_data["summary"]["original_name"] = project_info[
+                "raw_project_name"
+            ]
             structured_data["project"]["original_name"] = project_info[
                 "raw_project_name"
             ]
 
-        # Return MCP 2025-06-18 format with both text and structured content
-        mcp_result = create_mcp_tool_result(response_text, structured_data)
-        return mcp_result
+        content_text = json.dumps(project_info, indent=2)
+        return create_mcp_tool_result(content_text, structured_data)
 
     except (OSError, ValueError, TypeError, KeyError) as e:
         log_error(e, f"get_project_info for {project_root}")
@@ -331,22 +337,44 @@ def handle_get_server_version(
     arguments: dict[str, Any],
     *,
     project_root: Path,
-    **_kwargs,  # noqa: ARG001
+    **_kwargs: Any,  # noqa: ARG001
 ) -> dict[str, Any]:
     """Handle get_server_version tool call."""
     try:
         log_debug("Getting server version")
 
-        version_info = {
+        timestamp = time.time()
+
+        # Full structured data for MCP compliance
+        structured_data = {
+            "server_name": "gandalf",
             "server_version": GANDALF_SERVER_VERSION,
             "protocol_version": MCP_PROTOCOL_VERSION,
-            "timestamp": time.time(),
+            "timestamp": timestamp,
+            "capabilities": {
+                "tools": {"conversation_aggregation": True, "project_analysis": True},
+                "logging": {"level": "info"},
+            },
+        }
+
+        mcp_structured_data = {
+            "summary": {
+                "server_name": "gandalf",
+                "server_version": GANDALF_SERVER_VERSION,
+                "protocol_version": MCP_PROTOCOL_VERSION,
+                "timestamp": timestamp,
+            },
+            "capabilities": {
+                "tools": {"conversation_aggregation": True, "project_analysis": True},
+                "logging": {"level": "info"},
+            },
+            "status": "version_retrieved",
         }
 
         log_debug(f"Retrieved server version: {GANDALF_SERVER_VERSION}")
-        return {
-            "content": [{"type": "text", "text": json.dumps(version_info, indent=2)}]
-        }
+
+        content_text = json.dumps(structured_data, indent=2)
+        return create_mcp_tool_result(content_text, mcp_structured_data)
 
     except (OSError, ValueError, RuntimeError) as e:
         log_error(e, "get_server_version")
@@ -370,40 +398,6 @@ TOOL_GET_PROJECT_INFO = {
         },
         "required": [],
     },
-    "outputSchema": {
-        "type": "object",
-        "properties": {
-            "project_root": {
-                "type": "string",
-                "description": "Project root directory path",
-            },
-            "project_name": {
-                "type": "string",
-                "description": "Project name derived from directory",
-            },
-            "is_git_repo": {
-                "type": "boolean",
-                "description": "Whether this is a git repository",
-            },
-            "current_branch": {
-                "type": "string",
-                "description": "Current git branch (if applicable)",
-            },
-            "repo_root": {
-                "type": "string",
-                "description": "Git repository root path (if applicable)",
-            },
-            "file_count": {
-                "type": "integer",
-                "description": "Total number of files (if include_stats=true)",
-            },
-            "directory_count": {
-                "type": "integer",
-                "description": "Total number of directories (if include_stats=true)",
-            },
-        },
-        "required": ["project_root", "project_name", "is_git_repo"],
-    },
     "annotations": {
         "title": "Get Project Information",
         "readOnlyHint": True,
@@ -422,34 +416,6 @@ TOOL_GET_SERVER_VERSION = {
         "type": "object",
         "properties": {},
         "required": [],
-    },
-    "outputSchema": {
-        "type": "object",
-        "properties": {
-            "server_name": {"type": "string", "description": "MCP server name"},
-            "server_version": {
-                "type": "string",
-                "description": "Server version number",
-            },
-            "protocol_version": {
-                "type": "string",
-                "description": "MCP protocol version",
-            },
-            "capabilities": {
-                "type": "object",
-                "description": "Server capabilities",
-                "properties": {
-                    "tools": {"type": "object"},
-                    "logging": {"type": "object"},
-                },
-            },
-        },
-        "required": [
-            "server_name",
-            "server_version",
-            "protocol_version",
-            "capabilities",
-        ],
     },
     "annotations": {
         "title": "Get Server Version",

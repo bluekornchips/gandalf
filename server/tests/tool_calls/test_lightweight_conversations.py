@@ -15,10 +15,10 @@ from src.tool_calls.claude_code.recall import (
 from src.tool_calls.claude_code.recall import (
     standardize_conversation as claude_standardize_conversation,
 )
-from src.tool_calls.cursor.recall import (
+from src.tool_calls.cursor.conversation_formatter import (
     create_lightweight_conversation as cursor_create_lightweight,
 )
-from src.tool_calls.cursor.recall import (
+from src.tool_calls.cursor.conversation_formatter import (
     standardize_conversation as cursor_standardize_conversation,
 )
 from src.tool_calls.windsurf.recall import (

@@ -148,7 +148,7 @@ BLOCKED_PATHS = {
 
 # Technology mapping configuration
 
-TECHNOLOGY_KEYWORD_MAPPING = {
+TECHNOLOGY_KEYWORD_MAPPING: dict[str, list[str]] = {
     "python": [
         "python",
         "py",
@@ -200,7 +200,9 @@ CLAUDE_CONVERSATION_PATTERNS = [
     "conversations/*.json",
     "sessions/*.json",
     "history/*.json",
+    "projects/**/*.jsonl",
     "*.json",
+    "*.jsonl",
 ]
 WINDSURF_DB_PATTERNS = ["*.vscdb", "*.db"]
 

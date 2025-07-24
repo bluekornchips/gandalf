@@ -26,7 +26,7 @@ LINUX_SPECIFIC_BLOCKED_PATHS = {
     "/var/log/secure",
     "/dev/random",
     "/dev/urandom",
-    "/tmp/.X11-unix",
+    "/tmp/.X11-unix",  # nosec B108 - intentional blocked path for security
     "/snap",
 }
 

@@ -291,31 +291,11 @@ class TestCursorQuery:
 
     def teardown_method(self):
         """Clean up test fixtures and database connections."""
-        import gc
         import shutil
-        import sqlite3
 
-        try:
-            # Force immediate garbage collection
-            for _ in range(5):
-                gc.collect()
+        from src.utils.database_pool import close_database_pool
 
-            # Close any SQLite connections found in garbage collector
-            for obj in gc.get_objects():
-                if isinstance(obj, sqlite3.Connection):
-                    try:
-                        if not obj.in_transaction:
-                            obj.close()
-                    except Exception:
-                        pass
-
-            # Force another round of garbage collection
-            for _ in range(3):
-                gc.collect()
-
-        except Exception:
-            # Ignore cleanup errors but ensure directory cleanup happens
-            pass
+        close_database_pool()
 
         # Clean up test directory
         if hasattr(self, "temp_dir") and self.temp_dir.exists():
@@ -527,27 +507,6 @@ class TestCursorQuery:
 
         assert "2023-01-01" in formatted
         assert "12:00:00" in formatted
-
-    def test_create_message_map(self):
-        """Test creating message map from prompts and generations."""
-        query = CursorQuery(silent=True)
-
-        prompts = [
-            {"conversationId": "conv1", "text": "Hello"},
-            {"conversationId": "conv2", "text": "Hi there"},
-        ]
-
-        generations = [
-            {"conversationId": "conv1", "text": "Hello back"},
-            {"conversationId": "conv2", "text": "Hi to you too"},
-        ]
-
-        message_map = query._create_message_map(prompts, generations)
-
-        assert "conv1" in message_map
-        assert "conv2" in message_map
-        assert len(message_map["conv1"]["prompts"]) == 1
-        assert len(message_map["conv1"]["generations"]) == 1
 
     def test_format_as_cursor_markdown(self):
         """Test formatting data as Cursor markdown."""

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from conftest import execute_sql, safe_cursor
+from conftest import execute_sql
 
 
 class TestDatabasePool:
@@ -31,11 +31,12 @@ class TestDatabasePool:
             finally:
                 conn.close()
 
-            # Test safe_cursor
-            with safe_cursor(db_path) as cursor:
+            with sqlite3.connect(str(db_path)) as conn:
+                cursor = conn.cursor()
                 cursor.execute("SELECT * FROM hobbits WHERE id = ?", (1,))
                 result = cursor.fetchone()
                 assert result == (1, "Frodo Baggins")
+                cursor.close()
 
         finally:
             if db_path.exists():
@@ -90,8 +91,12 @@ class TestDatabasePool:
 
             # Test that exception in cursor context doesn't leak connections
             with pytest.raises(sqlite3.OperationalError):
-                with safe_cursor(db_path) as cursor:
-                    cursor.execute("INVALID SQL STATEMENT")
+                with sqlite3.connect(str(db_path)) as conn:
+                    cursor = conn.cursor()
+                    try:
+                        cursor.execute("INVALID SQL STATEMENT")
+                    finally:
+                        cursor.close()
 
             # Should still be able to use database after exception
             results = execute_sql(

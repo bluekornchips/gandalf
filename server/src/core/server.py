@@ -11,13 +11,14 @@ from pathlib import Path
 from typing import Any
 
 from src.config.constants.file_system_context import FILE_SYSTEM_CONTEXT_INDICATORS
-from src.config.constants.server import (
+from src.config.constants.server_config import (
     MCP_PROTOCOL_VERSION,
     SERVER_CAPABILITIES,
     SERVER_INFO,
 )
 from src.config.enums import ErrorCodes
 from src.config.weights import WeightsManager
+from src.core.registry import get_registered_agentic_tools
 from src.tool_calls.aggregator import (
     CONVERSATION_AGGREGATOR_TOOL_DEFINITIONS,
     CONVERSATION_AGGREGATOR_TOOL_HANDLERS,
@@ -36,6 +37,7 @@ from src.tool_calls.project_operations import (
 )
 from src.utils.access_control import AccessValidator
 from src.utils.common import initialize_session_logging, log_error, log_info
+from src.utils.database_pool import DatabaseService
 from src.utils.jsonrpc import (
     create_error_response,
     create_success_response,
@@ -54,7 +56,7 @@ TOOL_DEFINITIONS = [
 ]
 
 # Tool Handlers
-TOOL_HANDLERS = {
+TOOL_HANDLERS: dict[str, Any] = {
     **CONVERSATION_AGGREGATOR_TOOL_HANDLERS,
     "get_project_info": PROJECT_TOOL_HANDLERS["get_project_info"],
     "get_server_version": PROJECT_TOOL_HANDLERS["get_server_version"],
@@ -81,6 +83,10 @@ class GandalfMCP:
         self.tool_definitions = TOOL_DEFINITIONS
         self.tool_handlers = TOOL_HANDLERS
         self.is_ready = False
+        self.client_info = None  # Store client information for formatting
+
+        self.db_service = DatabaseService()
+        self.db_service.initialize()
 
         # Request handlers
         self.handlers = {
@@ -116,6 +122,59 @@ class GandalfMCP:
         except (OSError, ValueError, TypeError, AttributeError) as e:
             log_error(e, "Error during configuration validation")
             log_info("Configuration validation failed, continuing with defaults")
+
+    def _ensure_registry_initialized(self) -> None:
+        """Ensure agentic tools registry is initialized on server startup."""
+        try:
+            registered_tools = get_registered_agentic_tools()
+
+            if not registered_tools:
+                log_info("Registry is empty, attempting auto-registration...")
+
+                # Try to run auto-registration script
+                import subprocess  # nosec B404 - safe registry script execution with fixed commands
+                from pathlib import Path
+
+                # Find the registry script relative to the server
+                server_root = Path(__file__).parent.parent.parent
+                registry_script = server_root / "tools" / "bin" / "registry"
+
+                if registry_script.exists() and registry_script.is_file():
+                    try:
+                        # Run auto-registration
+                        result = subprocess.run(  # nosec B603,B607 - safe registry script with validated path and fixed arguments
+                            [str(registry_script), "auto-register"],
+                            capture_output=True,
+                            text=True,
+                            timeout=30,
+                        )
+
+                        if result.returncode == 0:
+                            log_info(
+                                "Registry auto-registration completed successfully"
+                            )
+                            # Verify registration worked
+                            updated_tools = get_registered_agentic_tools()
+                            log_info(f"Registered tools: {updated_tools}")
+                        else:
+                            log_info(
+                                f"Registry auto-registration failed: {result.stderr}"
+                            )
+
+                    except subprocess.TimeoutExpired:
+                        log_info("Registry auto-registration timed out")
+                    except (OSError, ValueError) as e:
+                        log_info(f"Registry auto-registration error: {e}")
+                else:
+                    log_info(f"Registry script not found at: {registry_script}")
+            else:
+                log_info(f"Registry already initialized with tools: {registered_tools}")
+
+        except Exception as e:
+            log_error(e, "Error during registry initialization")
+            log_info(
+                "Registry initialization failed, continuing without auto-registration"
+            )
 
     def _resolve_project_root(self, explicit_root: Path | None = None) -> Path:
         """Resolve project root directory with intelligent fallback logic."""
@@ -161,6 +220,16 @@ class GandalfMCP:
 
     def _initialize(self, request: dict[str, Any]) -> dict[str, Any]:
         """Handle initialization request."""
+        # Capture client information for formatting decisions
+        if "params" in request and "clientInfo" in request["params"]:
+            client_info = request["params"]["clientInfo"]
+            if client_info and isinstance(client_info, dict):
+                self.client_info = client_info
+                log_info(f"Client connected: {client_info.get('name', 'unknown')}")
+            else:
+                self.client_info = None
+                log_info("Client connected: unknown (no client info provided)")
+
         return {
             "protocolVersion": MCP_PROTOCOL_VERSION,
             "capabilities": SERVER_CAPABILITIES,
@@ -171,6 +240,9 @@ class GandalfMCP:
         """Handle initialized notification."""
         if self.is_ready:
             return None
+
+        # Ensure registry is initialized on server startup
+        self._ensure_registry_initialized()
 
         self.is_ready = True
         return None
@@ -232,11 +304,14 @@ class GandalfMCP:
         kwargs = {
             "project_root": self.project_root,
             "server_instance": self,
+            "client_info": self.client_info,
         }
 
         try:
             if tool_name in self.tool_handlers:
-                result = self.tool_handlers[tool_name](arguments, **kwargs)
+                result: dict[str, Any] = self.tool_handlers[tool_name](
+                    arguments, **kwargs
+                )
             else:
                 result = AccessValidator.create_error_response(
                     f"Unknown tool: {tool_name}"
@@ -252,7 +327,7 @@ class GandalfMCP:
                 f"Error executing {tool_name}: {str(e)}"
             )
 
-    def handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
+    def handle_request(self, request: Any) -> dict[str, Any] | None:
         """Handle incoming MCP requests with validation and error handling."""
         # Input validation
         if not isinstance(request, dict):
@@ -331,7 +406,7 @@ class GandalfMCP:
 
             log_info("Sent tools/list_changed notification")
 
-    def update_tool_definitions(self, new_definitions: list[dict]) -> None:
+    def update_tool_definitions(self, new_definitions: list[dict[str, Any]]) -> None:
         """Update tool definitions and notify clients of changes"""
         old_count = len(self.tool_definitions)
         self.tool_definitions = new_definitions
@@ -341,7 +416,7 @@ class GandalfMCP:
             log_info(f"Tool definitions updated: {old_count} -> {new_count} tools")
             self.send_tools_list_changed_notification()
 
-    def run(self):
+    def run(self) -> None:
         """Run the server."""
         from src.core.message_loop import MessageLoopHandler
 
@@ -350,3 +425,9 @@ class GandalfMCP:
 
         message_loop = MessageLoopHandler(self)
         message_loop.run_message_loop()
+
+    def shutdown(self) -> None:
+        """Shutdown the server and cleanup resources."""
+        if self.db_service:
+            self.db_service.shutdown()
+            log_info("Server shutdown completed")

@@ -67,7 +67,7 @@ def get_registered_agentic_tools() -> list[str]:
 
 def find_cursor_conversations(cursor_path: str) -> list[str]:
     """Find conversation databases for Cursor installation."""
-    conversations = []
+    conversations: list[str] = []
 
     # Cursor stores conversations in workspaceStorage
     workspace_storage = Path(cursor_path).parent / CURSOR_WORKSPACE_STORAGE_PATH
@@ -106,7 +106,7 @@ def find_claude_conversations(claude_path: str) -> list[str]:
 
 def find_windsurf_conversations(windsurf_path: str) -> list[str]:
     """Find conversation databases for Windsurf installation."""
-    conversations = []
+    conversations: list[str] = []
 
     # Windsurf stores conversations in workspace-specific directories
     # The path structure is similar to Cursor because its a fork of vscode

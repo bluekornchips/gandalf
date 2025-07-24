@@ -1,6 +1,7 @@
 """Common utility functions for the MCP server, focusing on file-based logging only."""
 
 import json
+import os
 import sys
 from datetime import datetime
 from enum import IntEnum
@@ -8,7 +9,36 @@ from pathlib import Path
 from typing import Any
 
 from src.config.constants.paths import GANDALF_HOME
-from src.config.constants.server import DEBUG_LOGGING, MCP_SERVER_NAME
+from src.config.constants.server_config import DEBUG_LOGGING, MCP_SERVER_NAME
+
+
+def is_ci_environment() -> bool:
+    """Check if running in a CI environment."""
+    return any(os.getenv(var) == "true" for var in ["CI"])
+
+
+def format_json_response(data: Any, **kwargs: Any) -> str:
+    """
+    Centralized JSON formatting for all MCP tool responses.
+
+    Provides consistent, human-readable formatting across all tools.
+    Uses 4-space indentation and handles Path objects automatically.
+    """
+
+    def json_serializer(obj: Any) -> str:
+        if isinstance(obj, Path):
+            return str(obj)
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+    return json.dumps(
+        data,
+        indent=4,
+        ensure_ascii=False,
+        separators=(",", ": "),
+        default=json_serializer,
+        **kwargs,
+    )
+
 
 _log_file_path: Path | None = None
 _session_id: str | None = None
@@ -77,14 +107,17 @@ def _should_log(level: str) -> bool:
 
 
 def _send_mcp_notification(
-    level: str, message: str, logger: str | None = None, data: dict | None = None
+    level: str,
+    message: str,
+    logger: str | None = None,
+    data: dict[str, Any] | None = None,
 ) -> None:
     """Send MCP log notification if server instance is available."""
     if not _server_instance or not hasattr(_server_instance, "send_notification"):
         return
 
     try:
-        notification_data = {
+        notification_data: dict[str, Any] = {
             "level": level,
             "data": {
                 "message": message,
@@ -107,7 +140,7 @@ def write_log(
     level: str,
     message: str,
     logger: str | None = None,
-    data: dict | None = None,
+    data: dict[str, Any] | None = None,
 ) -> None:
     """Write log entry to file and send MCP notification if applicable."""
     if not _should_log(level):
@@ -155,26 +188,28 @@ def write_log(
 
 
 def log_debug(
-    message: str, logger: str | None = None, data: dict | None = None
+    message: str, logger: str | None = None, data: dict[str, Any] | None = None
 ) -> None:
     """Log a debug message with structured data."""
     write_log("debug", message, logger or "server", data)
 
 
-def log_info(message: str, logger: str | None = None, data: dict | None = None) -> None:
+def log_info(
+    message: str, logger: str | None = None, data: dict[str, Any] | None = None
+) -> None:
     """Log an info message with structured data."""
     write_log("info", message, logger or "server", data)
 
 
 def log_notice(
-    message: str, logger: str | None = None, data: dict | None = None
+    message: str, logger: str | None = None, data: dict[str, Any] | None = None
 ) -> None:
     """Log a notice message for normal but significant events."""
     write_log("notice", message, logger or "server", data)
 
 
 def log_warning(
-    message: str, logger: str | None = None, data: dict | None = None
+    message: str, logger: str | None = None, data: dict[str, Any] | None = None
 ) -> None:
     """Log a warning message for warning conditions."""
     write_log("warning", message, logger or "server", data)
@@ -184,7 +219,7 @@ def log_error(
     error: Exception,
     context: str = "",
     logger: str | None = None,
-    data: dict | None = None,
+    data: dict[str, Any] | None = None,
 ) -> None:
     """Log an error message with structured data."""
     error_msg = f"{context}: {error}" if context else str(error)
@@ -195,21 +230,21 @@ def log_error(
 
 
 def log_critical(
-    message: str, logger: str | None = None, data: dict | None = None
+    message: str, logger: str | None = None, data: dict[str, Any] | None = None
 ) -> None:
     """Log a critical message for critical conditions."""
     write_log("critical", message, logger or "server", data)
 
 
 def log_alert(
-    message: str, logger: str | None = None, data: dict | None = None
+    message: str, logger: str | None = None, data: dict[str, Any] | None = None
 ) -> None:
     """Log an alert message when action must be taken immediately."""
     write_log("alert", message, logger or "server", data)
 
 
 def log_emergency(
-    message: str, logger: str | None = None, data: dict | None = None
+    message: str, logger: str | None = None, data: dict[str, Any] | None = None
 ) -> None:
     """Log an emergency message when system is unusable."""
     write_log("emergency", message, logger or "server", data)

@@ -1,6 +1,7 @@
 """Performance monitoring utilities for the Gandalf MCP server."""
 
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 
 from src.config.enums import LogLevel
@@ -36,7 +37,9 @@ def log_operation_time(
 
 
 @contextmanager
-def timed_operation(operation_name: str, log_level: str = LogLevel.INFO.value):
+def timed_operation(
+    operation_name: str, log_level: str = LogLevel.INFO.value
+) -> Generator[float, None, None]:
     """Context manager for timing operations."""
     start_time = time.perf_counter()
     try:

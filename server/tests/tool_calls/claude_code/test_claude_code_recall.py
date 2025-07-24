@@ -376,9 +376,7 @@ class TestClaudeCodeRecallHandlers:
         # Check that the outer response contains content
         assert "content" in result
         content_text = result["content"][0]["text"]
-        mcp_response = json.loads(content_text)
-        assert mcp_response.get("isError") is False
-        data = json.loads(mcp_response["content"][0]["text"])
+        data = json.loads(content_text)
         assert "conversations" in data
         assert data["fast_mode"] is True
         assert len(data["context_keywords"]) > 0
@@ -401,9 +399,7 @@ class TestClaudeCodeRecallHandlers:
         # Check that the outer response contains content
         assert "content" in result
         content_text = result["content"][0]["text"]
-        mcp_response = json.loads(content_text)
-        assert mcp_response.get("isError") is False
-        data = json.loads(mcp_response["content"][0]["text"])
+        data = json.loads(content_text)
         assert data["conversations"] == []
         assert data["total_analyzed"] == 0
 
@@ -452,9 +448,7 @@ class TestClaudeCodeRecallHandlers:
         # Check that the outer response contains content
         assert "content" in result
         content_text = result["content"][0]["text"]
-        mcp_response = json.loads(content_text)
-        assert mcp_response.get("isError") is False
-        data = json.loads(mcp_response["content"][0]["text"])
+        data = json.loads(content_text)
         assert len(data["conversations"]) == 1
         assert data["conversations"][0]["conversation_type"] == "debugging"
 

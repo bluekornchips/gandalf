@@ -237,7 +237,7 @@ run_suite() {
 	local temp_dir
 	temp_dir=$(setup_test_environment "$suite")
 
-	if ! bats "${bats_args_array[@]}" "$TESTS_DIR/$test_file"; then
+	if ! timeout 300 bats "${bats_args_array[@]}" "$TESTS_DIR/$test_file"; then
 		exit_code=1
 	fi
 
@@ -283,7 +283,7 @@ run_all_tests() {
 		[[ -z "$suite" ]] && continue
 
 		echo "Running suite: $suite"
-		if timeout 300 run_suite "$suite" "$verbose" "$timing"; then
+		if run_suite "$suite" "$verbose" "$timing"; then
 			total_passed=$((total_passed + 1))
 			echo "$suite: PASSED"
 		else

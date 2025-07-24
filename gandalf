@@ -19,7 +19,7 @@ Commands:
     docker-test         Run test suites in Docker container
     lembas              Run comprehensive test suite and validation
     conv                Conversation management commands
-    status              Show server status and configuration
+    status              Server status monitoring and health checking
     help                Show this help message
 
 Options:

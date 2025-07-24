@@ -50,7 +50,7 @@ def sanitize_filename(filename: str) -> str:
 
 
 def handle_export_individual_conversations(
-    arguments: dict[str, Any], project_root: Path, **kwargs
+    arguments: dict[str, Any], project_root: Path, **kwargs: Any
 ) -> dict[str, Any]:
     """Export individual conversations to files."""
     try:
@@ -80,26 +80,23 @@ def handle_export_individual_conversations(
         data = query_tool.query_all_conversations()
 
         if not data or not data.get("workspaces"):
-            export_result = {
+            structured_data = {
+                "success": True,
                 "exported_count": 0,
-                "files": [],
-                "message": "No conversations found to export",
                 "output_directory": str(output_path),
                 "format": format_type,
+                "files": [],
+                "errors": [],
+                "message": "No conversations found to export",
             }
-            structured_data = {
-                "export": {
-                    "success": True,
-                    "count": 0,
-                    "files": [],
-                    "directory": str(output_path),
-                    "format": format_type,
-                },
-                "status": "no_conversations_found",
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps(structured_data, indent=2),
+                    }
+                ]
             }
-            content_text = json.dumps(export_result, indent=2)
-            mcp_result = create_mcp_tool_result(content_text, structured_data)
-            return mcp_result
 
         # Create output directory
         output_path.mkdir(parents=True, exist_ok=True)
@@ -170,25 +167,22 @@ def handle_export_individual_conversations(
 
         log_info(f"Exported {len(exported_files)} conversations to {output_dir}")
 
-        export_result = {
+        structured_data = {
+            "success": True,
             "exported_count": len(exported_files),
-            "files": exported_files,
             "output_directory": str(output_path.absolute()),
             "format": format_type,
+            "files": exported_files,
+            "errors": [],
         }
-        structured_data = {
-            "export": {
-                "success": True,
-                "count": len(exported_files),
-                "files": [{"path": f} for f in exported_files],
-                "directory": str(output_path.absolute()),
-                "format": format_type,
-            },
-            "status": "export_complete",
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(structured_data, indent=2),
+                }
+            ]
         }
-        content_text = json.dumps(export_result, indent=2)
-        mcp_result = create_mcp_tool_result(content_text, structured_data)
-        return mcp_result
 
     except (OSError, json.JSONDecodeError, KeyError, AttributeError) as e:
         log_debug(f"Error in export_individual_conversations: {e}")
@@ -196,7 +190,7 @@ def handle_export_individual_conversations(
 
 
 def handle_list_cursor_workspaces(
-    arguments: dict[str, Any], project_root: Path, **kwargs
+    arguments: dict[str, Any], project_root: Path, **kwargs: Any
 ) -> dict[str, Any]:
     """List available Cursor workspaces."""
     try:
@@ -306,35 +300,6 @@ TOOL_EXPORT_INDIVIDUAL_CONVERSATIONS = {
             },
         },
         "required": [],
-    },
-    "outputSchema": {
-        "type": "object",
-        "properties": {
-            "success": {
-                "type": "boolean",
-                "description": "Whether the export operation succeeded",
-            },
-            "exported_count": {
-                "type": "integer",
-                "description": "Number of conversations exported",
-            },
-            "output_directory": {
-                "type": "string",
-                "description": "Directory where files were exported",
-            },
-            "format": {"type": "string", "description": "Export format used"},
-            "file_list": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "List of exported file paths",
-            },
-            "errors": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "Any errors encountered during export",
-            },
-        },
-        "required": ["success", "exported_count", "output_directory", "format"],
     },
     "annotations": {
         "title": "Export Individual Conversations",
