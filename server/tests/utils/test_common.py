@@ -418,3 +418,28 @@ class TestMCPLoggingCompliance:
         for level in expected_levels:
             assert level in LOG_LEVELS
             assert isinstance(LOG_LEVELS[level], LogLevel)
+
+
+class TestCIEnvironmentDetection:
+    """Test CI environment detection functionality."""
+
+    @mock.patch.dict("os.environ", {"CI": "true"}, clear=True)
+    def test_is_ci_environment_ci_true(self):
+        """Test CI detection when CI=true."""
+        from src.utils.common import is_ci_environment
+
+        assert is_ci_environment() is True
+
+    @mock.patch.dict("os.environ", {}, clear=True)
+    def test_is_ci_environment_false(self):
+        """Test CI detection when no CI variables are set."""
+        from src.utils.common import is_ci_environment
+
+        assert is_ci_environment() is False
+
+    @mock.patch.dict("os.environ", {"CI": "false"}, clear=True)
+    def test_is_ci_environment_ci_false(self):
+        """Test CI detection when CI=false."""
+        from src.utils.common import is_ci_environment
+
+        assert is_ci_environment() is False

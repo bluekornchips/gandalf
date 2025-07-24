@@ -254,13 +254,44 @@ def get_available_agentic_tools(silent: bool = False) -> list[str]:
             databases = scanner.scan()
 
             available_tools = set()
+            tools_with_databases = set()
+
             for db in databases:
-                if db.is_accessible and (db.conversation_count or 0) > 0:
-                    available_tools.add(db.tool_type)
+                tools_with_databases.add(db.tool_type)
+
+                # Consider tool available if database is accessible, even if count is 0
+                # This fixes the silent failure issue where databases exist but return 0 conversations
+                if db.is_accessible:
+                    # If conversation count is None (error), try size-based estimation
+                    if db.conversation_count is None and db.size_bytes > 1024:  # > 1KB
+                        if not silent:
+                            log_info(
+                                f"Database accessible but count failed for {db.tool_type}, including anyway"
+                            )
+                        available_tools.add(db.tool_type)
+                    elif (db.conversation_count or 0) > 0:
+                        available_tools.add(db.tool_type)
+                    elif (
+                        db.size_bytes > 10240
+                    ):  # > 10KB, likely has data even if count failed
+                        if not silent:
+                            log_info(
+                                f"Large database found for {db.tool_type} with 0 count, including anyway"
+                            )
+                        available_tools.add(db.tool_type)
 
             result = list(available_tools)
+
             if not silent:
-                log_info(f"Found conversation data for agentic tools: {result}")
+                log_info(f"Found databases for tools: {list(tools_with_databases)}")
+                log_info(f"Available tools with conversation data: {result}")
+
+                # Log diagnostic info for tools with databases but no conversations
+                missing_tools = tools_with_databases - available_tools
+                if missing_tools:
+                    log_info(
+                        f"Tools with databases but no detected conversations: {list(missing_tools)}"
+                    )
 
             return result
 

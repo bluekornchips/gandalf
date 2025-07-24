@@ -8,9 +8,6 @@ including chat sessions and database keys.
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from src.config.constants.database import (
-    WINDSURF_KEY_CHAT_SESSION_STORE,
-)
 from src.utils.common import log_debug
 
 if TYPE_CHECKING:
@@ -36,13 +33,17 @@ class ConversationExtractor:
     def extract_from_chat_sessions(self, db_path: Path) -> list[dict[str, Any]]:
         """Extract conversations from Windsurf chat session store."""
         if self.query_instance:
-            chat_sessions = self.query_instance.get_data_from_db(
-                db_path, WINDSURF_KEY_CHAT_SESSION_STORE
-            )
+            chat_sessions = self.query_instance.get_chat_session_data(db_path)
         else:
-            chat_sessions = self.db_reader.get_data(
-                db_path, WINDSURF_KEY_CHAT_SESSION_STORE
-            )
+            # Fallback: try multiple keys when no query instance available
+            from src.config.constants.database import WINDSURF_KEY_CHAT_SESSION_STORE
+
+            chat_sessions = None
+            for key in WINDSURF_KEY_CHAT_SESSION_STORE:
+                data = self.db_reader.get_data(db_path, key)
+                if data and isinstance(data, dict) and data.get("entries"):
+                    chat_sessions = data
+                    break
 
         if not chat_sessions or not isinstance(chat_sessions, dict):
             return []
@@ -66,7 +67,7 @@ class ConversationExtractor:
         return conversations
 
     def extract_from_database_keys(self, db_path: Path) -> list[dict[str, Any]]:
-        """Extract conversations from database keys that might contain conversation data."""
+        """Extract conversations from database keys containing conversation data."""
         conversation_keys = self.db_reader.find_conversation_keys(db_path)
         conversations = []
 

@@ -1,7 +1,7 @@
 """
 Cursor Chat Query Tool
 
-A tool for querying and retrieving chat conversations from Cursor IDE's SQLite databases.
+A tool for querying and retrieving chat conversations from Cursor IDE databases.
 Provides comprehensive access to conversation history, user prompts, and AI responses.
 """
 
@@ -16,12 +16,6 @@ from typing import Any
 from src.config.constants.database import (
     CURSOR_CONVERSATION_KEYS,
     CURSOR_DATABASE_FILES,
-    CURSOR_KEY_AI_CONVERSATIONS,
-    CURSOR_KEY_AI_GENERATIONS,
-    CURSOR_KEY_AI_PROMPTS,
-    CURSOR_KEY_COMPOSER_DATA,
-    CURSOR_KEY_USER_GENERATIONS,
-    CURSOR_KEY_USER_PROMPTS,
     SQL_GET_VALUE_BY_KEY,
 )
 from src.utils.common import log_error, log_info
@@ -155,7 +149,7 @@ def get_wsl_additional_paths() -> list[Path]:
 
 
 def find_all_cursor_paths() -> list[Path]:
-    """Find all possible Cursor data paths for database discovery across supported platforms."""
+    """Find all possible Cursor data paths for database discovery."""
     paths = []
     system = platform.system().lower()
 
@@ -248,7 +242,7 @@ class CursorQuery:
         try:
             with get_database_connection(db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
+                cursor.execute(SQL_GET_VALUE_BY_KEY, (key,))
                 result = cursor.fetchone()
                 if result:
                     data = json.loads(result[0])
@@ -265,52 +259,37 @@ class CursorQuery:
             with get_database_connection(db_path) as conn:
                 cursor = conn.cursor()
 
-                # Query all keys in one go to minimize database connections
-                data_results = {}
+                conversations = []
+
+                # Try each conversation key type
                 for key in CURSOR_CONVERSATION_KEYS:
                     cursor.execute(SQL_GET_VALUE_BY_KEY, (key,))
                     result = cursor.fetchone()
                     if result:
                         try:
-                            data_results[key] = json.loads(result[0])
+                            data = json.loads(result[0])
+                            if key == "composer.composerData" and isinstance(
+                                data, dict
+                            ):
+                                # Modern composer format
+                                found_conversations = data.get("allComposers", [])
+                                if found_conversations:
+                                    conversations = found_conversations
+                                    break
+                            elif key == "interactive.sessions" and isinstance(
+                                data, list
+                            ):
+                                # Interactive sessions format
+                                if data:  # If sessions exist
+                                    conversations = data
+                                    break
                         except json.JSONDecodeError:
-                            data_results[key] = None
-                    else:
-                        data_results[key] = None
-
-                conversations = []
-                composer_data = data_results.get(CURSOR_KEY_COMPOSER_DATA)
-                if composer_data and isinstance(composer_data, dict):
-                    conversations = composer_data.get("allComposers", [])
-
-                # Fall back to old format if new format doesn't exist
-                if not conversations:
-                    conversations = data_results.get(CURSOR_KEY_AI_CONVERSATIONS) or []
-
-                # Get prompts and generations with fallbacks
-                prompts = (
-                    data_results.get(CURSOR_KEY_AI_PROMPTS)
-                    or data_results.get(CURSOR_KEY_USER_PROMPTS)
-                    or []
-                )
-                generations = (
-                    data_results.get(CURSOR_KEY_AI_GENERATIONS)
-                    or data_results.get(CURSOR_KEY_USER_GENERATIONS)
-                    or []
-                )
-
-                # If no conversations but we have prompts/generations, reconstruct conversations
-                if not conversations and (prompts or generations):
-                    conversations = (
-                        self._reconstruct_conversations_from_prompts_generations(
-                            prompts, generations
-                        )
-                    )
+                            continue
 
                 return {
-                    "conversations": conversations or [],
-                    "prompts": prompts,
-                    "generations": generations,
+                    "conversations": conversations,
+                    "prompts": [],
+                    "generations": [],
                 }
 
         except (sqlite3.Error, OSError) as e:
@@ -321,58 +300,6 @@ class CursorQuery:
                 "prompts": [],
                 "generations": [],
             }
-
-    def _reconstruct_conversations_from_prompts_generations(
-        self, prompts: list[dict[str, Any]], generations: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        """Reconstruct conversations from prompts and generations."""
-        if not prompts and not generations:
-            return []
-
-        conversations: list[dict[str, Any]] = []
-        all_items: list[dict[str, Any]] = []
-
-        for prompt in prompts:
-            if isinstance(prompt, dict) and "text" in prompt:
-                all_items.append(
-                    {
-                        "type": "prompt",
-                        "text": prompt["text"],
-                        "timestamp": prompt.get("unixMs", 0),
-                        "commandType": prompt.get("commandType", 0),
-                    }
-                )
-
-        for gen in generations:
-            if isinstance(gen, dict):
-                all_items.append(
-                    {
-                        "type": "generation",
-                        "text": gen.get("textDescription", ""),
-                        "timestamp": gen.get("unixMs", 0),
-                        "uuid": gen.get("generationUUID", ""),
-                        "gen_type": gen.get("type", "unknown"),
-                    }
-                )
-
-        all_items.sort(key=lambda x: x.get("timestamp", 0))
-
-        if all_items:
-            min_timestamp = min(item.get("timestamp", 0) for item in all_items)
-            max_timestamp = max(item.get("timestamp", 0) for item in all_items)
-            conv_id = f"reconstructed_{hash(str(all_items[:5]))}"
-
-            conversation: dict[str, Any] = {
-                "id": conv_id,
-                "messages": all_items,
-                "created_at": min_timestamp,
-                "updated_at": max_timestamp,
-                "message_count": len(all_items),
-                "name": "Reconstructed Conversation",
-            }
-            conversations.append(conversation)
-
-        return conversations
 
     def query_all_conversations(self) -> dict[str, Any]:
         """Query conversations from all available workspace databases."""
@@ -402,32 +329,10 @@ class CursorQuery:
         """Format timestamp for display."""
         return datetime.fromtimestamp(timestamp / 1000).strftime("%Y-%m-%d %H:%M:%S")
 
-    def _create_message_map(
-        self, prompts: list[dict[str, Any]], generations: list[dict[str, Any]]
-    ) -> dict[str, dict[str, list[dict[str, Any]]]]:
-        """Create a mapping of conversation IDs to their messages."""
-        message_map: dict[str, dict[str, list[dict[str, Any]]]] = {}
-
-        for prompt in prompts:
-            conv_id = prompt.get("conversationId")
-            if conv_id:
-                if conv_id not in message_map:
-                    message_map[conv_id] = {"prompts": [], "generations": []}
-                message_map[conv_id]["prompts"].append(prompt)
-
-        for generation in generations:
-            conv_id = generation.get("conversationId")
-            if conv_id:
-                if conv_id not in message_map:
-                    message_map[conv_id] = {"prompts": [], "generations": []}
-                message_map[conv_id]["generations"].append(generation)
-
-        return message_map
-
     def format_as_cursor_markdown(self, data: dict[str, Any]) -> str:
-        """Format conversation data as Cursor-style markdown."""
+        """Format conversation data as modern Cursor-style markdown."""
         output = []
-        output.append("# Cursor Conversations Export")
+        output.append("# Cursor Conversations Export (Modern Format)")
         output.append(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         output.append(f"Cursor Data Path: {data.get('cursor_data_path', 'Unknown')}")
         output.append(f"Total Databases: {data.get('total_databases', 0)}")
@@ -436,18 +341,14 @@ class CursorQuery:
         for workspace in data.get("workspaces", []):
             workspace_hash = workspace.get("workspace_hash", "Unknown")
             conversations = workspace.get("conversations", [])
-            prompts = workspace.get("prompts", [])
-            generations = workspace.get("generations", [])
 
             output.append(f"## Workspace: {workspace_hash}")
             output.append(f"Database: {workspace.get('database_path', 'Unknown')}")
             output.append(f"Conversations: {len(conversations)}")
             output.append("")
 
-            message_map = self._create_message_map(prompts, generations)
-
             for conversation in conversations:
-                conv_id = conversation.get("id")
+                conv_id = conversation.get("id", "Unknown")
                 name = conversation.get("name", "Untitled")
                 created_at = conversation.get("createdAt", 0)
                 updated_at = conversation.get("lastUpdatedAt", 0)
@@ -457,38 +358,7 @@ class CursorQuery:
                 output.append(f"**Created:** {self._format_timestamp(created_at)}")
                 output.append(f"**Updated:** {self._format_timestamp(updated_at)}")
                 output.append("")
-
-                if conv_id in message_map:
-                    messages = message_map[conv_id]
-                    all_messages = []
-
-                    for prompt in messages.get("prompts", []):
-                        all_messages.append(
-                            (
-                                "user",
-                                prompt.get("text", ""),
-                                prompt.get("createdAt", 0),
-                            )
-                        )
-
-                    for generation in messages.get("generations", []):
-                        all_messages.append(
-                            (
-                                "assistant",
-                                generation.get("text", ""),
-                                generation.get("createdAt", 0),
-                            )
-                        )
-
-                    all_messages.sort(key=lambda x: x[2])
-
-                    for role, text, timestamp in all_messages:
-                        output.append(
-                            f"**{role.title()}:** {self._format_timestamp(timestamp)}"
-                        )
-                        output.append(text)
-                        output.append("")
-
+                output.append("*Modern format - message details in structured data*")
                 output.append("---")
                 output.append("")
 
@@ -568,4 +438,4 @@ def list_cursor_workspaces() -> dict[str, Any]:
         }
 
     except (OSError, ValueError, TypeError, AttributeError) as e:
-        raise ValueError(f"Error listing workspace databases: {str(e)}")
+        raise ValueError(f"Error listing workspace databases: {str(e)}") from e

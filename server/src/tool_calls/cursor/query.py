@@ -2,12 +2,11 @@
 Cursor query tool for accessing Cursor IDE conversation data.
 """
 
-import json
 from pathlib import Path
 from typing import Any
 
 from src.utils.access_control import AccessValidator, create_mcp_tool_result
-from src.utils.common import log_error, log_info
+from src.utils.common import format_json_response, log_error, log_info
 from src.utils.cursor_chat_query import CursorQuery, list_cursor_workspaces
 
 
@@ -84,7 +83,7 @@ def handle_query_cursor_conversations(
                 "status": "cursor_summary_complete",
             }
 
-            content_text = json.dumps(summary_data, indent=2)
+            content_text = format_json_response(summary_data)
             return create_mcp_tool_result(content_text, structured_data)
 
         # Format output based on requested format
@@ -93,7 +92,7 @@ def handle_query_cursor_conversations(
         elif format_type == "cursor":
             content = query_tool.format_as_cursor_markdown(data)
         else:  # json
-            content = json.dumps(data, indent=2)
+            content = format_json_response(data)
 
         log_info(
             f"Queried {sum(len(ws['conversations']) for ws in data['workspaces'])} "
@@ -127,7 +126,7 @@ def handle_list_cursor_workspaces(
     try:
         result = list_cursor_workspaces()
         log_info(f"Found {result['total_workspaces']} workspace databases")
-        return AccessValidator.create_success_response(json.dumps(result, indent=2))
+        return AccessValidator.create_success_response(format_json_response(result))
 
     except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
         log_error(e, "list_cursor_workspaces")

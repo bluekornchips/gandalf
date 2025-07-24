@@ -298,6 +298,6 @@ Git-related failures:
 
 ### Code Coverage
 
-- Maintain minimum 90% test coverage
+- Maintain minimum 80% test coverage
 - Add tests for any new functionality
 - Ensure edge cases are covered

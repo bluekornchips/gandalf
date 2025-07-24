@@ -151,6 +151,22 @@ class TestScoreRecentModification(unittest.TestCase):
             score = self.context_intel._score_recent_modification(test_file)
             self.assertEqual(score, CONTEXT_MIN_SCORE)
 
+    def test_score_few_hours_old_file(self):
+        """Test scoring a file that's a few hours old (in day threshold range)."""
+        test_file = self.project_root / "few_hours_old.py"
+        test_file.write_text("# Few hours old file")
+
+        # Use a time that falls between hour and day thresholds (e.g., 6 hours ago)
+        few_hours_old_time = time.time() - 6 * 3600  # 6 hours ago
+        with patch.object(Path, "stat") as mock_stat:
+            mock_stat.return_value.st_mtime = few_hours_old_time
+            score = self.context_intel._score_recent_modification(test_file)
+            # Should use day multiplier
+            expected = self.weights.get(
+                "weights.recent_modification", CONTEXT_MIN_SCORE
+            ) * self.weights.get("context.recent_modifications.day_multiplier")
+            self.assertAlmostEqual(score, expected, places=2)
+
 
 class TestScoreFileSize(unittest.TestCase):
     """Test file size scoring."""
@@ -410,6 +426,13 @@ class TestScoreImportRelationships(unittest.TestCase):
     def test_score_import_relationships_error(self):
         """Test error handling in import relationship scoring."""
         with patch("pathlib.Path.stem", side_effect=AttributeError("Error")):
+            score = self.context_intel._score_import_relationships(
+                "main.py", ["test.py"]
+            )
+            self.assertEqual(score, 0.0)
+
+        # Test TypeError as well
+        with patch("pathlib.Path.stem", side_effect=TypeError("Type error")):
             score = self.context_intel._score_import_relationships(
                 "main.py", ["test.py"]
             )

@@ -5,7 +5,6 @@ This module provides conversation recall capabilities for Claude Code,
 allowing retrieval and analysis of conversation data from Claude Code sessions.
 """
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +33,7 @@ from src.core.conversation_analysis import (
 )
 from src.tool_calls.claude_code.query import ClaudeCodeQuery
 from src.utils.access_control import AccessValidator, create_mcp_tool_result
-from src.utils.common import log_error, log_info
+from src.utils.common import format_json_response, log_error, log_info
 from src.utils.performance import get_duration, start_timer
 
 
@@ -190,7 +189,7 @@ def handle_recall_claude_conversations(
                 "status": "no_conversations_found",
             }
 
-            content_text = json.dumps(result, indent=2)
+            content_text = format_json_response(result)
             return create_mcp_tool_result(content_text, structured_data)
 
         # Filter by date using shared functionality
@@ -277,6 +276,7 @@ def handle_recall_claude_conversations(
                     # Standardized fields for aggregator
                     "id": session_meta.get("session_id", "Unknown"),
                     "title": summary,
+                    "source_tool": "claude-code",
                     "created_at": session_meta.get("start_time", "Unknown"),
                     "updated_at": session_conv.get("last_modified", "Unknown"),
                     "snippet": summary,
@@ -331,7 +331,7 @@ def handle_recall_claude_conversations(
             "status": "recall_complete",
         }
 
-        content_text = json.dumps(result, indent=2)
+        content_text = format_json_response(result)
         return create_mcp_tool_result(content_text, final_structured_data)
 
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:

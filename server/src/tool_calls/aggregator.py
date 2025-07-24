@@ -19,194 +19,387 @@ from src.config.constants.conversation import (
     CONVERSATION_MAX_LOOKBACK_DAYS,
 )
 from src.core.conversation_filtering import apply_conversation_filtering
-from src.tool_calls.aggregation_utils import (
-    create_error_response_for_aggregation,
-    generate_context_keywords_for_project,
-    log_aggregation_performance,
-    validate_aggregation_arguments,
-)
-from src.tool_calls.context_optimization import (
-    create_processing_strategy,
-    optimize_context_keywords,
-)
-from src.tool_calls.response_formatting import (
-    format_aggregated_response,
-)
-from src.tool_calls.tool_aggregation import (
-    _create_no_tools_response,
-    _detect_available_agentic_tools,
-    _process_agentic_tool_conversations,
-    aggregate_tool_results,
-)
-from src.utils.access_control import AccessValidator, create_mcp_tool_result
-from src.utils.common import log_debug, log_error, log_info
-from src.utils.performance import get_duration, start_timer
+from src.utils.access_control import create_mcp_tool_result
+from src.utils.common import format_json_response, log_debug, log_error, log_info
 
 
 def handle_recall_conversations(
     project_root: Path | str | None = None,
+    client_info: dict[str, Any] | None = None,
     **arguments: Any,
 ) -> dict[str, Any]:
     """
-    Cross-platform conversation recall with intelligent aggregation.
+    Cross-platform conversation recall that aggregates results from all available tools.
 
-    Automatically detects and aggregates conversations from all available
-    agentic tools (Cursor, Claude Code, Windsurf) with smart filtering.
+    This function detects available tools and combines their conversation data
+    into a unified format for comprehensive context analysis with intelligent filtering.
     """
-    start_time = start_timer()
+    import time
+
+    from src.config.constants.agentic import SUPPORTED_AGENTIC_TOOLS
+    from src.config.constants.context import (
+        TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS,
+        TOKEN_OPTIMIZATION_MAX_RESPONSE_SIZE,
+    )
+    from src.core.conversation_analysis import generate_shared_context_keywords
+    from src.tool_calls.response_formatting import (
+        _check_response_size_and_optimize,
+        _convert_paths_for_json,
+    )
+    from src.tool_calls.tool_aggregation import (
+        _create_no_tools_response,
+        _process_agentic_tool_conversations,
+    )
+
+    start_time = time.time()
 
     try:
-        # Validate project root
+        # Use provided project root, fallback to cwd
         if not project_root:
             project_root = Path.cwd()
         elif not isinstance(project_root, Path):
             project_root = Path(project_root)
+        context_project_root = project_root
 
-        # Validate and normalize arguments
-        validated_args = validate_aggregation_arguments(arguments)
+        # Extract arguments with defaults
+        fast_mode = arguments.get("fast_mode", CONVERSATION_DEFAULT_FAST_MODE)
+        days_lookback = arguments.get(
+            "days_lookback", CONVERSATION_DEFAULT_LOOKBACK_DAYS
+        )
+        limit = arguments.get("limit", CONVERSATION_DEFAULT_LIMIT)
+        min_score = arguments.get("min_relevance_score", CONVERSATION_DEFAULT_MIN_SCORE)
+        conversation_types = arguments.get("conversation_types")
+        tools = arguments.get("tools")
+        user_prompt = arguments.get("user_prompt")
+        search_query = arguments.get("search_query")
+        tags = arguments.get("tags")
+
+        has_search_query = bool(search_query or tags)
+
+        # Generate context keywords for relevance analysis
+        base_context_keywords = generate_shared_context_keywords(context_project_root)
+
+        # Enhance keywords with search terms if provided
+        if has_search_query:
+            search_keywords = []
+            if search_query:
+                search_keywords.append(search_query)
+            if tags:
+                search_keywords.extend(tags)
+            context_keywords = search_keywords + base_context_keywords
+            log_info(f"Recall with query terms: {search_keywords}")
+        else:
+            context_keywords = base_context_keywords
+            log_info("Returning contextually relevant recent conversations")
+
+        log_debug(f"Generated context keywords: {context_keywords[:5]}...")
+
+        # Detect available tools
+        from src.tool_calls.tool_aggregation import _detect_available_agentic_tools
+
+        available_tools = _detect_available_agentic_tools()
+
+        # Filter by requested tools if specified
+        if tools:
+            # Validate requested tools are supported
+            invalid_tools = [
+                tool for tool in tools if tool not in SUPPORTED_AGENTIC_TOOLS
+            ]
+            if invalid_tools:
+                log_info(
+                    f"Invalid tools requested: {invalid_tools}. "
+                    f"Supported tools: {SUPPORTED_AGENTIC_TOOLS}"
+                )
+
+            # Filter to only include requested tools that are available
+            filtered_tools = [tool for tool in available_tools if tool in tools]
+            available_tools = filtered_tools
+            log_info(f"Filtered to requested tools: {available_tools}")
+
+        if not available_tools:
+            response = _create_no_tools_response()
+            log_info("No tools detected for conversation recall")
+
+            # Create MCP 2025-06-18 compliant response with structured content
+            # Add parameters to response for no-tools case
+            response["days_lookback"] = days_lookback
+            response["limit"] = limit
+            response["min_relevance_score"] = min_score
+            response["search_query"] = search_query
+            response["tags"] = tags
+
+            response_data = _convert_paths_for_json(response)
+            response_text = format_json_response(response_data)
+
+            # Structure the data for better AI consumption
+            # Ensure response_data is a dict for safe .get() operations
+            if not isinstance(response_data, dict):
+                response_data = {}
+
+            structured_data = {
+                "summary": {
+                    "total_conversations": 0,
+                    "total_conversations_found": 0,
+                    "available_tools": [],
+                    "processing_time": response_data.get("processing_time", 0.0),
+                    "tools_processed": 0,
+                },
+                "conversations": [],
+                "context": {
+                    "keywords": response_data.get("context_keywords", []),
+                    "filters_applied": {
+                        "fast_mode": response_data.get("fast_mode"),
+                        "days_lookback": response_data.get("days_lookback"),
+                        "min_score": response_data.get("min_score"),
+                        "limit": response_data.get("limit"),
+                    },
+                },
+                "tool_results": {},
+                "status": "no_tools_detected",
+            }
+
+            # Return MCP 2025-06-18 format with both text and structured content
+            mcp_result = create_mcp_tool_result(
+                response_text, structured_data, client_info=client_info
+            )
+            return mcp_result
 
         log_info(
-            f"Starting conversation recall: limit={validated_args['limit']}, "
-            f"days_lookback={validated_args['days_lookback']}, "
-            f"fast_mode={validated_args['fast_mode']}"
+            f"Found {len(available_tools)} available tools: "
+            f"{', '.join(available_tools)}"
         )
 
-        # Detect available agentic tools
-        available_tools = _detect_available_agentic_tools()
-        if not available_tools:
-            log_info("No agentic tools detected")
-            # Include validated parameters in the no-tools response
-            no_tools_response = _create_no_tools_response()
-            # Merge parameters into the response structure
-            if "content" in no_tools_response:
-                content_text = no_tools_response["content"][0]["text"]
-                try:
-                    parsed_content = json.loads(content_text)
-                    # Add parameters to the response
-                    enhanced_response = {**parsed_content, **validated_args}
-                    no_tools_response["content"][0]["text"] = json.dumps(
-                        enhanced_response, indent=2
-                    )
-                except json.JSONDecodeError:
-                    # Fallback: create new structured response with parameters
-                    enhanced_content = {
-                        "message": content_text,
-                        "status": "no_tools_available",
-                        **validated_args,
-                    }
-                    no_tools_response["content"][0]["text"] = json.dumps(
-                        enhanced_content, indent=2
-                    )
-            return no_tools_response
+        # Stream and filter conversations from all available tools (memory efficient)
+        filtered_conversations = []
+        tool_results = {}
+        total_processed = 0
 
-        log_info(f"Processing {len(available_tools)} tools: {available_tools}")
-
-        # Generate context keywords
-        context_keywords = generate_context_keywords_for_project(
-            project_root,
-            validated_args.get("user_prompt", ""),
-            validated_args.get("search_query", ""),
-        )
-
-        # Optimize keywords for performance
-        optimized_keywords = optimize_context_keywords(context_keywords)
-
-        # Create processing strategy
-        strategy = create_processing_strategy(
-            available_tools,
-            estimated_conversations=validated_args["limit"] * len(available_tools),
-            parameters=validated_args,
-        )
-
-        log_debug(f"Processing strategy: {strategy}")
-
-        # Process conversations from each tool
-        tool_results = []
         for tool_name in available_tools:
-            tool_start = start_timer()
-
             try:
-                # Adjust arguments for tool-specific processing
-                tool_args = validated_args.copy()
-                if strategy.get("use_fast_mode"):
-                    tool_args["fast_mode"] = True
+                # Prepare arguments dict for the tool
+                tool_arguments = {
+                    "fast_mode": fast_mode,
+                    "days_lookback": days_lookback,
+                    "limit": limit * 2,  # Get more initially for better filtering
+                    "min_score": min_score,
+                    "conversation_types": conversation_types,
+                }
+
+                if has_search_query and search_query:
+                    tool_arguments["query"] = search_query
+                    tool_arguments["include_content"] = True
 
                 result = _process_agentic_tool_conversations(
-                    tool_name, tool_args, project_root
+                    tool_name, tool_arguments, context_project_root
                 )
 
-                tool_results.append((tool_name, result))
+                # Parse MCP response to extract conversation data
+                tool_conversations = []
+                if (
+                    result
+                    and "content" in result
+                    and isinstance(result["content"], list)
+                ):
+                    try:
+                        for content_item in result["content"]:
+                            if content_item.get("type") == "text":
+                                tool_data = json.loads(content_item["text"])
+                                tool_conversations = tool_data.get("conversations", [])
+                                break
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        log_debug(f"Failed to parse {tool_name} response")
 
-                tool_duration = get_duration(tool_start)
-                log_debug(f"Processed {tool_name} in {tool_duration:.2f}s")
+                if tool_conversations:
+                    total_processed += len(tool_conversations)
 
-            except Exception as e:
-                log_error(e, f"Failed to process {tool_name}")
-                error_result = AccessValidator.create_error_response(
-                    f"Failed to process {tool_name}: {str(e)}"
-                )
-                tool_results.append((tool_name, error_result))
+                    # Apply early filtering to prevent memory buildup
+                    for conv in tool_conversations:
+                        # Basic relevance filtering
+                        if (
+                            conv.get("relevance_score", 0) >= min_score
+                            or conv.get("relevance_score", 0) == 0
+                        ):
+                            filtered_conversations.append(conv)
 
-        # Aggregate results from all tools
-        aggregated_conversations, processing_stats = aggregate_tool_results(
-            tool_results, validated_args["limit"]
+                        # Break early if we have enough high-quality conversations
+                        if len(filtered_conversations) >= limit * 3:
+                            break
+
+                    log_info(
+                        f"Retrieved {len(tool_conversations)} conversations from {tool_name}, "
+                        f"kept {len([c for c in tool_conversations if c.get('relevance_score', 0) >= min_score])}"
+                    )
+
+                tool_results[tool_name] = result
+
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                OSError,
+            ) as e:
+                log_error(e, f"retrieving conversations from {tool_name}")
+                tool_results[tool_name] = {"error": str(e)}
+
+        processing_time = time.time() - start_time
+
+        # Sort conversations by relevance score to ensure proper mixing of results from all tools
+        filtered_conversations.sort(
+            key=lambda x: x.get("relevance_score", 0), reverse=True
         )
 
-        if not aggregated_conversations:
-            log_info("No conversations found across all tools")
-            return _create_empty_response(
-                available_tools, processing_stats, optimized_keywords, validated_args
-            )
-
-        # Apply final filtering if not in fast mode
-        if not validated_args["fast_mode"]:
-            filtered_conversations, filtering_metadata = apply_conversation_filtering(
-                aggregated_conversations,
-                project_root,
-                requested_limit=validated_args["limit"],
-            )
-        else:
-            filtered_conversations = aggregated_conversations[: validated_args["limit"]]
-
-        # Format final response
-        response_data = format_aggregated_response(
+        # Apply intelligent filtering to pre-filtered conversations
+        final_conversations, filtering_metadata = apply_conversation_filtering(
             filtered_conversations,
-            processing_stats,
-            optimized_keywords,
-            validated_args,
+            context_project_root,
+            limit,
+            user_prompt,
         )
 
-        # Log performance
-        total_duration = get_duration(start_time)
-        log_aggregation_performance(
-            "Conversation aggregation",
-            start_time,
-            len(available_tools),
-            len(filtered_conversations),
-        )
+        # Determine response optimization
+        total_size_estimate = len(json.dumps(final_conversations))
+        use_summary_mode = total_size_estimate > TOKEN_OPTIMIZATION_MAX_RESPONSE_SIZE
 
-        # Create structured response
-        structured_data = {
-            "summary": response_data["summary"],
-            "conversations": filtered_conversations,
-            "tools": available_tools,
-            "keywords": optimized_keywords[:10],
-            "strategy": strategy,
-            "status": "aggregation_complete",
+        # Create comprehensive response
+        response = {
+            "available_tools": available_tools,
+            "conversations": final_conversations,
+            "total_conversations": len(final_conversations),
+            "context_keywords": context_keywords[
+                :TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS
+            ],
+            "search_query": search_query,
+            "tags": tags,
+            "parameters": {
+                "fast_mode": fast_mode,
+                "days_lookback": days_lookback,
+                "limit": limit,
+                "min_score": min_score,
+                "conversation_types": conversation_types,
+                "tools": tools,
+                "user_prompt": user_prompt,
+            },
+            "processing_time": processing_time,
         }
 
-        content_text = json.dumps(response_data, indent=2)
-        return create_mcp_tool_result(content_text, structured_data)
+        # Add tool results if not in summary mode
+        if not use_summary_mode:
+            response["tool_results"] = tool_results
 
-    except Exception as e:
-        total_duration = get_duration(start_time)
-        log_error(e, "Conversation aggregation failed")
-
-        return create_error_response_for_aggregation(
-            f"Aggregation failed: {str(e)}",
-            available_tools if "available_tools" in locals() else [],
-            total_duration,
+        # Check and optimize response size
+        conversations_data = response.get("conversations", [])
+        summary_data = {
+            "total_conversations": response.get("total_conversations", 0),
+            "available_tools": response.get("available_tools", []),
+            "processing_time": response.get("processing_time", 0.0),
+        }
+        optimized_conversations, optimized_summary, was_optimized = (
+            _check_response_size_and_optimize(conversations_data, summary_data)
         )
+
+        # Update response with optimized data
+        response["conversations"] = optimized_conversations
+        response["total_conversations"] = optimized_summary.get(
+            "total_conversations", 0
+        )
+        response["was_optimized"] = was_optimized
+
+        result_desc = "conversations"
+        query_desc = f" for '{search_query}'" if search_query else ""
+        log_info(
+            f"Recalled {len(filtered_conversations)} total "
+            f"{result_desc}{query_desc} from {len(available_tools)} tools "
+            f"in {processing_time:.2f}s"
+        )
+
+        response_data = _convert_paths_for_json(response)
+        response_text = format_json_response(response_data)
+
+        # Ensure response_data is a dict for safe .get() operations
+        if not isinstance(response_data, dict):
+            response_data = {}
+
+        structured_data = {
+            "summary": {
+                "total_conversations": response_data.get("total_conversations", 0),
+                "total_conversations_found": total_processed,  # Use the actual total found from all tools
+                "available_tools": response_data.get("available_tools", []),
+                "processing_time": response_data.get("processing_time", 0.0),
+                "tools_processed": len(response_data.get("available_tools", [])),
+            },
+            "conversations": response_data.get("conversations", []),
+            "tools": response_data.get(
+                "available_tools", []
+            ),  # Add alias for compatibility
+            "context": {
+                "keywords": response_data.get("context_keywords", []),
+                "filters_applied": {
+                    "fast_mode": response_data.get("fast_mode"),
+                    "days_lookback": response_data.get("days_lookback"),
+                    "min_score": response_data.get("min_score"),
+                    "limit": response_data.get("limit"),
+                },
+            },
+            "tool_results": response_data.get("tool_results", {}),
+            "status": "recall_complete",
+        }
+
+        # Return MCP 2025-06-18 format with both text and structured content
+        mcp_result = create_mcp_tool_result(
+            response_text, structured_data, client_info=client_info
+        )
+        return mcp_result
+
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        json.JSONDecodeError,
+    ) as e:
+        processing_time = time.time() - start_time
+        log_error(e, "handling recall conversations")
+        response = _create_no_tools_response()
+
+        # Create MCP 2025-06-18 compliant error response
+        response_data = _convert_paths_for_json(response)
+        response_text = format_json_response(response_data)
+
+        # Ensure response_data is a dict for safe .get() operations
+        if not isinstance(response_data, dict):
+            response_data = {}
+
+        # Structure the error data
+        structured_data = {
+            "summary": {
+                "total_conversations": 0,
+                "total_conversations_found": 0,
+                "available_tools": [],
+                "processing_time": processing_time,
+                "tools_processed": 0,
+            },
+            "conversations": [],
+            "tools": [],  # Add alias for compatibility
+            "context": {
+                "keywords": [],
+                "filters_applied": {
+                    "fast_mode": response_data.get("fast_mode"),
+                    "days_lookback": response_data.get("days_lookback"),
+                    "min_score": response_data.get("min_score"),
+                    "limit": response_data.get("limit"),
+                },
+            },
+            "tool_results": {},
+            "status": "error_occurred",
+        }
+
+        # Return MCP 2025-06-18 format
+        mcp_result = create_mcp_tool_result(
+            response_text, structured_data, client_info=client_info
+        )
+        return mcp_result
 
 
 def _create_empty_response(
@@ -214,6 +407,7 @@ def _create_empty_response(
     processing_stats: dict[str, Any],
     context_keywords: list[str],
     parameters: dict[str, Any],
+    client_info: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create response when no conversations are found."""
     response_data = {
@@ -239,21 +433,21 @@ def _create_empty_response(
         "status": "no_conversations_found",
     }
 
-    return {
-        "content": [
-            {
-                "type": "text",
-                "text": json.dumps(structured_data, indent=2),
-            }
-        ]
-    }
+    content_text = format_json_response(structured_data)
+    return create_mcp_tool_result(content_text, None, client_info=client_info)
+
+
+# Re-export functions from aggregator_backup for test compatibility
 
 
 def handle_recall_conversations_wrapper(
     arguments: dict[str, Any], project_root: Path, **kwargs: Any
 ) -> dict[str, Any]:
     """Wrapper function to match the expected handler signature."""
-    return handle_recall_conversations(project_root=project_root, **arguments)
+    client_info = kwargs.get("client_info")
+    return handle_recall_conversations(
+        project_root=project_root, client_info=client_info, **arguments
+    )
 
 
 # Tool definitions

@@ -6,7 +6,6 @@ using the shared conversation analysis functionality for consistency with Cursor
 and Claude Code patterns.
 """
 
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -38,7 +37,7 @@ from src.core.conversation_analysis import (
 )
 from src.tool_calls.windsurf.windsurf_query import WindsurfQuery
 from src.utils.access_control import AccessValidator, create_mcp_tool_result
-from src.utils.common import log_error, log_info
+from src.utils.common import format_json_response, log_error, log_info
 from src.utils.performance import get_duration, start_timer
 
 
@@ -205,7 +204,7 @@ def handle_recall_windsurf_conversations(
                 "status": "windsurf_recall_complete",
             }
 
-            content_text = json.dumps(response_data, indent=2, default=str)
+            content_text = format_json_response(response_data)
             return create_mcp_tool_result(content_text, structured_data)
 
         # Generate context keywords for relevance analysis
@@ -223,6 +222,7 @@ def handle_recall_windsurf_conversations(
                 ),
                 "workspace_id": conv.get("workspace_id", "unknown"),
                 "source": conv.get("source", "windsurf"),
+                "source_tool": "windsurf",  # Set source_tool for aggregation
                 "database_path": conv.get("database_path", ""),
                 "session_data": conv.get("session_data", {}),
                 "created_at": datetime.now().isoformat(),  # Default since Windsurf doesn't expose timestamps yet
@@ -276,7 +276,7 @@ def handle_recall_windsurf_conversations(
                 conv["context_analysis"] = analysis
 
                 # Only include conversations that meet minimum score
-                if conv["relevance_score"] >= min_score:
+                if conv["relevance_score"] >= min_score or conv["relevance_score"] == 0:
                     analyzed_conversations.append(conv)
 
             except (
@@ -342,7 +342,7 @@ def handle_recall_windsurf_conversations(
             "status": "windsurf_recall_complete",
         }
 
-        content_text = json.dumps(response_data, indent=2, default=str)
+        content_text = format_json_response(response_data)
         return create_mcp_tool_result(content_text, final_structured_data)
 
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:

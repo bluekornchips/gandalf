@@ -373,6 +373,22 @@ class TestLoadStoredConversations:
             assert result is None
 
     @patch("src.core.conversation_storage.get_storage_file_path")
+    def test_load_stored_conversations_non_dict_json(self, mock_storage_path):
+        """Test loading when JSON file contains valid JSON that's not a dict."""
+        mock_storage_file = Mock()
+        mock_storage_file.exists.return_value = True
+        mock_storage_path.return_value = mock_storage_file
+
+        # Test with list instead of dict
+        non_dict_data = ["conversation1", "conversation2"]
+
+        with patch("builtins.open", mock_open(read_data=json.dumps(non_dict_data))):
+            project_root = Path("/test")
+            result = load_stored_conversations(project_root)
+
+            assert result is None
+
+    @patch("src.core.conversation_storage.get_storage_file_path")
     def test_load_stored_conversations_os_error(self, mock_storage_path):
         """Test loading handles OS errors."""
         mock_storage_file = Mock()

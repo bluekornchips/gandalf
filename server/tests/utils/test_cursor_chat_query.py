@@ -508,27 +508,6 @@ class TestCursorQuery:
         assert "2023-01-01" in formatted
         assert "12:00:00" in formatted
 
-    def test_create_message_map(self):
-        """Test creating message map from prompts and generations."""
-        query = CursorQuery(silent=True)
-
-        prompts = [
-            {"conversationId": "conv1", "text": "Hello"},
-            {"conversationId": "conv2", "text": "Hi there"},
-        ]
-
-        generations = [
-            {"conversationId": "conv1", "text": "Hello back"},
-            {"conversationId": "conv2", "text": "Hi to you too"},
-        ]
-
-        message_map = query._create_message_map(prompts, generations)
-
-        assert "conv1" in message_map
-        assert "conv2" in message_map
-        assert len(message_map["conv1"]["prompts"]) == 1
-        assert len(message_map["conv1"]["generations"]) == 1
-
     def test_format_as_cursor_markdown(self):
         """Test formatting data as Cursor markdown."""
         query = CursorQuery(silent=True)

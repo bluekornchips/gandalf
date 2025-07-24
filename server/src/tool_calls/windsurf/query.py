@@ -5,13 +5,12 @@ Provides focused access to actual Windsurf IDE conversation data from workspace 
 with strict validation to avoid false positives from non-conversation data.
 """
 
-import json
 from pathlib import Path
 from typing import Any
 
 from src.tool_calls.windsurf.windsurf_query import WindsurfQuery
 from src.utils.access_control import AccessValidator, create_mcp_tool_result
-from src.utils.common import log_error
+from src.utils.common import format_json_response, log_error
 
 
 def handle_query_windsurf_conversations(
@@ -84,7 +83,7 @@ def _format_response(data: dict[str, Any], format_type: str) -> str:
         return "\n".join(md_lines)
 
     # Default to JSON for both "json" and "windsurf" formats
-    return json.dumps(data, indent=2, default=str)
+    return format_json_response(data)
 
 
 # Tool definitions

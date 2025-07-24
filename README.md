@@ -140,8 +140,6 @@ The modular system automatically adapts resource usage based on:
 ./gandalf lembas --all
 ```
 
-Test Coverage: 959 comprehensive tests with 90%+ coverage across all optimized modules
-
 ## Commands
 
 ```bash
@@ -178,3 +176,5 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 
 - Complete MCP resource links and embedded resources
 - semgrep integration and security automations
+- Add log confirmation to the lembas server check to confirm logs are generated and appended
+- Fix all the inline imports, move to top of file.

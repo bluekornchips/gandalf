@@ -83,6 +83,7 @@ class GandalfMCP:
         self.tool_definitions = TOOL_DEFINITIONS
         self.tool_handlers = TOOL_HANDLERS
         self.is_ready = False
+        self.client_info = None  # Store client information for formatting
 
         self.db_service = DatabaseService()
         self.db_service.initialize()
@@ -219,6 +220,16 @@ class GandalfMCP:
 
     def _initialize(self, request: dict[str, Any]) -> dict[str, Any]:
         """Handle initialization request."""
+        # Capture client information for formatting decisions
+        if "params" in request and "clientInfo" in request["params"]:
+            client_info = request["params"]["clientInfo"]
+            if client_info and isinstance(client_info, dict):
+                self.client_info = client_info
+                log_info(f"Client connected: {client_info.get('name', 'unknown')}")
+            else:
+                self.client_info = None
+                log_info("Client connected: unknown (no client info provided)")
+
         return {
             "protocolVersion": MCP_PROTOCOL_VERSION,
             "capabilities": SERVER_CAPABILITIES,
@@ -293,6 +304,7 @@ class GandalfMCP:
         kwargs = {
             "project_root": self.project_root,
             "server_instance": self,
+            "client_info": self.client_info,
         }
 
         try:

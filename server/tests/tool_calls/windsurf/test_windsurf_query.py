@@ -100,7 +100,7 @@ class TestWindsurfQuery:
                 INSERT INTO ItemTable (key, value)
                 VALUES (?, ?)
             """,
-                (WINDSURF_KEY_CHAT_SESSION_STORE, json.dumps(chat_data)),
+                (WINDSURF_KEY_CHAT_SESSION_STORE[0], json.dumps(chat_data)),
             )
 
             conn.commit()
@@ -272,7 +272,9 @@ class TestWindsurfQuery:
         mock_db_path = self.create_mock_database()
 
         # Test successful data retrieval
-        result = query.get_data_from_db(mock_db_path, WINDSURF_KEY_CHAT_SESSION_STORE)
+        result = query.get_data_from_db(
+            mock_db_path, WINDSURF_KEY_CHAT_SESSION_STORE[0]
+        )
         assert result is not None
         assert isinstance(result, dict)
         assert "entries" in result
@@ -696,7 +698,7 @@ class TestConversationExtractor:
 
             cursor.execute(
                 "INSERT INTO ItemTable (key, value) VALUES (?, ?)",
-                (WINDSURF_KEY_CHAT_SESSION_STORE, json.dumps(chat_data)),
+                (WINDSURF_KEY_CHAT_SESSION_STORE[0], json.dumps(chat_data)),
             )
             conn.commit()
 
@@ -751,7 +753,7 @@ class TestConversationExtractor:
         """Test extraction using query instance."""
         db_path = self.create_test_database_with_chat_sessions()
         mock_query = Mock()
-        mock_query.get_data_from_db.return_value = {
+        mock_query.get_chat_session_data.return_value = {
             "entries": {
                 "test_session": {
                     "messages": [{"content": "test message"}],
@@ -764,9 +766,7 @@ class TestConversationExtractor:
         conversations = extractor.extract_from_chat_sessions(db_path)
 
         assert len(conversations) == 1
-        mock_query.get_data_from_db.assert_called_once_with(
-            db_path, WINDSURF_KEY_CHAT_SESSION_STORE
-        )
+        mock_query.get_chat_session_data.assert_called_once_with(db_path)
 
     def test_extract_from_database_keys(self):
         """Test extraction from database keys."""

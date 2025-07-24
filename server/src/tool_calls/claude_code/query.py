@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from src.utils.access_control import AccessValidator, create_mcp_tool_result
-from src.utils.common import log_debug, log_error, log_info
+from src.utils.common import format_json_response, log_debug, log_error, log_info
 
 
 class ClaudeCodeQuery:
@@ -334,14 +334,14 @@ def handle_query_claude_conversations(
                 "status": "summary_complete",
             }
 
-            content_text = json.dumps(summary_data, indent=2)
+            content_text = format_json_response(summary_data)
             return create_mcp_tool_result(content_text, structured_data)
 
         # Format output based on requested format
         if format_type == "markdown":
             content = query_tool.format_as_markdown(data)
         else:  # json
-            content = json.dumps(data, indent=2)
+            content = format_json_response(data)
 
         log_info(
             f"Queried {len(data.get('conversations', []))} conversations in {format_type} format"

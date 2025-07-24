@@ -20,7 +20,7 @@ from src.tool_calls.cursor.conversation_formatter import (
     format_lightweight_conversations,
 )
 from src.utils.access_control import AccessValidator
-from src.utils.common import log_debug, log_error, log_info
+from src.utils.common import format_json_response, log_debug, log_error, log_info
 
 
 def get_project_cache_hash(project_root: Path, context_keywords: list[str]) -> str:
@@ -242,7 +242,10 @@ def load_from_cache_filtered(
     filtered_cached = []
     for conv in cached_conversations:
         # Apply relevance score filter
-        if conv.get("relevance_score", 0) >= min_relevance_score:
+        if (
+            conv.get("relevance_score", 0) >= min_relevance_score
+            or conv.get("relevance_score", 0) == 0
+        ):
             # Apply conversation type filter
             if (
                 not conversation_types
@@ -270,6 +273,6 @@ def load_from_cache_filtered(
         )
 
         log_info(f"Returned {len(result_conversations)} cached conversations")
-        return AccessValidator.create_success_response(json.dumps(result, indent=2))
+        return AccessValidator.create_success_response(format_json_response(result))
 
     return None

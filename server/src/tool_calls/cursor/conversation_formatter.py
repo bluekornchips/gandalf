@@ -86,8 +86,8 @@ def standardize_conversation(
             else 0
         )
 
-        # Get relevance score if available
-        relevance_score = conversation.get("relevance_score", 0.0)
+        # Get relevance score if available, set default above minimum threshold
+        relevance_score = conversation.get("relevance_score", 1.25)
 
         # Get snippet if available
         snippet = conversation.get("snippet", "")

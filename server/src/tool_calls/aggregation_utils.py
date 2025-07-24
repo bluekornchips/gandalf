@@ -17,7 +17,6 @@ from src.config.constants.conversation import (
     CONVERSATION_MAX_LIMIT,
     CONVERSATION_MAX_LOOKBACK_DAYS,
 )
-from src.core.conversation_analysis import generate_shared_context_keywords
 from src.utils.access_control import AccessValidator
 from src.utils.common import log_debug, log_info
 from src.utils.performance import get_duration
@@ -96,8 +95,9 @@ def generate_context_keywords_for_project(
     search_query: str = "",
 ) -> list[str]:
     """Generate context keywords for the project with optional user input."""
-    # Start with shared context keywords
-    context_keywords = generate_shared_context_keywords(project_root)
+    # Skip project-specific keywords to return ALL conversations from ALL directories
+    # TODO: Make this configurable via environment variable if needed
+    context_keywords = []
 
     # Add keywords from user prompt
     if user_prompt:
@@ -118,7 +118,9 @@ def generate_context_keywords_for_project(
             unique_keywords.append(keyword)
             seen.add(keyword_lower)
 
-    log_debug(f"Generated {len(unique_keywords)} unique context keywords")
+    log_debug(
+        f"Generated {len(unique_keywords)} unique context keywords (project filtering disabled)"
+    )
     return unique_keywords
 
 

@@ -1,6 +1,7 @@
 """Common utility functions for the MCP server, focusing on file-based logging only."""
 
 import json
+import os
 import sys
 from datetime import datetime
 from enum import IntEnum
@@ -9,6 +10,35 @@ from typing import Any
 
 from src.config.constants.paths import GANDALF_HOME
 from src.config.constants.server_config import DEBUG_LOGGING, MCP_SERVER_NAME
+
+
+def is_ci_environment() -> bool:
+    """Check if running in a CI environment."""
+    return any(os.getenv(var) == "true" for var in ["CI"])
+
+
+def format_json_response(data: Any, **kwargs: Any) -> str:
+    """
+    Centralized JSON formatting for all MCP tool responses.
+
+    Provides consistent, human-readable formatting across all tools.
+    Uses 4-space indentation and handles Path objects automatically.
+    """
+
+    def json_serializer(obj: Any) -> str:
+        if isinstance(obj, Path):
+            return str(obj)
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+    return json.dumps(
+        data,
+        indent=4,
+        ensure_ascii=False,
+        separators=(",", ": "),
+        default=json_serializer,
+        **kwargs,
+    )
+
 
 _log_file_path: Path | None = None
 _session_id: str | None = None

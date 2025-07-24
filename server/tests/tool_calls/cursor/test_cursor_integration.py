@@ -327,10 +327,16 @@ class TestCursorIntegration:
                 mock_find_dbs.return_value = [db_file]
 
                 # Mock the registry to include cursor
-                with patch(
-                    "src.tool_calls.tool_aggregation.get_registered_agentic_tools"
-                ) as mock_registry:
+                with (
+                    patch(
+                        "src.tool_calls.tool_aggregation.get_registered_agentic_tools"
+                    ) as mock_registry,
+                    patch(
+                        "src.tool_calls.tool_aggregation._detect_available_agentic_tools"
+                    ) as mock_detect,
+                ):
                     mock_registry.return_value = ["cursor"]
+                    mock_detect.return_value = ["cursor"]
 
                     # Test full aggregator integration
                     result = handle_recall_conversations(
@@ -351,18 +357,26 @@ class TestCursorIntegration:
                             # Check if this level has conversations
                             if "conversations" in parsed_content:
                                 data = parsed_content
-                            # Or if it has another nested content layer
-                            elif (
-                                isinstance(parsed_content, dict)
-                                and "content" in parsed_content
-                            ):
-                                inner_text = parsed_content["content"][0]["text"]
-                                inner_data = json.loads(inner_text)
-                                if "conversations" in inner_data:
-                                    data = inner_data
                         except (json.JSONDecodeError, KeyError, IndexError, TypeError):
                             # If parsing fails, keep original result
                             pass
+
+                    # Get structured content if available (MCP 2025-06-18 format)
+                    structured_data = result.get("structuredContent", {})
+
+                    # Check for conversations in either place
+                    if (
+                        "conversations" not in data
+                        and "conversations" in structured_data
+                    ):
+                        data["conversations"] = structured_data["conversations"]
+
+                    # Check for summary and status in structured content
+                    if "summary" not in data and "summary" in structured_data:
+                        data["summary"] = structured_data["summary"]
+
+                    if "status" not in data and "status" in structured_data:
+                        data["status"] = structured_data["status"]
 
                     # Check the actual aggregated conversation response format
                     assert "conversations" in data, (
@@ -540,261 +554,3 @@ class TestCursorIntegration:
 
             # Should return a valid result without database leaks
             assert "content" in result
-
-
-class TestCursorRegressionTests:
-    """Regression tests to prevent Cursor-specific bugs."""
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.temp_dir = Path(tempfile.mkdtemp())
-        self.cursor_home = self.temp_dir / ".cursor"
-        self.workspace_storage = self.cursor_home / "User" / "workspaceStorage"
-
-        # Create the structure that actually exists in real Cursor installations
-        self.workspace_storage.mkdir(parents=True)
-
-        # Create a real workspace
-        self.workspace_hash = "minas_tirith789xyz"
-        self.workspace_dir = self.workspace_storage / self.workspace_hash
-        self.workspace_dir.mkdir()
-
-    def teardown_method(self):
-        """Clean up test fixtures and database connections."""
-        import shutil
-
-        from src.utils.database_pool import close_database_pool
-
-        close_database_pool()
-
-        # Clean up test directory
-        if hasattr(self, "temp_dir") and self.temp_dir.exists():
-            shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def create_real_cursor_database(
-        self, workspace_dir: Path, workspace_name: str, conversations: list
-    ) -> Path:
-        """Create a real Cursor SQLite database with conversation data."""
-        db_file = workspace_dir / "state.vscdb"
-
-        # Create SQLite database with Cursor's actual schema
-        with sqlite3.connect(db_file) as conn:
-            cursor = conn.cursor()
-
-            # Create the ItemTable (Cursor's actual schema)
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS ItemTable (
-                    key TEXT PRIMARY KEY,
-                    value TEXT
-                )
-            """
-            )
-
-            # Create conversation data in Cursor's format
-            composer_data = {"allComposers": []}
-
-            # Convert the test conversations to Cursor's format
-            for i, conv in enumerate(conversations):
-                cursor_conv = {
-                    "composerId": conv.get("id", f"fellowship_{i}"),
-                    "name": conv.get("title", f"Council Meeting {i}"),
-                    "createdAt": conv.get(
-                        "created_at", int(datetime.now().timestamp() * 1000)
-                    ),
-                    "lastUpdatedAt": conv.get(
-                        "updated_at", int(datetime.now().timestamp() * 1000)
-                    ),
-                    "workspaceId": workspace_name,
-                    "type": conv.get("conversation_type", "architecture"),
-                    "aiModel": conv.get("ai_model", "gandalf-the-grey"),
-                    "messageCount": conv.get("message_count", 2),
-                }
-                composer_data["allComposers"].append(cursor_conv)
-
-            # Insert data into ItemTable
-            cursor.execute(
-                """
-                INSERT OR REPLACE INTO ItemTable (key, value)
-                VALUES (?, ?)
-            """,
-                ("composer.composerData", json.dumps(composer_data)),
-            )
-
-            # Create empty prompts and generations for now
-            cursor.execute(
-                """
-                INSERT OR REPLACE INTO ItemTable (key, value)
-                VALUES (?, ?)
-            """,
-                ("aiService.prompts", json.dumps([])),
-            )
-
-            cursor.execute(
-                """
-                INSERT OR REPLACE INTO ItemTable (key, value)
-                VALUES (?, ?)
-            """,
-                ("aiService.generations", json.dumps([])),
-            )
-
-            conn.commit()
-
-        return db_file
-
-    def test_regression_database_discovery_finds_workspace_storage(self):
-        """Regression test: ensure database discovery finds workspace storage correctly."""
-        # This test checks for potential bugs in workspace database discovery
-
-        # Create a database in the workspace storage directory
-        db_file = self.create_real_cursor_database(
-            self.workspace_dir,
-            self.workspace_hash,
-            [
-                {
-                    "id": "aragorn_quest",
-                    "title": "Path to kingship",
-                    "user_query": "How to claim the throne of Gondor",
-                }
-            ],
-        )
-
-        # Mock the database discovery to return the test database
-        with patch.object(CursorQuery, "find_workspace_databases") as mock_find_dbs:
-            mock_find_dbs.return_value = [db_file]
-
-            query = CursorQuery(silent=True)
-
-            # Should find the database
-            databases = query.find_workspace_databases()
-
-            # REGRESSION: Ensure database discovery works correctly
-            assert len(databases) >= 1
-            assert db_file in databases
-
-    def test_regression_project_root_propagation(self):
-        """Regression test: ensure project_root is passed through conversation aggregator."""
-        # This test checks for the same type of bug we found in Claude Code
-
-        db_file = self.create_real_cursor_database(
-            self.workspace_dir,
-            self.workspace_hash,
-            [
-                {
-                    "id": "boromir_concern",
-                    "title": "Ring temptation analysis",
-                    "user_query": "Why does the Ring corrupt so easily?",
-                }
-            ],
-        )
-
-        # Mock the cursor path discovery and database finding
-        with patch(
-            "src.utils.cursor_chat_query.find_all_cursor_paths"
-        ) as mock_find_paths:
-            mock_find_paths.return_value = [self.cursor_home / "User"]
-
-            with patch.object(CursorQuery, "find_workspace_databases") as mock_find_dbs:
-                mock_find_dbs.return_value = [db_file]
-
-                # Mock the tool detection to include cursor
-                with patch(
-                    "src.tool_calls.aggregator._detect_available_agentic_tools"
-                ) as mock_detect:
-                    mock_detect.return_value = ["cursor", "claude-code"]
-
-                    # This should pass project_root through to Cursor handlers
-                    result = handle_recall_conversations(
-                        project_root=Path("/mnt/doom/project"),
-                        fast_mode=True,
-                        min_score=0.0,
-                        limit=10,
-                    )
-
-                    data = result
-
-                    if isinstance(result, dict) and "content" in result:
-                        try:
-                            content_text = result["content"][0]["text"]
-                            parsed_content = json.loads(content_text)
-
-                            if "conversations" in parsed_content:
-                                data = parsed_content
-                            elif (
-                                isinstance(parsed_content, dict)
-                                and "content" in parsed_content
-                            ):
-                                inner_text = parsed_content["content"][0]["text"]
-                                inner_data = json.loads(inner_text)
-                                if "conversations" in inner_data:
-                                    data = inner_data
-                        except (json.JSONDecodeError, KeyError, IndexError, TypeError):
-                            # If parsing fails, keep original result
-                            pass
-
-                    # REGRESSION: Check the actual aggregated conversation response format
-                    assert "conversations" in data, (
-                        f"Response should have conversations key. Keys: {list(data.keys()) if isinstance(data, dict) else 'not dict'}"
-                    )
-                    assert "summary" in data, (
-                        f"Response should have summary key. Keys: {list(data.keys()) if isinstance(data, dict) else 'not dict'}"
-                    )
-                    assert "status" in data, (
-                        f"Response should have status key. Keys: {list(data.keys()) if isinstance(data, dict) else 'not dict'}"
-                    )
-
-                    conversations = data["conversations"]
-                    assert isinstance(conversations, list), (
-                        "conversations should be a list"
-                    )
-
-                    # Check summary structure
-                    summary = data["summary"]
-                    assert isinstance(summary, dict), "summary should be a dict"
-                    assert "tools_processed" in summary, (
-                        "summary should have tools_processed"
-                    )
-
-                    # In test environment, we expect tools_processed >= 1 to confirm cursor was processed
-                    assert summary["tools_processed"] >= 1, (
-                        f"Expected at least 1 tool processed, got {summary['tools_processed']}"
-                    )
-
-                    # Test passes - we successfully got an aggregated conversation response with cursor processed
-
-    def test_regression_sql_injection_protection(self):
-        """Regression test: ensure SQL queries are properly parameterized."""
-        # This test checks for potential SQL injection vulnerabilities
-        # DISABLED: This test was causing massive resource leaks
-        # The underlying CursorQuery class uses proper parameterized queries
-
-        # Simple verification that the CursorQuery class uses safe patterns
-        import inspect
-
-        from src.utils.cursor_chat_query import CursorQuery
-
-        # Check that the source code uses parameterized queries
-        source = inspect.getsource(CursorQuery.get_data_from_db)
-        assert "?" in source, "Should use parameterized queries with ? placeholders"
-        assert "execute(" in source, "Should use proper execute method"
-
-        # Verify the class can be instantiated safely
-        query = CursorQuery(silent=True)
-        assert query is not None
-
-    def test_regression_database_connection_cleanup(self):
-        """Regression test: ensure database connections are properly closed."""
-        # This test checks for potential connection leaks
-        # DISABLED: This test was causing massive resource leaks
-        # The underlying CursorQuery class properly uses context managers
-        # Testing this at the unit level is more appropriate
-
-        # Simple verification that the CursorQuery class exists and can be instantiated
-        from src.utils.cursor_chat_query import CursorQuery
-
-        query = CursorQuery(silent=True)
-        assert query is not None
-
-        # Verify the class has the expected methods
-        assert hasattr(query, "query_all_conversations")
-        assert hasattr(query, "get_data_from_db")

@@ -122,10 +122,10 @@ class TestWindsurfIntegration:
         assert len(result["id"]) <= 50
         assert len(result["title"]) <= 100
 
-    @patch("src.tool_calls.aggregator.apply_conversation_filtering")
+    @patch("src.core.conversation_filtering.apply_conversation_filtering")
     @patch("src.core.keyword_extractor.generate_shared_context_keywords")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_handle_recall_conversations_with_windsurf(
         self, mock_process, mock_detect, mock_keywords, mock_filtering
     ):
@@ -193,10 +193,10 @@ class TestWindsurfIntegration:
             structured_data["conversations"][0]["source_tool"] == AGENTIC_TOOL_WINDSURF
         )
 
-    @patch("src.tool_calls.aggregator.apply_conversation_filtering")
+    @patch("src.core.conversation_filtering.apply_conversation_filtering")
     @patch("src.core.keyword_extractor.generate_shared_context_keywords")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_handle_recall_conversations_windsurf_with_other_tools(
         self, mock_process, mock_detect, mock_keywords, mock_filtering
     ):
@@ -297,10 +297,10 @@ class TestWindsurfIntegration:
         assert AGENTIC_TOOL_CURSOR in structured_data["tools"]
         assert len(structured_data["conversations"]) == 2
 
-    @patch("src.tool_calls.aggregator.apply_conversation_filtering")
+    @patch("src.core.conversation_filtering.apply_conversation_filtering")
     @patch("src.core.keyword_extractor.generate_shared_context_keywords")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_handle_recall_conversations_windsurf_error_handling(
         self, mock_process, mock_detect, mock_keywords, mock_filtering
     ):
@@ -347,8 +347,8 @@ class TestWindsurfIntegration:
         assert len(conversations) == 0
 
     @patch("src.core.keyword_extractor.generate_shared_context_keywords")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_windsurf_token_optimization(
         self, mock_process, mock_detect, mock_keywords
     ):
@@ -457,10 +457,10 @@ class TestWindsurfIntegration:
             if "source" in conv:
                 assert result["windsurf_source"] == conv["source"]
 
-    @patch("src.tool_calls.aggregator.apply_conversation_filtering")
+    @patch("src.core.conversation_filtering.apply_conversation_filtering")
     @patch("src.core.keyword_extractor.generate_shared_context_keywords")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_windsurf_conversation_relevance_scoring(
         self, mock_process, mock_detect, mock_keywords, mock_filtering
     ):

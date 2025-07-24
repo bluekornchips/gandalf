@@ -1,14 +1,10 @@
 format:
 	python3 -m isort src/ tests/
-	ruff check --fix --unsafe-fixes src/
-	ruff format src/
-	ruff format tests/
+	ruff check --fix --unsafe-fixes src/ tests/
+	ruff format src/ tests/
 
 lint:
-	ruff check src/
-
-isort:
-	python3 -m isort src/ tests/
+	ruff check src/ tests/
 
 isort-check:
 	python3 -m isort --check-only --diff src/ tests/
@@ -27,6 +23,7 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	rm -rf .pytest_cache .coverage htmlcov .mypy_cache *.*.egg-info .ruff_cache
 
-all: format lint typecheck security test
+purge: clean
+	rm -rf .venv htmlcov_server
 
-check: isort-check lint typecheck security
+all: format lint typecheck security test

@@ -211,7 +211,7 @@ def _create_summary_response(
     # Add parameter information
     summary["parameters"] = {
         "limit": parameters.get("limit", 60),
-        "min_relevance_score": parameters.get("min_relevance_score", 1.0),
+        "min_relevance_score": parameters.get("min_relevance_score", 0.0),
         "days_lookback": parameters.get("days_lookback", 30),
         "fast_mode": parameters.get("fast_mode", True),
     }

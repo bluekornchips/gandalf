@@ -19,6 +19,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
+from src.config.constants.database import SQL_SELECT_ONE
 from src.utils.common import log_debug, log_error
 
 
@@ -60,7 +61,7 @@ class ConnectionPool:
 
             cursor = conn.cursor()
             try:
-                cursor.execute("SELECT 1")
+                cursor.execute(SQL_SELECT_ONE)
                 cursor.fetchone()
                 return True
             finally:

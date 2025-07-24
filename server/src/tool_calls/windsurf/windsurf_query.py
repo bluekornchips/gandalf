@@ -45,6 +45,20 @@ class WindsurfQuery:
                 log_error(e, f"querying database {db_path}")
             return None
 
+    def get_chat_session_data(self, db_path: Path) -> Any | None:
+        """Get chat session data trying multiple possible keys for compatibility."""
+        for key in WINDSURF_KEY_CHAT_SESSION_STORE:
+            data = self.get_data_from_db(db_path, key)
+            if data and isinstance(data, dict) and data.get("entries"):
+                # data with entries
+                return data
+            elif data and isinstance(data, dict):
+                # data but no entries, continue to try other keys
+                continue
+
+        # If no key has data with entries, return the last attempt or None
+        return self.get_data_from_db(db_path, WINDSURF_KEY_CHAT_SESSION_STORE[0])
+
     def find_workspace_databases(self) -> list[Path]:
         """Find all workspace and global database files."""
         return self._find_workspace_databases()
@@ -174,9 +188,7 @@ class WindsurfQuery:
         self, conversations: list[dict[str, Any]], db_path: Path
     ) -> dict[str, Any]:
         """Create a standardized database response."""
-        chat_sessions = self.db_reader.get_data(
-            db_path, WINDSURF_KEY_CHAT_SESSION_STORE
-        )
+        chat_sessions = self.get_chat_session_data(db_path)
 
         return {
             "conversations": conversations,

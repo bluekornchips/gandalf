@@ -17,12 +17,14 @@ from src.config.constants.conversation import (
     CONVERSATION_TITLE_DISPLAY_LIMIT,
 )
 from src.tool_calls.aggregator import (
-    _detect_available_agentic_tools,
     handle_recall_conversations,
 )
 from src.tool_calls.response_formatting import (
     _create_lightweight_conversation,
     _standardize_conversation_format,
+)
+from src.tool_calls.tool_aggregation import (
+    _detect_available_agentic_tools,
 )
 
 
@@ -208,8 +210,8 @@ class TestConversationAggregator(unittest.TestCase):
         self.assertIn(AGENTIC_TOOL_CURSOR, result)
         self.assertIn(AGENTIC_TOOL_CLAUDE_CODE, result)
 
-    @patch("src.tool_calls.aggregator.generate_context_keywords_for_project")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
+    @patch("src.tool_calls.aggregation_utils.generate_context_keywords_for_project")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
     def test_handle_recall_conversations_no_tools(self, mock_detect, mock_keywords):
         """Test recall conversations with no available tools."""
         mock_keywords.return_value = self.context_keywords
@@ -230,10 +232,10 @@ class TestConversationAggregator(unittest.TestCase):
         self.assertIn("No agentic tools available", content_text)
         self.assertIn("cursor", content_text)  # Should mention the supported tools
 
-    @patch("src.tool_calls.aggregator.apply_conversation_filtering")
-    @patch("src.tool_calls.aggregator.generate_context_keywords_for_project")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.core.conversation_filtering.apply_conversation_filtering")
+    @patch("src.tool_calls.aggregation_utils.generate_context_keywords_for_project")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_handle_recall_conversations_single_cursor_tool(
         self, mock_process, mock_detect, mock_keywords, mock_filtering
     ):
@@ -285,10 +287,10 @@ class TestConversationAggregator(unittest.TestCase):
         self.assertIn("tools_processed", summary)
         self.assertGreaterEqual(summary["tools_processed"], 1)
 
-    @patch("src.tool_calls.aggregator.apply_conversation_filtering")
-    @patch("src.tool_calls.aggregator.generate_context_keywords_for_project")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.core.conversation_filtering.apply_conversation_filtering")
+    @patch("src.tool_calls.aggregation_utils.generate_context_keywords_for_project")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_handle_recall_conversations_single_claude_tool(
         self, mock_process, mock_detect, mock_keywords, mock_filtering
     ):
@@ -341,10 +343,10 @@ class TestConversationAggregator(unittest.TestCase):
         self.assertIn("tools_processed", summary)
         self.assertGreaterEqual(summary["tools_processed"], 1)
 
-    @patch("src.tool_calls.aggregator.apply_conversation_filtering")
-    @patch("src.tool_calls.aggregator.generate_context_keywords_for_project")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.core.conversation_filtering.apply_conversation_filtering")
+    @patch("src.tool_calls.aggregation_utils.generate_context_keywords_for_project")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_handle_recall_conversations_many_tools(
         self, mock_process, mock_detect, mock_keywords, mock_filtering
     ):
@@ -425,10 +427,10 @@ class TestConversationAggregator(unittest.TestCase):
         # In test environment, we expect at least some tools to be processed
         self.assertGreaterEqual(summary["tools_processed"], 1)
 
-    @patch("src.tool_calls.aggregator.apply_conversation_filtering")
-    @patch("src.tool_calls.aggregator.generate_context_keywords_for_project")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.core.conversation_filtering.apply_conversation_filtering")
+    @patch("src.tool_calls.aggregation_utils.generate_context_keywords_for_project")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_handle_recall_conversations_with_search_query(
         self, mock_process, mock_detect, mock_keywords, mock_filtering
     ):
@@ -504,10 +506,10 @@ class TestConversationAggregatorEdgeCases(unittest.TestCase):
             "metadata": {"urgency": "high", "category": "quest"},
         }
 
-    @patch("src.tool_calls.aggregator.apply_conversation_filtering")
-    @patch("src.tool_calls.aggregator.generate_context_keywords_for_project")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.core.conversation_filtering.apply_conversation_filtering")
+    @patch("src.tool_calls.aggregation_utils.generate_context_keywords_for_project")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_handle_recall_mixed_success_failure(
         self, mock_process, mock_detect, mock_keywords, mock_filtering
     ):
@@ -561,9 +563,9 @@ class TestConversationAggregatorEdgeCases(unittest.TestCase):
         self.assertEqual(len(data["conversations"]), 1)
         self.assertEqual(data["conversations"][0]["source_tool"], AGENTIC_TOOL_CURSOR)
 
-    @patch("src.tool_calls.aggregator.generate_context_keywords_for_project")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.tool_calls.aggregation_utils.generate_context_keywords_for_project")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_handle_recall_empty_results_from_all_tools(
         self, mock_process, mock_detect, mock_keywords
     ):
@@ -593,9 +595,9 @@ class TestConversationAggregatorEdgeCases(unittest.TestCase):
         self.assertEqual(len(data["conversations"]), 0)
         self.assertEqual(len(data["tools"]), 2)
 
-    @patch("src.tool_calls.aggregator.generate_context_keywords_for_project")
-    @patch("src.tool_calls.aggregator._detect_available_agentic_tools")
-    @patch("src.tool_calls.aggregator._process_agentic_tool_conversations")
+    @patch("src.tool_calls.aggregation_utils.generate_context_keywords_for_project")
+    @patch("src.tool_calls.tool_aggregation._detect_available_agentic_tools")
+    @patch("src.tool_calls.tool_aggregation._process_agentic_tool_conversations")
     def test_handle_recall_parameter_validation(
         self, mock_process, mock_detect, mock_keywords
     ):
@@ -635,7 +637,7 @@ class TestConversationAggregatorEdgeCases(unittest.TestCase):
             return_value=["cursor"],
         ),
     ):
-        from src.tool_calls.aggregator import (
+        from src.tool_calls.tool_aggregation import (
             _detect_available_agentic_tools,
         )
 

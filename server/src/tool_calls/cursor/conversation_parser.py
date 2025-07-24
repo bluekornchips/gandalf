@@ -5,7 +5,6 @@ This module handles the extraction and initial processing of conversation data
 from Cursor's storage formats.
 """
 
-import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -34,7 +33,7 @@ from src.tool_calls.cursor.conversation_utils import (
     validate_conversation_data,
 )
 from src.utils.access_control import AccessValidator
-from src.utils.common import log_debug, log_info
+from src.utils.common import format_json_response, log_debug, log_info
 from src.utils.cursor_chat_query import CursorQuery
 from src.utils.performance import get_duration, log_operation_time, start_timer
 
@@ -134,7 +133,12 @@ def handle_fast_mode(
     log_operation_time("cursor_conversation_query", start_time, "debug")
 
     # Process data for fast extraction
-    conversations = data.get("conversations", [])
+    # Extract conversations from all workspaces
+    conversations = []
+    for workspace in data.get("workspaces", []):
+        workspace_conversations = workspace.get("conversations", [])
+        conversations.extend(workspace_conversations)
+
     processed_count = len(conversations)
     skipped_count = 0
 
@@ -323,4 +327,4 @@ def query_and_analyze_conversations(
         f"returned {len(lightweight_conversations)} results in {query_time + processing_time:.2f}s"
     )
 
-    return AccessValidator.create_success_response(json.dumps(result, indent=2))
+    return AccessValidator.create_success_response(format_json_response(result))

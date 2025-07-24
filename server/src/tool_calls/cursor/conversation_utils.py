@@ -5,7 +5,6 @@ This module contains shared utility functions and helper methods
 used across the conversation processing modules.
 """
 
-import json
 import re
 from datetime import datetime, timedelta
 from typing import Any
@@ -20,7 +19,7 @@ from src.config.constants.database import (
     DATABASE_STRUCTURE_LIMITATION_NOTE,
 )
 from src.utils.access_control import AccessValidator
-from src.utils.common import log_debug, log_info
+from src.utils.common import format_json_response, log_debug, log_info
 from src.utils.performance import get_duration
 
 
@@ -35,8 +34,21 @@ def handle_fast_conversation_extraction(
     # Quick processing - just format and return
     processing_time = 0.1  # Minimal processing time
 
-    # Limit results
-    limited_conversations = conversations[:limit]
+    from src.tool_calls.cursor.conversation_formatter import standardize_conversation
+
+    limited_conversations = []
+    for conv in conversations[:limit]:
+        # Standardize the conversation format (converts name->title, adds relevance_score, etc.)
+        standardized_conv = standardize_conversation(
+            conv,
+            context_keywords=[],  # Fast mode doesn't use context keywords
+            lightweight=False,  # Use full standardization to ensure proper field mapping
+        )
+
+        if "source_tool" not in standardized_conv:
+            standardized_conv["source_tool"] = "cursor"
+
+        limited_conversations.append(standardized_conv)
 
     result = {
         "summary": {
@@ -65,7 +77,7 @@ def handle_fast_conversation_extraction(
         f"Ultra-fast extracted {len(limited_conversations)} conversations in {extraction_time + processing_time:.2f}s "
         f"(processed {processed_count}, skipped {skipped_count})"
     )
-    return AccessValidator.create_success_response(json.dumps(result, indent=2))
+    return AccessValidator.create_success_response(format_json_response(result))
 
 
 def log_processing_progress(
@@ -188,7 +200,7 @@ def create_error_response(
     if details:
         response["details"] = details
 
-    return AccessValidator.create_error_response(json.dumps(response, indent=2))
+    return AccessValidator.create_error_response(format_json_response(response))
 
 
 def _get_tech_category_from_extension(extension: str) -> str | None:

@@ -12,6 +12,8 @@ from unittest.mock import patch
 
 import pytest
 
+from src.utils.common import is_ci_environment
+
 
 class DatabaseConnectionManager:
     """Manages database connections to prevent leaks in tests."""
@@ -183,3 +185,24 @@ def sample_requests():
             },
         },
     }
+
+
+@pytest.fixture
+def ci_environment():
+    """Provide CI environment information for tests."""
+    return is_ci_environment()
+
+
+# Skip marker for CI-sensitive tests
+skip_in_ci = pytest.mark.skipif(
+    is_ci_environment(), reason="Test not suitable for CI environment"
+)
+
+# Modify behavior in CI environments
+ci_timeout_multiplier = 3 if is_ci_environment() else 1
+
+
+@pytest.fixture
+def adjusted_timeout():
+    """Provide timeout values adjusted for CI environments."""
+    return lambda base_timeout: base_timeout * ci_timeout_multiplier

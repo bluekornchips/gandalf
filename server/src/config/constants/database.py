@@ -9,6 +9,13 @@ SQL_COUNT_TABLE_ROWS = "SELECT COUNT(*) FROM {table_name}"  # nosec B608,
 
 # Generic database queries
 SQL_GET_VALUE_BY_KEY = "SELECT value FROM ItemTable WHERE key = ?"
+SQL_GET_ALL_KEYS = "SELECT key FROM ItemTable"
+SQL_COUNT_ITEMTABLE_ROWS = "SELECT COUNT(*) FROM ItemTable"
+SQL_SELECT_ONE = "SELECT 1"
+
+# Table information queries
+SQL_GET_TABLE_NAMES = "SELECT name FROM sqlite_master WHERE type='table'"
+SQL_CHECK_TABLE_EXISTS = "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
 
 # Cursor database files to search for
 CURSOR_DATABASE_FILES = [
@@ -18,32 +25,26 @@ CURSOR_DATABASE_FILES = [
     "cursor.db",
 ]
 
-# Cursor database keys
-CURSOR_KEY_COMPOSER_DATA = "composer.composerData"
-CURSOR_KEY_AI_CONVERSATIONS = "aiConversations"
-CURSOR_KEY_AI_PROMPTS = "aiService.prompts"
-CURSOR_KEY_AI_GENERATIONS = "aiService.generations"
-CURSOR_KEY_USER_PROMPTS = "userPrompts"
-CURSOR_KEY_USER_GENERATIONS = "aiGenerations"
-
-CURSOR_CONVERSATION_KEYS = [
-    CURSOR_KEY_COMPOSER_DATA,
-    CURSOR_KEY_AI_CONVERSATIONS,
-    CURSOR_KEY_AI_PROMPTS,
-    CURSOR_KEY_AI_GENERATIONS,
-    CURSOR_KEY_USER_PROMPTS,
-    CURSOR_KEY_USER_GENERATIONS,
+# Cursor database keys, supporting multiple versions
+CURSOR_KEY_COMPOSER_DATA = [
+    "composer.composerData",  # Modern AI conversations
+    "interactive.sessions",  # Interactive sessions
 ]
 
-# Windsurf database keys
-WINDSURF_KEY_CHAT_SESSION_STORE = "windsurf.chatSessionStore"
-WINDSURF_KEY_CHAT_SESSION_INDEX = "chat.ChatSessionStore.index"
+CURSOR_CONVERSATION_KEYS = CURSOR_KEY_COMPOSER_DATA
 
-# Database metadata
+# Windsurf database keys, supporting multiple versions
+WINDSURF_KEY_CHAT_SESSION_STORE = [
+    "chat.ChatSessionStore.index",  # Current format
+    "windsurf.chatSessionStore",  # Legacy format
+]
+
+
+# Standard conversation table
 CONVERSATION_TABLE_NAMES = [
     "conversations",
-    "messages",
-    "chat_sessions",
+    "sessions",
+    "chat",
 ]
 
 # Database limitation note

@@ -12,14 +12,12 @@ from typing import Any
 
 from src.config.constants.database import (
     CONVERSATION_TABLE_NAMES,
-    CURSOR_KEY_AI_CONVERSATIONS,
-    CURSOR_KEY_AI_GENERATIONS,
-    CURSOR_KEY_AI_PROMPTS,
-    CURSOR_KEY_COMPOSER_DATA,
+    CURSOR_CONVERSATION_KEYS,
     SQL_CHECK_ITEMTABLE_EXISTS,
     SQL_COUNT_TABLE_ROWS,
+    SQL_GET_ALL_KEYS,
+    SQL_GET_TABLE_NAMES,
     SQL_GET_VALUE_BY_KEY,
-    WINDSURF_KEY_CHAT_SESSION_INDEX,
     WINDSURF_KEY_CHAT_SESSION_STORE,
 )
 from src.config.constants.limits import DATABASE_OPERATION_TIMEOUT
@@ -39,15 +37,30 @@ class ConversationCounter:
                 with get_database_connection(db_path) as conn:
                     cursor = conn.cursor()
 
-                    # Check if this is a Cursor/Windsurf database with 'ItemTable' structure
+                    # Log detailed diagnostic info
+                    log_debug(f"Analyzing database structure: {db_path}")
+
+                    # Get table information for diagnostics
+                    try:
+                        cursor.execute(SQL_GET_TABLE_NAMES)
+                        tables = [row[0] for row in cursor.fetchall()]
+                        log_debug(f"Available tables in {db_path.name}: {tables}")
+                    except sqlite3.OperationalError as e:
+                        log_debug(f"Could not get table list from {db_path}: {e}")
+                        tables = []
+
+                    # Check if this is a Cursor/Windsurf database with ItemTable
                     try:
                         cursor.execute(SQL_CHECK_ITEMTABLE_EXISTS)
                         if cursor.fetchone():
-                            return ConversationCounter._count_vscode_conversations(
+                            log_debug(f"Found ItemTable structure in {db_path}")
+                            count = ConversationCounter._count_vscode_conversations(
                                 cursor
                             )
-                    except sqlite3.OperationalError:
-                        pass
+                            log_debug(f"VSCode conversation count result: {count}")
+                            return count
+                    except sqlite3.OperationalError as e:
+                        log_debug(f"ItemTable check failed for {db_path}: {e}")
 
                     # Try standard conversation tables
                     for table_name in CONVERSATION_TABLE_NAMES:
@@ -61,10 +74,30 @@ class ConversationCounter:
                                 f"(table: {table_name})"
                             )
                             return count
-                        except sqlite3.OperationalError:
+                        except sqlite3.OperationalError as e:
+                            log_debug(f"Table {table_name} not found in {db_path}: {e}")
                             continue
 
-                    log_debug(f"No recognizable conversation table found in {db_path}")
+                    # If we found tables but no conversation data, provide info
+                    if tables:
+                        log_debug(
+                            f"Database {db_path} has tables {tables} "
+                            f"but no recognizable conversation data"
+                        )
+                        # Try to get ItemTable keys for diagnostic
+                        if "ItemTable" in tables:
+                            try:
+                                cursor.execute(f"{SQL_GET_ALL_KEYS} LIMIT 10")
+                                keys = [row[0] for row in cursor.fetchall()]
+                                log_debug(
+                                    f"ItemTable keys in {db_path.name}: "
+                                    f"{keys[:5]}{'...' if len(keys) > 5 else ''}"
+                                )
+                            except sqlite3.OperationalError:
+                                pass
+                    else:
+                        log_debug(f"No tables found in {db_path}")
+
                     return 0
 
         except (
@@ -78,110 +111,69 @@ class ConversationCounter:
             return None
 
     @staticmethod
-    def _count_vscode_conversations(cursor: Any) -> int:  # noqa: C901
-        """Count conversations in a Cursor/Windsurf database using ItemTable structure."""
+    def _count_vscode_conversations(cursor: Any) -> int:
+        """Count conversations in a Cursor/Windsurf database using ItemTable."""
         try:
-            # Check for composer data (newer format)
-            cursor.execute(SQL_GET_VALUE_BY_KEY, (CURSOR_KEY_COMPOSER_DATA,))
-            result = cursor.fetchone()
-            if result:
-                try:
-                    composer_data = json.loads(result[0])
-                    if isinstance(composer_data, dict):
-                        all_composers = composer_data.get("allComposers", [])
-                        if all_composers:
-                            log_debug(
-                                f"Found {len(all_composers)} conversations in "
-                                f"composer.composerData"
-                            )
-                            return len(all_composers)
-                except (json.JSONDecodeError, TypeError, KeyError):
-                    pass
+            # Modern Cursor format, try multiple keys for version compatibility
+            log_debug("Checking for Cursor conversation data")
+            for key in CURSOR_CONVERSATION_KEYS:
+                cursor.execute(SQL_GET_VALUE_BY_KEY, (key,))
+                result = cursor.fetchone()
+                if result:
+                    try:
+                        data = json.loads(result[0])
+                        if key == "composer.composerData" and isinstance(data, dict):
+                            # Modern composer format
+                            all_composers = data.get("allComposers", [])
+                            if all_composers:
+                                log_debug(
+                                    f"Found {len(all_composers)} Cursor conversations "
+                                    f"via composer.composerData"
+                                )
+                                return len(all_composers)
+                        elif key == "interactive.sessions" and isinstance(data, list):
+                            # Interactive sessions format
+                            if data:
+                                log_debug(
+                                    f"Found {len(data)} Cursor conversations "
+                                    f"via interactive.sessions"
+                                )
+                                return len(data)
+                    except (json.JSONDecodeError, TypeError, KeyError) as e:
+                        log_debug(f"Failed to parse {key}: {e}")
+                        continue
 
-            # Fallback: Check for aiConversations (older format)
-            cursor.execute(SQL_GET_VALUE_BY_KEY, (CURSOR_KEY_AI_CONVERSATIONS,))
-            result = cursor.fetchone()
-            if result:
-                try:
-                    ai_conversations = json.loads(result[0])
-                    if isinstance(ai_conversations, list):
-                        log_debug(
-                            f"Found {len(ai_conversations)} conversations in "
-                            f"aiConversations"
-                        )
-                        return len(ai_conversations)
-                except (json.JSONDecodeError, TypeError):
-                    pass
+            log_debug("No Cursor conversation data found")
 
-            cursor.execute(SQL_GET_VALUE_BY_KEY, (WINDSURF_KEY_CHAT_SESSION_INDEX,))
-            result = cursor.fetchone()
-            if result:
-                try:
-                    chat_data = json.loads(result[0])
-                    if isinstance(chat_data, dict):
-                        entries = chat_data.get("entries", {})
-                        if entries:
-                            log_debug(f"Found {len(entries)} Windsurf chat sessions")
-                            return len(entries)
-                except (json.JSONDecodeError, TypeError, KeyError):
-                    pass
+            # Modern Windsurf format, try multiple keys for compatibility
+            log_debug("Checking for Windsurf chat session store")
+            chat_data = None
+            for key in WINDSURF_KEY_CHAT_SESSION_STORE:
+                cursor.execute(SQL_GET_VALUE_BY_KEY, (key,))
+                result = cursor.fetchone()
+                if result:
+                    try:
+                        potential_data = json.loads(result[0])
+                        if isinstance(potential_data, dict) and potential_data.get(
+                            "entries"
+                        ):
+                            chat_data = potential_data
+                            log_debug(f"Found Windsurf data using key: {key}")
+                            break
+                    except (json.JSONDecodeError, TypeError):
+                        continue
 
-            # Check alternative Windsurf key
-            cursor.execute(SQL_GET_VALUE_BY_KEY, (WINDSURF_KEY_CHAT_SESSION_STORE,))
-            result = cursor.fetchone()
-            if result:
-                try:
-                    chat_data = json.loads(result[0])
-                    if isinstance(chat_data, dict):
-                        sessions = chat_data.get(
-                            "sessions", chat_data.get("entries", [])
-                        )
-                        if isinstance(sessions, list):
-                            log_debug(f"Found {len(sessions)} Windsurf conversations")
-                            return len(sessions)
-                        elif isinstance(sessions, dict):
-                            log_debug(f"Found {len(sessions)} Windsurf conversations")
-                            return len(sessions)
-                except (json.JSONDecodeError, TypeError, KeyError):
-                    pass
-
-            # Check for prompts/generations that could be reconstructed into conversations
-            cursor.execute(SQL_GET_VALUE_BY_KEY, (CURSOR_KEY_AI_PROMPTS,))
-            prompts_result = cursor.fetchone()
-            cursor.execute(SQL_GET_VALUE_BY_KEY, (CURSOR_KEY_AI_GENERATIONS,))
-            generations_result = cursor.fetchone()
-
-            prompts_count = 0
-            generations_count = 0
-
-            if prompts_result:
-                try:
-                    prompts = json.loads(prompts_result[0])
-                    if isinstance(prompts, list):
-                        prompts_count = len(prompts)
-                except (json.JSONDecodeError, TypeError):
-                    pass
-
-            if generations_result:
-                try:
-                    generations = json.loads(generations_result[0])
-                    if isinstance(generations, list):
-                        generations_count = len(generations)
-                except (json.JSONDecodeError, TypeError):
-                    pass
-
-            # If we have prompts or generations, estimate conversations
-            if prompts_count > 0 or generations_count > 0:
-                estimated_conversations = max(
-                    1, (prompts_count + generations_count) // 4
-                )
-                log_debug(
-                    f"Estimated {estimated_conversations} conversations from "
-                    f"{prompts_count} prompts and {generations_count} generations"
-                )
-                return estimated_conversations
-
-            return 0
+            if chat_data:
+                entries = chat_data.get("entries", {})
+                if isinstance(entries, dict | list):
+                    log_debug(f"Found {len(entries)} Windsurf conversations")
+                    return len(entries)
+                else:
+                    log_debug(f"Windsurf entries is not list/dict: {type(entries)}")
+                    return 0
+            else:
+                log_debug("No Windsurf chat session store found")
+                return 0
 
         except (sqlite3.Error, ValueError, TypeError) as e:
             log_debug(f"Error counting Cursor conversations: {e}")
@@ -201,9 +193,9 @@ class ConversationCounter:
             elif isinstance(data, dict):
                 # Object with conversations field
                 conversations = data.get("conversations", data.get("sessions", []))
-                if isinstance(conversations, list):
+                if isinstance(conversations, list) and conversations:
                     return len(conversations)
-                # Single conversation object
+                # Single conversation object (or empty conversations list)
                 return 1
             else:
                 # Unknown format, assume single conversation
@@ -255,7 +247,7 @@ class ConversationCounter:
                     cursor = conn.cursor()
 
                     # Check for any recognizable table structure
-                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                    cursor.execute(SQL_GET_TABLE_NAMES)
                     tables = [row[0] for row in cursor.fetchall()]
 
                     # Check for ItemTable (Cursor/Windsurf) or conversation tables
@@ -275,7 +267,7 @@ class ConversationCounter:
         """Get detailed information about a database."""
         info = {
             "path": str(db_path),
-            "exists": db_path.exists(),
+            "exists": False,
             "size_bytes": 0,
             "tables": [],
             "conversation_count": None,
@@ -283,28 +275,52 @@ class ConversationCounter:
             "error": None,
         }
 
-        if not info["exists"]:
-            info["error"] = "File does not exist"
-            return info
-
         try:
+            info["exists"] = db_path.exists()
+
+            if not info["exists"]:
+                info["error"] = "File does not exist"
+                return info
+
+            # Get size first, before validation
             info["size_bytes"] = db_path.stat().st_size
-            info["structure_valid"] = ConversationCounter.validate_database_structure(
-                db_path
-            )
+
+            # Validate structure but don't let it stop other info gathering
+            try:
+                info["structure_valid"] = (
+                    ConversationCounter.validate_database_structure(db_path)
+                )
+            except Exception as validation_error:
+                # If validation fails, record error but continue gathering info
+                info["error"] = str(validation_error)
+                info["structure_valid"] = False
 
             if info["structure_valid"]:
                 info["conversation_count"] = (
                     ConversationCounter.count_conversations_sqlite(db_path)
                 )
 
-                # Get table information
+            # Always try to get table information for debugging
+            try:
                 with get_database_connection(db_path) as conn:
                     cursor = conn.cursor()
-                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                    cursor.execute(SQL_GET_TABLE_NAMES)
                     info["tables"] = [row[0] for row in cursor.fetchall()]
+            except (sqlite3.Error, OSError, TimeoutError) as e:
+                # If we can't get tables, leave empty list and log debug info
+                log_debug(f"Could not get table information from {db_path}: {e}")
+                info["tables"] = []
+
+            # Set error only if structure invalid AND no basic info AND no error set
+            if not info["structure_valid"] and not info["tables"] and not info["error"]:
+                info["error"] = "Database structure is invalid or corrupted"
 
         except Exception as e:
-            info["error"] = str(e)
+            # For stat errors, we may still know the file exists
+            if "Stat failed" in str(e):
+                info["exists"] = True
+            # Only set error if not already set by validation
+            if not info["error"]:
+                info["error"] = str(e)
 
         return info

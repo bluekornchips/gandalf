@@ -10,6 +10,13 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from src.config.constants.database import (
+    SQL_CHECK_ITEMTABLE_EXISTS,
+    SQL_COUNT_ITEMTABLE_ROWS,
+    SQL_GET_ALL_KEYS,
+    SQL_GET_TABLE_NAMES,
+    SQL_GET_VALUE_BY_KEY,
+)
 from src.config.constants.windsurf import (
     WINDSURF_CONVERSATION_PATTERNS,
 )
@@ -29,7 +36,7 @@ class DatabaseReader:
         try:
             with get_database_connection(db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
+                cursor.execute(SQL_GET_VALUE_BY_KEY, (key,))
                 result = cursor.fetchone()
                 return json.loads(result[0]) if result else None
         except (sqlite3.Error, json.JSONDecodeError, OSError) as e:
@@ -42,7 +49,7 @@ class DatabaseReader:
         try:
             with get_database_connection(db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT key FROM ItemTable")
+                cursor.execute(SQL_GET_ALL_KEYS)
                 return [row[0] for row in cursor.fetchall()]
         except (sqlite3.Error, OSError) as e:
             if not self.silent:
@@ -68,9 +75,7 @@ class DatabaseReader:
                 cursor = conn.cursor()
 
                 # Check if ItemTable exists
-                cursor.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'"
-                )
+                cursor.execute(SQL_CHECK_ITEMTABLE_EXISTS)
                 table_exists = cursor.fetchone() is not None
 
                 if not table_exists:
@@ -109,7 +114,7 @@ class DatabaseReader:
                 cursor = conn.cursor()
 
                 # Get table names
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                cursor.execute(SQL_GET_TABLE_NAMES)
                 metadata["tables"] = [row[0] for row in cursor.fetchall()]
 
                 # Check if accessible (has ItemTable)
@@ -150,7 +155,7 @@ class DatabaseReader:
                 cursor = conn.cursor()
 
                 # Test basic query
-                cursor.execute("SELECT COUNT(*) FROM ItemTable")
+                cursor.execute(SQL_COUNT_ITEMTABLE_ROWS)
                 row_count = cursor.fetchone()[0]
 
                 result["success"] = True

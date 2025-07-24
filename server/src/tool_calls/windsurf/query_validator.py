@@ -5,12 +5,14 @@ This module provides validation functionality for Windsurf conversation data
 and database integrity checks.
 """
 
-import json
 import sqlite3
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.database import DATABASE_OPERATION_TIMEOUT
+from src.config.constants.database import (
+    DATABASE_OPERATION_TIMEOUT,
+    SQL_GET_TABLE_NAMES,
+)
 from src.config.constants.limits import MAX_QUERY_LENGTH, MAX_STRING_LENGTH
 from src.config.constants.windsurf import (
     WINDSURF_CONTENT_KEYS,
@@ -19,7 +21,7 @@ from src.config.constants.windsurf import (
     WINDSURF_STRONG_CONVERSATION_INDICATORS,
 )
 from src.utils.access_control import AccessValidator
-from src.utils.common import log_debug, log_error
+from src.utils.common import format_json_response, log_debug, log_error
 
 
 class ConversationValidator:
@@ -214,7 +216,7 @@ class ConversationValidator:
                 cursor = conn.cursor()
 
                 # Check if it's a valid SQLite database
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                cursor.execute(SQL_GET_TABLE_NAMES)
                 tables = cursor.fetchall()
 
                 if not tables:
@@ -302,4 +304,4 @@ class ConversationValidator:
             },
         }
 
-        return AccessValidator.create_error_response(json.dumps(error_data, indent=2))
+        return AccessValidator.create_error_response(format_json_response(error_data))

@@ -279,9 +279,9 @@ class TestConversationRecall:
             result = handle_recall_cursor_conversations(arguments, project_root)
             # If it doesn't raise an exception, check for error content
             assert "content" in result or "isError" in result
-        except Exception:
-            # If it does raise an exception, that's also acceptable behavior
-            pass
+        except (ValueError, RuntimeError, ConnectionError) as e:
+            # If it does raise a specific exception, that's also acceptable behavior
+            assert str(e) or isinstance(e, ValueError | RuntimeError | ConnectionError)
 
     @patch("src.utils.cursor_chat_query.CursorQuery")
     def test_recall_cursor_conversations_empty_result(self, mock_cursor_query):

@@ -223,6 +223,13 @@ class ClaudeScanner:
 
         return databases
 
+    def _matches_claude_pattern(self, file_path: Path) -> bool:
+        """Check if file matches Claude Code conversation patterns."""
+        return any(
+            file_path.name.endswith(pattern.lstrip("*").split("/")[-1])
+            for pattern in CLAUDE_CONVERSATION_PATTERNS
+        )
+
     def _create_claude_database(self, conv_file: Path) -> ConversationDatabase:
         """Create ConversationDatabase entry for Claude Code file."""
         stat = conv_file.stat()
@@ -317,6 +324,13 @@ class WindsurfScanner:
             log_error(e, "scanning Windsurf databases")
 
         return databases
+
+    def _matches_windsurf_pattern(self, file_path: Path) -> bool:
+        """Check if file matches Windsurf database patterns."""
+        return any(
+            file_path.name.endswith(pattern.lstrip("*"))
+            for pattern in WINDSURF_DB_PATTERNS
+        )
 
     def _create_windsurf_database(self, db_file: Path) -> ConversationDatabase:
         """Create ConversationDatabase entry for Windsurf database."""

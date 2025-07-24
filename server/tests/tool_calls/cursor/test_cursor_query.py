@@ -1,6 +1,5 @@
 """Test cursor query functionality."""
 
-import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 

@@ -234,6 +234,24 @@ detect_agentic_tool() {
 	fi
 }
 
+detect_all_agentic_tools() {
+	local detected_tools=()
+
+	if command -v cursor &>/dev/null; then
+		detected_tools+=("cursor")
+	fi
+
+	if command -v claude &>/dev/null; then
+		detected_tools+=("claude-code")
+	fi
+
+	if command -v windsurf &>/dev/null; then
+		detected_tools+=("windsurf")
+	fi
+
+	printf '%s\n' "${detected_tools[@]}"
+}
+
 check_required_tools() {
 	local -a required_tools=("git" "python3")
 	local -a missing_tools=()
@@ -715,6 +733,44 @@ create_windsurf_rules() {
 	fi
 }
 
+register_all_available_tools() {
+	echo "Detecting and registering all available agentic tools..."
+
+	local -a available_tools
+	mapfile -t available_tools < <(detect_all_agentic_tools)
+
+	if [[ ${#available_tools[@]} -eq 0 ]]; then
+		echo "Warning: No agentic tools detected for registry" >&2
+		return 1
+	fi
+
+	echo "Found ${#available_tools[@]} available tools: ${available_tools[*]}"
+
+	local success_count=0
+	local total_count=${#available_tools[@]}
+
+	for tool in "${available_tools[@]}"; do
+		echo "Registering $tool..."
+		if "$SCRIPTS_DIR/registry" auto-register "$tool"; then
+			echo "Successfully registered $tool"
+			((success_count++))
+		else
+			echo "Warning: Failed to register $tool" >&2
+		fi
+	done
+
+	echo "Registry summary: $success_count/$total_count tools registered successfully"
+
+	if [[ $success_count -gt 0 ]]; then
+		echo "Registry contains:"
+		"$SCRIPTS_DIR/registry" list
+		return 0
+	else
+		echo "Error: No tools were registered successfully" >&2
+		return 1
+	fi
+}
+
 check_server_connectivity() {
 	local max_attempts="${1:-$DEFAULT_MAX_ATTEMPTS}"
 	local wait_time="${2:-$DEFAULT_WAIT_TIME}"
@@ -866,9 +922,9 @@ main() {
 		echo "Warning: Rules file creation failed, but continuing..." >&2
 	fi
 
-	# Initialize agentic tools registry
+	# Initialize agentic tools registry with all available tools
 	echo "Initializing agentic tools registry..."
-	if "$SCRIPTS_DIR/registry" auto-register; then
+	if register_all_available_tools; then
 		echo "Registry initialization completed successfully"
 	else
 		echo "Warning: Registry initialization failed, but continuing..." >&2
