@@ -10,12 +10,12 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from src.config.config_data import TECHNOLOGY_KEYWORD_MAPPING
-from src.config.constants.conversation import (
+from src.config.conversation_config import (
     CONVERSATION_KEYWORD_CHECK_LIMIT,
     CONVERSATION_PROGRESS_LOG_INTERVAL,
     CONVERSATION_TEXT_EXTRACTION_LIMIT,
 )
-from src.config.constants.database import (
+from src.config.tool_config import (
     DATABASE_STRUCTURE_LIMITATION_NOTE,
 )
 from src.utils.access_control import AccessValidator

@@ -7,7 +7,7 @@ modeled after the different regions of Middle-earth.
 
 import pytest
 
-from src.config.constants.schema_defaults import (
+from src.config.core_constants import (
     DEFAULT_DIRECTORIES,
     DEFAULT_FILE_EXTENSIONS,
     DEFAULT_FILE_REF_SCORE,

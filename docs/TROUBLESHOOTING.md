@@ -6,7 +6,7 @@ Quick solutions for common Gandalf MCP Server issues.
 
 ```bash
 ./gandalf test
-./gandalf lembas --all
+./gandalf lembas
 cat ~/.gandalf/installation-state
 ```
 
@@ -122,7 +122,7 @@ rm -rf ~/.gandalf/cache/*
 
 ## Getting Help
 
-Run diagnostics: `./gandalf lembas --all`
+Run diagnostics: `./gandalf lembas`
 
 Create GitHub issue with:
 

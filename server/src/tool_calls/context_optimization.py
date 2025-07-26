@@ -5,15 +5,20 @@ This module handles token optimization, response size management,
 and context-aware processing for large conversation datasets.
 """
 
-import json
-from typing import Any
-
-from src.config.constants.context import (
+# Use common imports for frequently used utilities
+from src.common_imports import (
     TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS,
+    Any,
+    json,
+    log_debug,
+    log_info,
+)
+
+# Specific imports not in common_imports
+from src.config.conversation_config import (
     TOKEN_OPTIMIZATION_MAX_RESPONSE_SIZE,
     TOKEN_OPTIMIZATION_SUMMARY_MODE_THRESHOLD,
 )
-from src.utils.common import log_debug, log_info
 
 
 def optimize_context_keywords(

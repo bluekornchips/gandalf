@@ -10,15 +10,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.cache import (
-    CONVERSATION_CACHE_MAX_SIZE_MB,
-    CONVERSATION_CACHE_MIN_SIZE,
-    CONVERSATION_CACHE_TTL_HOURS,
-)
-from src.config.constants.paths import (
+from src.config.core_constants import (
     CONVERSATION_CACHE_DIR,
     CONVERSATION_CACHE_FILE,
+    CONVERSATION_CACHE_MAX_SIZE_MB,
     CONVERSATION_CACHE_METADATA_FILE,
+    CONVERSATION_CACHE_MIN_SIZE,
+    CONVERSATION_CACHE_TTL_HOURS,
 )
 from src.core.keyword_extractor import generate_shared_context_keywords
 from src.utils.common import log_debug, log_error, log_info

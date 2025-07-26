@@ -550,185 +550,26 @@ install_for_all_tools() {
 }
 
 create_rules_files() {
-	echo "Creating global rules files for all supported tools..."
+	echo "Creating global rules files using create-rules script..."
 
-	# Create necessary directories
-	local -a rule_dirs=("$HOME/.cursor/rules" "$HOME/.claude" "$HOME/.windsurf")
-	for dir in "${rule_dirs[@]}"; do
-		mkdir -p "$dir" || {
-			echo "Warning: Failed to create rules directory: $dir" >&2
-		}
-	done
+	local create_rules_script="$SCRIPTS_DIR/create-rules"
 
-	local spec_dir="${GANDALF_SPEC_OVERRIDE:-$GANDALF_ROOT/spec}"
-
-	local workflows_file="$spec_dir/rules/core.md"
-	local troubleshooting_file="$spec_dir/rules/troubleshooting.md"
-
-	# Check if any rules files exist
-	if [[ ! -f "$workflows_file" && ! -f "$troubleshooting_file" ]]; then
-		echo "Warning: No rules files found in $spec_dir" >&2
+	if [[ ! -f "$create_rules_script" ]]; then
+		echo "Warning: create-rules script not found: $create_rules_script" >&2
 		echo "Skipping rules file creation"
 		return 0
 	fi
 
-	echo "Found rules files in $spec_dir"
-
-	# Combine the rule files into a single file
-	local combined_rules=""
-	if [[ -f "$workflows_file" ]]; then
-		combined_rules="$(cat "$workflows_file")"
-	fi
-	if [[ -f "$troubleshooting_file" ]]; then
-		if [[ -n "$combined_rules" ]]; then
-			combined_rules="$combined_rules"$'\n\n'"$(cat "$troubleshooting_file")"
-		else
-			combined_rules="$(cat "$troubleshooting_file")"
-		fi
+	local force_flag=""
+	if [[ "${FORCE:-false}" == "true" ]]; then
+		force_flag="--force"
 	fi
 
-	local cursor_success=false
-	local claude_success=false
-	local windsurf_success=false
-
-	# Create rules for each tool using the combined content
-	if create_cursor_rules "$combined_rules"; then
-		cursor_success=true
-		echo "Installing for Cursor IDE"
-	fi
-
-	if create_claude_rules "$combined_rules"; then
-		claude_success=true
-		echo "Installing for Claude Code"
-	fi
-
-	if create_windsurf_rules "$combined_rules"; then
-		windsurf_success=true
-		echo "Installing for Windsurf IDE"
-	fi
-
-	if [[ "$cursor_success" = true || "$claude_success" = true || "$windsurf_success" = true ]]; then
-		echo "Global Rules Files Created:"
-		[[ "$cursor_success" = true ]] && echo "Cursor: $HOME/.cursor/rules/$MCP_SERVER_NAME-rules.mdc"
-		[[ "$claude_success" = true ]] && echo "Claude Code: $HOME/.claude/global_settings.json"
-		[[ "$windsurf_success" = true ]] && echo "Windsurf: $HOME/.windsurf/global_rules.md"
-		echo "See spec/rules/core.md and spec/rules/troubleshooting.md for complete documentation"
-	fi
-
-	return 0
-}
-
-create_cursor_rules() {
-	local rules_content="$1"
-	local rules_dir="$HOME/.cursor/rules"
-
-	local rules_file="$rules_dir/$MCP_SERVER_NAME-rules.mdc"
-
-	if [[ -f "$rules_file" ]] && [[ "${FORCE:-false}" != "true" ]]; then
-		echo "Cursor rules file already exists: $rules_file"
-		return 0
-	fi
-
-	if printf '%s' "$rules_content" >"$rules_file"; then
-		echo "Created Cursor rules file: $rules_file"
+	if "$create_rules_script" $force_flag; then
+		echo "Rules creation completed successfully"
 		return 0
 	else
-		echo "Error: Failed to create Cursor rules file" >&2
-		return 1
-	fi
-}
-
-create_claude_rules() {
-	local rules_content="$1"
-	local rules_dir="$HOME/.claude"
-
-	local settings_file="$rules_dir/global_settings.json"
-
-	if [[ -f "$settings_file" ]] && [[ "${FORCE:-false}" != "true" ]]; then
-		echo "Claude Code settings file already exists: $settings_file"
-		return 0
-	fi
-
-	# Create backup if file exists
-	if [[ -f "$settings_file" ]]; then
-		local backup_file="$settings_file.backup.$(date +%s)"
-		if cp "$settings_file" "$backup_file"; then
-			echo "Backed up existing Claude Code settings: $backup_file"
-		else
-			echo "Warning: Failed to create backup, continuing..." >&2
-		fi
-	fi
-
-	# Use Python for proper JSON escaping if available
-	local escaped_content
-	if command -v python3 &>/dev/null; then
-		escaped_content=$(python3 -c "import json; import sys; print(json.dumps(sys.stdin.read()))" <<<"$rules_content") || {
-			echo "Error: Failed to escape JSON content with Python" >&2
-			return 1
-		}
-	else
-		# Fallback escaping with proper control character handling
-		escaped_content=$(printf '%s' "$rules_content" |
-			sed 's/\\/\\\\/g' |
-			sed 's/"/\\"/g' |
-			sed 's/\t/\\t/g' |
-			sed 's/\r/\\r/g' |
-			sed 's/\f/\\f/g' |
-			sed 's/\b/\\b/g' |
-			sed ':a;N;$!ba;s/\n/\\n/g')
-		escaped_content="\"$escaped_content\""
-	fi
-
-	cat >"$settings_file" <<EOF
-{
-    "permissions": {
-        "allow": [
-            "Bash(*)",
-            "Edit(*)",
-            "Read(*)",
-            "Write(*)"
-        ]
-    },
-    "gandalfRules": $escaped_content
-}
-EOF
-
-	echo "Created Claude Code settings file: $settings_file"
-	return 0
-}
-
-create_windsurf_rules() {
-	local rules_content="$1"
-	local rules_dir="$HOME/.windsurf"
-
-	local rules_file="$rules_dir/global_rules.md"
-
-	if [[ -f "$rules_file" ]] && [[ "${FORCE:-false}" != "true" ]]; then
-		echo "Windsurf rules file already exists: $rules_file"
-		return 0
-	fi
-
-	# Check Windsurf character limit
-	local char_count=${#rules_content}
-	local max_chars=6000
-
-	if [[ $char_count -gt $max_chars ]]; then
-		echo "Warning: Rules content ($char_count chars) exceeds Windsurf limit ($max_chars chars)" >&2
-		echo "Truncating content for Windsurf compatibility"
-
-		local truncation_message=$'\n\n# Note: Content truncated to fit Windsurf 6000 character limit\n# Full rules available in Cursor and Claude Code configurations\n# See spec/rules/core.md for complete documentation'
-		local message_length=${#truncation_message}
-		local max_content_length=$((max_chars - message_length - 10))
-
-		rules_content=$(printf '%s' "$rules_content" | head -c "$max_content_length")
-		rules_content="$rules_content$truncation_message"
-	fi
-
-	if printf '%s' "$rules_content" >"$rules_file"; then
-		echo "Created Windsurf rules file: $rules_file (${#rules_content}/$max_chars chars)"
-		return 0
-	else
-		echo "Error: Failed to create Windsurf rules file" >&2
+		echo "Warning: Rules creation failed" >&2
 		return 1
 	fi
 }

@@ -417,13 +417,13 @@ class TestCursorIntegration:
         }
 
         with patch(
-            "src.core.registry.get_registry_path",
-            return_value=self.registry_file,
+            "src.core.tool_registry.get_registered_agentic_tools",
+            return_value=["cursor", "claude-code"],
         ):
             self.registry_file.write_text(json.dumps(registry_content))
 
             # Test that registry can be read properly
-            from src.core.registry import get_registered_agentic_tools
+            from src.core.tool_registry import get_registered_agentic_tools
 
             registered_tools = get_registered_agentic_tools()
 

@@ -1,6 +1,6 @@
 """Test JSONRPC constants and enums."""
 
-from src.config.constants.server_config import JSONRPC_VERSION
+from src.config.core_constants import JSONRPC_VERSION
 from src.config.enums import ErrorCodes
 
 

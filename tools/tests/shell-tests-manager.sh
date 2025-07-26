@@ -7,6 +7,8 @@ readonly SHELL_MANAGER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${0}}")" && pwd -
 readonly GANDALF_ROOT="$(cd "$SHELL_MANAGER_DIR/../.." && pwd -P)"
 readonly TESTS_DIR="$GANDALF_ROOT/tools/tests"
 
+
+
 declare -A SHELL_TEST_SUITES=(
 	["platform-compatibility"]="Cross-platform compatibility and path detection"
 	["core"]="Core MCP server functionality"
@@ -19,9 +21,27 @@ declare -A SHELL_TEST_SUITES=(
 	["security"]="Security validation and edge cases"
 	["performance"]="Performance and load testing"
 	["integration"]="Integration tests"
-	["install"]="Install script functionality and multi-tool rules creation"
+	["install"]="MCP server installation and configuration"
+	["create-rules"]="Rules creation for Cursor, Claude Code, and Windsurf"
 	["uninstall"]="Uninstall script functionality and cleanup operations"
 )
+
+# Function to get test suite description
+get_test_suite_description() {
+	local suite="$1"
+	echo "${SHELL_TEST_SUITES[$suite]}"
+}
+
+# Function to get all test suite names
+get_all_test_suites() {
+	echo "${!SHELL_TEST_SUITES[@]}"
+}
+
+# Function to check if test suite exists
+test_suite_exists() {
+	local suite="$1"
+	echo "${SHELL_TEST_SUITES[$suite]}"
+}
 
 source "$GANDALF_ROOT/tools/lib/test-helpers.sh"
 
@@ -30,14 +50,35 @@ DEPENDENCIES_CHECKED=false
 validate_positive_integer() {
 	local value="$1"
 	local name="$2"
+	local max_value="${3:-}"
+
+	source "$GANDALF_ROOT/tools/config/test-config.sh"
 
 	if [[ ! "$value" =~ ^[0-9]+$ ]]; then
-		echo "ERROR: $name must be a positive integer" >&2
+		echo "$name must be a positive integer" >&2
 		return 1
 	fi
 
 	if [[ "$value" -le 0 ]]; then
-		echo "ERROR: $name must be greater than 0" >&2
+		echo "$name must be greater than 0" >&2
+		return 1
+	fi
+
+	# Apply timeout bounds validation for timeout parameters
+	if [[ "$name" == *"timeout"* ]]; then
+		if [[ "$value" -lt $MIN_TIMEOUT_VALUE ]]; then
+			echo "$name must be at least $MIN_TIMEOUT_VALUE seconds" >&2
+			return 1
+		fi
+
+		if [[ "$value" -gt $MAX_TIMEOUT_VALUE ]]; then
+			echo "$name cannot exceed $MAX_TIMEOUT_VALUE seconds" >&2
+			return 1
+		fi
+	fi
+
+	if [[ -n "$max_value" && "$value" -gt "$max_value" ]]; then
+		echo "$name cannot exceed $max_value" >&2
 		return 1
 	fi
 }
@@ -106,7 +147,7 @@ cleanup_test_environment() {
 get_existing_suites() {
 	local suites=()
 
-	for suite in "${!SHELL_TEST_SUITES[@]}"; do
+	for suite in $(get_all_test_suites); do
 		if suite_exists "$suite"; then
 			suites+=("$suite")
 		else
@@ -122,7 +163,10 @@ check_dependencies() {
 	[[ "$DEPENDENCIES_CHECKED" == "true" ]] && return 0
 
 	echo "Checking test dependencies..." >&2
-	if ! timeout 10 bash -c "source '$GANDALF_ROOT/tools/lib/test-helpers.sh' && check_test_dependencies"; then
+	# Source centralized configuration
+	source "$GANDALF_ROOT/tools/config/test-config.sh"
+
+	if ! timeout "$TEST_TIMEOUT_DEPENDENCY_CHECK" bash -c "source '$GANDALF_ROOT/tools/lib/test-helpers.sh' && check_test_dependencies"; then
 		echo "Test dependencies not satisfied. Aborting test run." >&2
 		return 1
 	fi
@@ -144,13 +188,9 @@ is_valid_test_suite() {
 
 list_suites() {
 	local suite
-	for suite in "${!SHELL_TEST_SUITES[@]}"; do
-		echo "$suite ${SHELL_TEST_SUITES[$suite]}"
+	for suite in $(get_all_test_suites); do
+		echo "$suite $(get_test_suite_description "$suite")"
 	done
-}
-
-get_all_suites() {
-	printf '%s\n' "${!SHELL_TEST_SUITES[@]}"
 }
 
 get_test_file() {
@@ -195,7 +235,7 @@ count_all_tests() {
 	local total=0
 	local suite
 
-	for suite in "${!SHELL_TEST_SUITES[@]}"; do
+	for suite in $(get_all_test_suites); do
 		if suite_exists "$suite"; then
 			local count
 			count=$(count_suite_tests "$suite")
@@ -205,6 +245,8 @@ count_all_tests() {
 
 	echo "$total"
 }
+
+
 
 run_suite() {
 	local suite="$1"
@@ -225,10 +267,12 @@ run_suite() {
 		return 0
 	fi
 
-	echo "Running ${SHELL_TEST_SUITES[$suite]}"
+	echo "Running $(get_test_suite_description "$suite")"
 
-	local bats_args_array
-	readarray -t bats_args_array < <(prepare_bats_args "$verbose" "$timing")
+	local bats_args_array=()
+	while IFS= read -r arg; do
+		bats_args_array+=("$arg")
+	done < <(prepare_bats_args "$verbose" "$timing")
 
 	local start_time end_time duration
 	start_time=$(date +%s)
@@ -237,7 +281,11 @@ run_suite() {
 	local temp_dir
 	temp_dir=$(setup_test_environment "$suite")
 
-	if ! timeout 300 bats "${bats_args_array[@]}" "$TESTS_DIR/$test_file"; then
+	if [[ -z "${TEST_TIMEOUT_INTEGRATION:-}" ]]; then
+		source "$GANDALF_ROOT/tools/config/test-config.sh"
+	fi
+
+	if ! timeout "$TEST_TIMEOUT_INTEGRATION" bats "${bats_args_array[@]}" "$TESTS_DIR/$test_file"; then
 		exit_code=1
 	fi
 
@@ -270,7 +318,6 @@ run_all_tests() {
 	local total_failed=0
 	local failed_suites=()
 
-	# Get the list of existing suites first
 	local suites_list
 	suites_list=$(get_existing_suites)
 
@@ -321,7 +368,7 @@ Tests (bats):
 EOF
 
 	local suite
-	for suite in $(printf '%s\n' "${!SHELL_TEST_SUITES[@]}" | sort); do
+	for suite in $(get_all_test_suites | sort); do
 		if suite_exists "$suite"; then
 			printf "%-15s %s\n" "$suite:" "$(count_suite_tests "$suite")"
 		else
@@ -366,7 +413,7 @@ main() {
 		--timing | -t)
 			timing=true
 			shift
-			;;
+			;;  
 		run)
 			action="run"
 			shift
@@ -409,7 +456,7 @@ main() {
 				fi
 			else
 				echo "Error: Invalid test suite: $suite" >&2
-				echo "Available suites: $(get_all_suites | tr '\n' ' ')" >&2
+				echo "Available suites: $(get_all_test_suites | tr '\n' ' ')" >&2
 				exit 1
 			fi
 		else
@@ -443,14 +490,12 @@ OPTIONS:
     --list, -l      List available test suites
     --count, -c     Show test counts for each suite
     --verbose, -v   Enable verbose output
-    --timing, -t    Show timing information
+    --timing, -t    Show execution timing
 
 EXAMPLES:
-    $0                              # Run all tests
-    $0 run core                     # Run only core test suite
-    $0 --verbose --timing run core  # Run core tests with verbose output and timing
-    $0 --list                       # List available test suites
-    $0 --count                      # Show test counts
+    $0                          # Run all tests
+    $0 run core                 # Run only core tests
+    $0 --verbose --timing       # Run with detailed output
 
 AVAILABLE SUITES:
 EOF

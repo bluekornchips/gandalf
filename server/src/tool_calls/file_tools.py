@@ -6,14 +6,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.context import (
+from src.config.conversation_config import (
     HIGH_PRIORITY_DISPLAY_LIMIT,
     LOW_PRIORITY_DISPLAY_LIMIT,
     MAX_FILES_LIMIT,
     MEDIUM_PRIORITY_DISPLAY_LIMIT,
     TOP_FILES_DISPLAY_LIMIT,
 )
-from src.config.constants.limits import (
+from src.config.core_constants import (
     MAX_FILE_TYPES,
     MAX_PROJECT_FILES,
 )

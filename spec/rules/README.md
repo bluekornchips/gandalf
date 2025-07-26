@@ -6,8 +6,7 @@ Agent behavior rules for development tools using Gandalf MCP Server.
 
 ```bash
 # Edit rules
-spec/rules/core.md             # Core workflows
-spec/rules/troubleshooting.md  # Error recovery
+spec/rules/gandalf-rules.md    # All workflows and recovery
 
 # Deploy rules
 ./gandalf install --force
@@ -18,11 +17,10 @@ spec/rules/troubleshooting.md  # Error recovery
 
 ## Rule Files
 
-| File                 | Purpose                              | Activation         |
-| -------------------- | ------------------------------------ | ------------------ |
-| `core.md`            | Primary workflows and decision trees | Always active      |
-| `troubleshooting.md` | Error recovery and diagnostics       | Smart activation   |
-| `README.md`          | Documentation (this file)            | Documentation only |
+| File               | Purpose                                 | Activation         |
+| ------------------ | --------------------------------------- | ------------------ |
+| `gandalf-rules.md` | Complete rule system with all workflows | Always active      |
+| `README.md`        | Documentation (this file)               | Documentation only |
 
 ## Deployment
 
@@ -36,30 +34,30 @@ Rules are deployed differently per tool:
 
 ## Rule Structure
 
-### Core Workflows, [core.md](./core.md)
+### Complete Rule System, [gandalf-rules.md](./gandalf-rules.md)
 
-- Always active, across all tools
-- Defines primary decision trees
-- Performance optimization guidelines
-- Best practices for tool usage
+The single rule file contains:
 
-### Troubleshooting, [troubleshooting.md](./troubleshooting.md)
-
-- Smart activation on error conditions
-- Error recovery procedures
-- Common issue resolution
-- Diagnostic workflows
+- **Section 1**: Core workflows (always active)
+- **Section 2**: Advanced operations for multi-tool coordination
+- **Section 3**: Performance optimization with auto-scaling parameters
+- **Section 4**: Error recovery with smart activation triggers
+- **Section 5**: Best practices integration
+- **Section 6**: Troubleshooting reference
 
 ## Management Commands
 
 ```bash
-# Edit
-vim spec/rules/core.md
-vim spec/rules/troubleshooting.md
+# Edit rules
+vim spec/rules/gandalf-rules.md
 
 # Deploy to all tools
 ./gandalf install --force
 
-# Test
+# Test deployment
 ./gandalf test install
+
+# Verify functionality
+get_project_info(include_stats=true)
+recall_conversations(fast_mode=true, limit=5)
 ```

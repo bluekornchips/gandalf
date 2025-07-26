@@ -8,8 +8,7 @@ from enum import IntEnum
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.paths import GANDALF_HOME
-from src.config.constants.server_config import DEBUG_LOGGING, MCP_SERVER_NAME
+from src.config.core_constants import DEBUG_LOGGING, GANDALF_HOME, MCP_SERVER_NAME
 
 
 def is_ci_environment() -> bool:
@@ -149,7 +148,7 @@ def write_log(
     if not _log_file_path:
         if DEBUG_LOGGING:
             print(
-                f"GANDALF_LOG_DEBUG: No log file path - {level}: {message}",
+                f"No log file path - {level}: {message}",
                 file=sys.stderr,
             )
         return
@@ -178,13 +177,13 @@ def write_log(
 
     except OSError as e:
         if DEBUG_LOGGING:
-            print(f"GANDALF_LOG_ERROR: {e}", file=sys.stderr)
+            print(f"Log write failed: {e}", file=sys.stderr)
     except UnicodeEncodeError as e:
         if DEBUG_LOGGING:
-            print(f"GANDALF_ENCODING_ERROR: {e}", file=sys.stderr)
+            print(f"Encoding failed: {e}", file=sys.stderr)
     except TypeError as e:
         if DEBUG_LOGGING:
-            print(f"GANDALF_TYPE_ERROR: {e}", file=sys.stderr)
+            print(f"Type error in logging: {e}", file=sys.stderr)
 
 
 def log_debug(

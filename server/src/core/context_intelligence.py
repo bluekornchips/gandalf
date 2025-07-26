@@ -6,11 +6,11 @@ import time
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.context import (
+from src.config.conversation_config import (
     CONTEXT_FILE_SIZE_ACCEPTABLE_MAX,
     CONTEXT_TOP_FILES_COUNT,
 )
-from src.config.constants.limits import CONTEXT_MIN_SCORE
+from src.config.core_constants import CONTEXT_MIN_SCORE
 from src.config.weights import WeightsManager
 from src.core.git_activity import GitActivityTracker
 from src.utils.common import log_debug

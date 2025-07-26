@@ -12,7 +12,7 @@ from src.config.config_data import (
     EXCLUDE_DIRECTORIES,
     EXCLUDE_FILE_PATTERNS,
 )
-from src.config.constants.limits import (
+from src.config.core_constants import (
     FIND_COMMAND_TIMEOUT,
     MAX_PROJECT_FILES,
 )

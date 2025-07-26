@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from src.config.config_data import TECHNOLOGY_KEYWORD_MAPPING
-from src.config.constants.database import DATABASE_STRUCTURE_LIMITATION_NOTE
+from src.config.tool_config import DATABASE_STRUCTURE_LIMITATION_NOTE
 from src.core.conversation_analysis import generate_shared_context_keywords
 from src.core.conversation_filtering import apply_conversation_filtering
 from src.tool_calls.cursor.conversation_analyzer import (

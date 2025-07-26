@@ -10,14 +10,12 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.database import (
+from src.config.tool_config import (
     SQL_CHECK_ITEMTABLE_EXISTS,
     SQL_COUNT_ITEMTABLE_ROWS,
     SQL_GET_ALL_KEYS,
     SQL_GET_TABLE_NAMES,
     SQL_GET_VALUE_BY_KEY,
-)
-from src.config.constants.windsurf import (
     WINDSURF_CONVERSATION_PATTERNS,
 )
 from src.utils.common import log_error

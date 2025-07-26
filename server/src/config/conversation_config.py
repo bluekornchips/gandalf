@@ -1,6 +1,32 @@
-"""Conversation processing configuration, patterns, and analysis."""
+"""Conversation processing and analysis configuration.
+
+This module contains all conversation-related settings, patterns, analysis parameters,
+context intelligence configuration, and agentic tool definitions.
+"""
 
 import os
+from typing import Final
+
+# ============================================================================
+# AGENTIC TOOL CONFIGURATION
+# ============================================================================
+
+# Supported Tools
+AGENTIC_TOOL_CURSOR = "cursor"
+AGENTIC_TOOL_CLAUDE_CODE = "claude-code"
+AGENTIC_TOOL_WINDSURF = "windsurf"
+SUPPORTED_AGENTIC_TOOLS = [
+    AGENTIC_TOOL_CURSOR,
+    AGENTIC_TOOL_CLAUDE_CODE,
+    AGENTIC_TOOL_WINDSURF,
+]
+
+# Registry
+REGISTRY_FILENAME = "registry.json"
+
+# ============================================================================
+# CONVERSATION DEFAULT BEHAVIOR SETTINGS
+# ============================================================================
 
 # Default behavior settings
 CONVERSATION_DEFAULT_FAST_MODE = True
@@ -22,6 +48,10 @@ CONVERSATION_KEYWORD_MATCH_ENABLED = (
     os.getenv("GANDALF_CONVERSATION_KEYWORD_MATCH_ENABLED", "false").lower() == "true"
 )
 
+# ============================================================================
+# CONVERSATION PROCESSING LIMITS
+# ============================================================================
+
 # Keyword extraction limits
 CONVERSATION_KEYWORD_EXTRACTION_LIMIT = 10
 
@@ -40,35 +70,13 @@ CONVERSATION_TITLE_DISPLAY_LIMIT = 100
 CONVERSATION_MATCHES_OUTPUT_LIMIT = 100
 CONVERSATION_PATTERN_MATCHES_LIMIT = 50
 
-# Optional fields for conversation standardization
-CONVERSATION_OPTIONAL_FIELDS = [
-    "snippet",
-    "conversation_type",
-    "tags",
-    "analysis",
-    "workspace_id",
-    "database_path",
-    "session_data",
-    "session_id",
-    "project_context",
-    "context",
-    "source",
-    "windsurf_source",
-    "chat_session_id",
-    "windsurf_metadata",
-    "ai_model",
-    "user_query",
-    "ai_response",
-    "file_references",
-    "code_blocks",
-    "metadata",
-    "keyword_matches",
-    "updated_at",
-]
-
 # Domain word filtering
 CONVERSATION_DOMAIN_WORD_LIMIT = 100
 CONVERSATION_DOMAIN_WORD_MIN_LENGTH = 3
+
+# ============================================================================
+# CONVERSATION DETECTION PATTERNS
+# ============================================================================
 
 # Conversation detection patterns
 CONVERSATION_PATTERNS = {
@@ -112,6 +120,36 @@ CONVERSATION_TECH_PATTERNS = [
     r"\b(debug|debugging|error|exception|bug|issue|problem)\b",
     r"\b(refactor|refactoring|architecture|design|pattern|structure)\b",
     r"\b(performance|optimization|scalability|security|authentication)\b",
+]
+
+# ============================================================================
+# CONVERSATION STANDARDIZATION
+# ============================================================================
+
+# Optional fields for conversation standardization
+CONVERSATION_OPTIONAL_FIELDS = [
+    "snippet",
+    "conversation_type",
+    "tags",
+    "analysis",
+    "workspace_id",
+    "database_path",
+    "session_data",
+    "session_id",
+    "project_context",
+    "context",
+    "source",
+    "windsurf_source",
+    "chat_session_id",
+    "windsurf_metadata",
+    "ai_model",
+    "user_query",
+    "ai_response",
+    "file_references",
+    "code_blocks",
+    "metadata",
+    "keyword_matches",
+    "updated_at",
 ]
 
 # Domain word exclusions - stop words filtered during keyword extraction
@@ -213,6 +251,9 @@ CONVERSATION_DOMAIN_WORD_EXCLUSIONS = {
     "we",
 }
 
+# ============================================================================
+# CONTEXT ANALYSIS CONFIGURATION
+# ============================================================================
 
 # Context analysis scoring thresholds
 CONTEXT_ANALYSIS_MIN_SCORE = 0.1
@@ -230,3 +271,59 @@ CONTEXT_ANALYSIS_BATCH_SIZE = 20
 # Export format choices
 CONVERSATION_EXPORT_FORMATS = ["json", "markdown", "cursor"]
 CONVERSATION_EXPORT_FORMAT_DEFAULT = "json"
+
+# ============================================================================
+# CONTEXT INTELLIGENCE CONFIGURATION
+# ============================================================================
+
+CONTEXT_KEYWORD_MAX_COUNT: Final[int] = 15
+CONTEXT_MAX_FILES_TO_CHECK: Final[int] = 50
+CONTEXT_MIN_EXTENSIONS_BEFORE_DEEP_SCAN: Final[int] = 3
+CONTEXT_KEYWORDS_QUICK_LIMIT: Final[int] = 10
+
+# File size constants for context analysis
+CONTEXT_FILE_SIZE_ACCEPTABLE_MAX: Final[int] = 10_000_000  # 10MB
+CONTEXT_FILE_SIZE_OPTIMAL_MAX: Final[int] = 1_000_000  # 1MB
+CONTEXT_TOP_FILES_COUNT: Final[int] = 20
+
+# Token optimization configuration
+TOKEN_OPTIMIZATION_MAX_RESPONSE_SIZE: Final[int] = 16_000
+TOKEN_OPTIMIZATION_CONTENT_TRUNCATION_LIMIT: Final[int] = 1_000
+TOKEN_OPTIMIZATION_SUMMARY_MODE_THRESHOLD: Final[int] = 10
+TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS: Final[int] = 15
+TOKEN_OPTIMIZATION_MAX_TOOL_RESULT_FIELDS: Final[int] = 8
+
+# Activity-based weight constants
+ACTIVITY_SCORE_MAX_DURATION: Final[int] = 30  # days
+CONTEXT_FILE_SIZE_PENALTY_THRESHOLD: Final[int] = 100_000  # 100KB
+
+# Base weights
+ACTIVE_FILE_WEIGHT: Final[float] = 5.0
+IMPORT_NEIGHBOR_WEIGHT: Final[float] = 3.0
+RECENT_EDIT_WEIGHT: Final[float] = 4.0
+CURSOR_ACTIVITY_WEIGHT: Final[float] = 2.0
+
+# Scoring thresholds and multipliers
+CURSOR_ACTIVITY_WEIGHT_MULTIPLIER: Final[float] = 1.5
+CURSOR_ACTIVITY_SCORE_THRESHOLD: Final[float] = 0.1
+CURSOR_ACTIVITY_POSITION_WEIGHT: Final[float] = 0.3
+CURSOR_ACTIVITY_RECENT_WEIGHT: Final[float] = 0.7
+
+RECENT_EDIT_HOURS_THRESHOLD: Final[int] = 24
+RECENT_EDIT_WEIGHT_MULTIPLIER: Final[float] = 2.0
+RECENT_EDIT_SCORE_THRESHOLD: Final[float] = 0.2
+RECENT_EDIT_TIME_WEIGHT: Final[float] = 0.5
+
+IMPORT_NEIGHBOR_SCORE_THRESHOLD: Final[float] = 0.15
+IMPORT_NEIGHBOR_WEIGHT_MULTIPLIER: Final[float] = 1.8
+IMPORT_NEIGHBOR_DEPTH_WEIGHT: Final[float] = 0.2
+
+ACTIVE_FILE_SCORE_THRESHOLD: Final[float] = 0.3
+ACTIVE_FILE_WEIGHT_MULTIPLIER: Final[float] = 3.0
+
+# File tools configuration
+HIGH_PRIORITY_DISPLAY_LIMIT: Final[int] = 50
+MEDIUM_PRIORITY_DISPLAY_LIMIT: Final[int] = 15
+LOW_PRIORITY_DISPLAY_LIMIT: Final[int] = 10
+TOP_FILES_DISPLAY_LIMIT: Final[int] = 15
+MAX_FILES_LIMIT: Final[int] = 10_000

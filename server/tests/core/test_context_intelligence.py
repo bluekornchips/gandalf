@@ -11,11 +11,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from src.config.constants.context import (
+from src.config.conversation_config import (
     CONTEXT_FILE_SIZE_ACCEPTABLE_MAX,
     CONTEXT_FILE_SIZE_OPTIMAL_MAX,
 )
-from src.config.constants.limits import CONTEXT_MIN_SCORE
+from src.config.core_constants import CONTEXT_MIN_SCORE
 from src.config.weights import WeightsManager
 from src.core.context_intelligence import (
     ContextIntelligence,

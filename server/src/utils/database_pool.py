@@ -19,7 +19,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from src.config.constants.database import SQL_SELECT_ONE
+from src.config.tool_config import SQL_SELECT_ONE
 from src.utils.common import log_debug, log_error
 
 

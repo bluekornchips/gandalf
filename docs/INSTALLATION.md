@@ -23,6 +23,7 @@ cd gandalf
 ```
 
 The installer automatically:
+
 - Detects your IDE and configures MCP settings
 - Initializes the agentic tools registry
 - Sets up conversation database detection
@@ -87,6 +88,7 @@ Gandalf uses an automated registry system to detect and manage agentic tools:
 ### Automatic Registry Setup
 
 The registry is automatically initialized during:
+
 - First server startup (self-healing)
 - Installation (`./gandalf install`)
 - Manual registration
@@ -154,8 +156,8 @@ export_individual_conversations()
 # Quick validation
 ./gandalf test
 
-# Extended validation (1,118 tests)
-./gandalf lembas --all
+# Extended validation
+./gandalf lembas
 
 # Installation status
 cat ~/.gandalf/installation-state

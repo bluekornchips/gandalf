@@ -40,19 +40,15 @@ isort src/
 # Run all tests
 ./gandalf test
 
-# Run specific test suites
-./gandalf test --python
-./gandalf test --shell
-
-# Full validation
-./gandalf lembas --all
+# Extended validation
+./gandalf lembas
 ```
 
 ### 4. Submission
 
 ```bash
 # Final validation
-./gandalf lembas --all
+./gandalf lembas
 
 # Submit PR with clear description
 ```

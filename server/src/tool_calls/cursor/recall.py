@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from src.config.config_data import CONVERSATION_TYPES
-from src.config.constants.conversation import (
+from src.config.conversation_config import (
     CONVERSATION_DEFAULT_LIMIT,
     CONVERSATION_DEFAULT_LOOKBACK_DAYS,
     CONVERSATION_DEFAULT_MIN_SCORE,
@@ -21,55 +21,32 @@ from src.tool_calls.cursor.conversation_parser import (
     handle_fast_mode,
     query_and_analyze_conversations,
 )
-from src.utils.access_control import AccessValidator
-from src.utils.common import log_error
+from src.utils.error_handling import handle_tool_errors
+from src.utils.parameter_validator import ParameterValidator
 
 
+@handle_tool_errors("cursor_conversation_recall")
 def handle_recall_cursor_conversations(
     arguments: dict[str, Any], project_root: Path, **kwargs: Any
 ) -> dict[str, Any]:
     """Recall and analyze relevant conversations with intelligent caching."""
-    try:
-        # Get argument values
-        limit = arguments.get("limit", CONVERSATION_DEFAULT_LIMIT)
-        min_relevance_score = arguments.get(
-            "min_relevance_score", CONVERSATION_DEFAULT_MIN_SCORE
-        )
-        days_lookback = arguments.get(
-            "days_lookback", CONVERSATION_DEFAULT_LOOKBACK_DAYS
-        )
-        conversation_types = arguments.get("conversation_types", [])
-        include_analysis = arguments.get("include_analysis", False)
-        fast_mode = arguments.get("fast_mode", True)
+    # Validate and normalize parameters using shared utility
+    params = ParameterValidator.validate_conversation_params(arguments)
 
-        # Validate and clamp parameters to valid ranges
-        limit = max(1, min(int(limit), CONVERSATION_MAX_LIMIT))
-        min_relevance_score = max(0.0, float(min_relevance_score))
-        days_lookback = max(1, min(int(days_lookback), CONVERSATION_MAX_LOOKBACK_DAYS))
-
-        if not isinstance(conversation_types, list):
-            conversation_types = []
-
-        # Fast mode: Skip expensive operations for speed
-        if fast_mode:
-            return handle_fast_mode(limit, days_lookback, conversation_types)
-
-        # Enhanced mode: Use caching and context analysis
-        return handle_enhanced_mode(
-            project_root,
-            limit,
-            min_relevance_score,
-            days_lookback,
-            conversation_types,
-            include_analysis,
-            query_and_analyze_conversations,
+    if params.fast_mode:
+        return handle_fast_mode(
+            params.limit, params.days_lookback, params.conversation_types or []
         )
 
-    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
-        log_error(e, "recall_cursor_conversations")
-        return AccessValidator.create_error_response(
-            f"Error recalling conversations: {str(e)}"
-        )
+    return handle_enhanced_mode(
+        project_root,
+        params.limit,
+        params.min_relevance_score,
+        params.days_lookback,
+        params.conversation_types or [],
+        params.include_analysis,
+        query_and_analyze_conversations,
+    )
 
 
 # Tool definitions

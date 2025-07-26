@@ -20,7 +20,7 @@ USER gandalf
 WORKDIR /app
 
 COPY --chown=gandalf:gandalf gandalf/ gandalf/
-COPY --chown=gandalf:gandalf zsh/ zsh/
+COPY --chown=gandalf:gandalf shell/ shell/
 COPY --chown=gandalf:gandalf scripts/ scripts/
 
 RUN chmod +x gandalf/gandalf \

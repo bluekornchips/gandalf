@@ -19,7 +19,7 @@ setup_file() {
     
     # Create test version file
     mkdir -p "$TEST_DATA_DIR"
-    echo "2.4.0" > "$TEST_VERSION_FILE"
+    echo "2.5.0" > "$TEST_VERSION_FILE"
 }
 
 setup() {
@@ -32,7 +32,7 @@ setup() {
     mkdir -p "$GANDALF_ROOT"
     
     # Create VERSION file
-    echo "2.4.0" > "$GANDALF_ROOT/VERSION"
+    echo "2.5.0" > "$GANDALF_ROOT/VERSION"
     
     # Source the setup script functions
     source "$BATS_TEST_DIRNAME/../../bin/setup"
@@ -48,13 +48,13 @@ teardown_file() {
 
 @test "get_version returns correct version from VERSION file" {
     result=$(_get_version)
-    [[ "$result" == "2.4.0" ]]
+    [[ "$result" == "2.5.0" ]]
 }
 
 @test "get_version returns default when VERSION file missing" {
     rm -f "$GANDALF_ROOT/VERSION"
     result=$(_get_version)
-    [[ "$result" == "2.4.0" ]]
+    [[ "$result" == "2.5.0" ]]
 }
 
 @test "create_gandalf_directory creates required directories" {
@@ -105,7 +105,7 @@ teardown_file() {
     local state_file="$GANDALF_HOME/installation-state"
     
     grep -q "GANDALF_ROOT=\"$GANDALF_ROOT\"" "$state_file"
-    grep -q "GANDALF_VERSION=\"2.4.0\"" "$state_file"
+    grep -q "GANDALF_VERSION=\"2.5.0\"" "$state_file"
     grep -q "CURSOR_INSTALLED=false" "$state_file"
     grep -q "CLAUDE_CODE_INSTALLED=false" "$state_file"
 }
@@ -141,7 +141,7 @@ teardown_file() {
     load_installation_state
     
     [[ "$GANDALF_ROOT" == "$TEST_TEMP_DIR/gandalf" ]]
-    [[ "$GANDALF_VERSION" == "2.4.0" ]]
+    [[ "$GANDALF_VERSION" == "2.5.0" ]]
     [[ "$CURSOR_INSTALLED" == "false" ]]
     [[ "$CLAUDE_CODE_INSTALLED" == "false" ]]
 }

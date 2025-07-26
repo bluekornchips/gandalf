@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.conversation import (
+from src.config.conversation_config import (
     CONVERSATION_DEFAULT_FAST_MODE,
     CONVERSATION_DEFAULT_LIMIT,
     CONVERSATION_DEFAULT_LOOKBACK_DAYS,

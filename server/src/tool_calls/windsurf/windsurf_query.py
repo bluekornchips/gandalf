@@ -11,12 +11,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.database import (
-    WINDSURF_KEY_CHAT_SESSION_STORE,
-)
-from src.config.constants.paths import (
+from src.config.core_constants import (
     WINDSURF_GLOBAL_STORAGE,
     WINDSURF_WORKSPACE_STORAGE,
+)
+from src.config.tool_config import (
+    WINDSURF_KEY_CHAT_SESSION_STORE,
 )
 from src.tool_calls.windsurf.conversation_extractor import ConversationExtractor
 from src.tool_calls.windsurf.database_reader import DatabaseReader

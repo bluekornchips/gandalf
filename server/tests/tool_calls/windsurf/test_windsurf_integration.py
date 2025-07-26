@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from src.config.constants.agentic import AGENTIC_TOOL_CURSOR, AGENTIC_TOOL_WINDSURF
+from src.config.conversation_config import AGENTIC_TOOL_CURSOR, AGENTIC_TOOL_WINDSURF
 from src.tool_calls.aggregator import (
     handle_recall_conversations,
 )

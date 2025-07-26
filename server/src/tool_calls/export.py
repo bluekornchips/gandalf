@@ -9,12 +9,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.database import TIMESTAMP_MILLISECOND_THRESHOLD
-from src.config.constants.paths import GANDALF_HOME
-from src.config.constants.security import (
+from src.config.core_constants import GANDALF_HOME
+from src.config.security_config import (
     FILENAME_CONTROL_CHARS_PATTERN,
     FILENAME_INVALID_CHARS_PATTERN,
 )
+from src.config.tool_config import TIMESTAMP_MILLISECOND_THRESHOLD
 from src.utils.access_control import AccessValidator, create_mcp_tool_result
 from src.utils.common import log_debug, log_info
 from src.utils.cursor_chat_query import CursorQuery, list_cursor_workspaces

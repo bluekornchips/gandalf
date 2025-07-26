@@ -41,7 +41,7 @@ alwaysApply: true
 
 ```bash
 # Debug mode
-./gandalf run --debug --verbose
+./gandalf run --debug
 
 # Reset everything
 ./gandalf uninstall --force
@@ -49,7 +49,7 @@ alwaysApply: true
 
 # Clear cache
 rm -rf ~/.gandalf/cache/*
-./gandalf test --quick
+./gandalf test
 ```
 
 ## Advanced Troubleshooting
@@ -60,14 +60,14 @@ rm -rf ~/.gandalf/cache/*
 # Full system check
 ./gandalf lembas --all
 
-# Performance analysis
-./gandalf test --performance --verbose
+# Basic connectivity
+./gandalf test
 
 # Cache inspection
 ls -la ~/.gandalf/cache/*/
 
-# Database connectivity
-./gandalf test --db-only
+# Basic connectivity test
+./gandalf test
 ```
 
 ### Recovery Strategies
@@ -85,9 +85,6 @@ ls -la ~/.gandalf/cache/*/
 # Monitor response times
 time recall_conversations(fast_mode=true)
 
-# Check memory usage
-./gandalf test --memory-profile
-
-# Database performance
-./gandalf test --db-performance
+# Basic performance test
+./gandalf test
 ```

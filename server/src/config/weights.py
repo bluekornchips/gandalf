@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from src.config.constants.limits import CONTEXT_MIN_SCORE
+from src.config.core_constants import CONTEXT_MIN_SCORE
 from src.utils.common import log_debug, log_error
 from src.utils.schema_validation import (
     apply_schema_defaults,

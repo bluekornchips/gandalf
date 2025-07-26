@@ -4,8 +4,7 @@ import time
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.config.constants.cache import MCP_CACHE_TTL
-from src.config.constants.limits import PRIORITY_NEUTRAL_SCORE
+from src.config.core_constants import MCP_CACHE_TTL, PRIORITY_NEUTRAL_SCORE
 from src.core.file_scoring import (
     _compute_relevance_scores,
     _file_scores_cache,

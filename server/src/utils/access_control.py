@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from src.config.config_data import BLOCKED_EXTENSIONS
-from src.config.constants.limits import (
+from src.config.core_constants import (
     MAX_ARRAY_LENGTH,
     MAX_FILE_TYPES,
     MAX_PATH_DEPTH,
@@ -17,7 +17,7 @@ from src.config.constants.limits import (
     MAX_STRING_LENGTH,
     PROJECT_NAME_MAX_LENGTH,
 )
-from src.config.constants.security import (
+from src.config.security_config import (
     COMMON_BLOCKED_PATHS,
     CONVERSATION_DANGEROUS_PATTERNS,
     DANGEROUS_PATTERNS,
