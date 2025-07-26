@@ -136,7 +136,7 @@ class TestPlatformSpecificPaths:
         Test that platform-specific paths are properly organized.
         Pretty useless test but I want it so I don't have to think about it.
         """
-        from src.config.constants.security import (
+        from src.config.security_config import (
             COMMON_BLOCKED_PATHS,
             LINUX_SPECIFIC_BLOCKED_PATHS,
             MACOS_SPECIFIC_BLOCKED_PATHS,
@@ -160,7 +160,7 @@ class TestPlatformSpecificPaths:
 
     def test_get_platform_blocked_paths_function(self):
         """Test the get_platform_blocked_paths utility function."""
-        from src.config.constants.security import (
+        from src.config.security_config import (
             COMMON_BLOCKED_PATHS,
             LINUX_SPECIFIC_BLOCKED_PATHS,
             MACOS_SPECIFIC_BLOCKED_PATHS,

@@ -6,10 +6,18 @@ based on user prompts and project context.
 """
 
 import re
-from pathlib import Path
-from typing import Any
 
-from src.config.constants.conversation import (
+# Use common imports for frequently used utilities
+from src.common_imports import (
+    Any,
+    Path,
+    log_debug,
+    log_error,
+    log_info,
+)
+
+# Specific conversation config imports not in common_imports
+from src.config.conversation_config import (
     CONVERSATION_DOMAIN_WORD_EXCLUSIONS,
     CONVERSATION_DOMAIN_WORD_LIMIT,
     CONVERSATION_DOMAIN_WORD_MIN_LENGTH,
@@ -20,7 +28,6 @@ from src.config.constants.conversation import (
     CONVERSATION_TECH_PATTERNS,
 )
 from src.core.conversation_analysis import generate_shared_context_keywords
-from src.utils.common import log_debug, log_error, log_info
 
 
 class ConversationFilter:

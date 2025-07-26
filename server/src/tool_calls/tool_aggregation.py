@@ -8,14 +8,14 @@ multiple agentic tools (Cursor, Claude Code, Windsurf).
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.agentic import (
+from src.config.conversation_config import (
     AGENTIC_TOOL_CLAUDE_CODE,
     AGENTIC_TOOL_CURSOR,
     AGENTIC_TOOL_WINDSURF,
     SUPPORTED_AGENTIC_TOOLS,
 )
 from src.core.database_scanner import get_available_agentic_tools
-from src.core.registry import get_registered_agentic_tools
+from src.core.tool_registry import get_registered_agentic_tools
 from src.tool_calls.claude_code.recall import (
     handle_recall_claude_conversations as claude_recall_handler,
 )

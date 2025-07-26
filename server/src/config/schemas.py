@@ -3,7 +3,7 @@ Configuration schemas for Gandalf MCP server.
 Contains validation schemas and structured configuration definitions.
 """
 
-from src.config.constants.limits import (
+from src.config.core_constants import (
     VALIDATION_CONVERSATION_PARAM_MAX,
     VALIDATION_CONVERSATION_PARAM_MIN,
     VALIDATION_FILE_SIZE_LARGE_MAX,

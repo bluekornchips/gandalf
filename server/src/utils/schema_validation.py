@@ -8,22 +8,10 @@ from typing import Any
 
 import yaml
 
-from src.config.constants.context import (
+from src.config.conversation_config import (
     CONTEXT_FILE_SIZE_OPTIMAL_MAX,
 )
-from src.config.constants.limits import (
-    VALIDATION_CONVERSATION_PARAM_MAX,
-    VALIDATION_FILE_SIZE_MIN,
-    VALIDATION_TIME_THRESHOLD_MAX_HOURS,
-    VALIDATION_TIME_THRESHOLD_MIN,
-    VALIDATION_WEIGHT_MIN,
-)
-from src.config.constants.paths import (
-    DEFAULT_WEIGHTS_FILE,
-    SPEC_WEIGHTS_FILE,
-    WEIGHTS_FILE_OVERRIDE,
-)
-from src.config.constants.schema_defaults import (
+from src.config.core_constants import (
     DEFAULT_ACTIVITY_BOOST,
     DEFAULT_DIRECTORIES,
     DEFAULT_FILE_EXTENSIONS,
@@ -37,6 +25,14 @@ from src.config.constants.schema_defaults import (
     DEFAULT_TERMINATION_MULTIPLIER,
     DEFAULT_TYPE_BONUSES,
     DEFAULT_WEIGHT_VALUE,
+    DEFAULT_WEIGHTS_FILE,
+    SPEC_WEIGHTS_FILE,
+    VALIDATION_CONVERSATION_PARAM_MAX,
+    VALIDATION_FILE_SIZE_MIN,
+    VALIDATION_TIME_THRESHOLD_MAX_HOURS,
+    VALIDATION_TIME_THRESHOLD_MIN,
+    VALIDATION_WEIGHT_MIN,
+    WEIGHTS_FILE_OVERRIDE,
 )
 from src.utils.common import log_debug, log_error, log_info
 

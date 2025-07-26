@@ -40,7 +40,7 @@ EOF
 	chmod +x "$server_dir/gandalf-server"
 
 	# Create VERSION file
-	echo "2.4.0" >"$server_dir/VERSION"
+	echo "2.5.0" >"$server_dir/VERSION"
 
 	# Create mock requirements.txt
 	echo "PyYAML>=6.0" >"$server_dir/requirements.txt"

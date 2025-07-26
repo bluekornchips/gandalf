@@ -7,7 +7,7 @@ for output to MCP clients.
 
 from typing import Any
 
-from src.config.constants.conversation import (
+from src.config.conversation_config import (
     CONVERSATION_ID_DISPLAY_LIMIT,
     CONVERSATION_SNIPPET_DISPLAY_LIMIT,
     CONVERSATION_TITLE_DISPLAY_LIMIT,
@@ -92,7 +92,9 @@ def standardize_conversation(
         # Get snippet if available
         snippet = conversation.get("snippet", "")
 
-        from src.config.constants.context import TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS
+        from src.config.conversation_config import (
+            TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS,
+        )
 
         # Handle updated_at field
         updated_at = (

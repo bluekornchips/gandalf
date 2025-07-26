@@ -10,11 +10,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.context import (
+from src.config.conversation_config import (
     ACTIVITY_SCORE_MAX_DURATION,
     CONTEXT_KEYWORDS_QUICK_LIMIT,
-)
-from src.config.constants.conversation import (
     CONVERSATION_KEYWORD_MATCHES_LIMIT,
     CONVERSATION_PATTERN_MATCHES_LIMIT,
 )

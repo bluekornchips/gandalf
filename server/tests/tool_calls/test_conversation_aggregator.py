@@ -6,12 +6,10 @@ import json
 import unittest
 from unittest.mock import patch
 
-from src.config.constants.agentic import (
+from src.config.conversation_config import (
     AGENTIC_TOOL_CLAUDE_CODE,
     AGENTIC_TOOL_CURSOR,
     AGENTIC_TOOL_WINDSURF,
-)
-from src.config.constants.conversation import (
     CONVERSATION_ID_DISPLAY_LIMIT,
     CONVERSATION_SNIPPET_DISPLAY_LIMIT,
     CONVERSATION_TITLE_DISPLAY_LIMIT,
@@ -633,7 +631,7 @@ class TestConversationAggregatorEdgeCases(unittest.TestCase):
             return_value=[],
         ),
         patch(
-            "src.core.registry.get_registered_agentic_tools",
+            "src.core.tool_registry.get_registered_agentic_tools",
             return_value=["cursor"],
         ),
     ):

@@ -10,15 +10,15 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.file_system_context import FILE_SYSTEM_CONTEXT_INDICATORS
-from src.config.constants.server_config import (
+from src.config.core_constants import (
     MCP_PROTOCOL_VERSION,
     SERVER_CAPABILITIES,
     SERVER_INFO,
 )
 from src.config.enums import ErrorCodes
+from src.config.tool_config import FILE_SYSTEM_CONTEXT_INDICATORS
 from src.config.weights import WeightsManager
-from src.core.registry import get_registered_agentic_tools
+from src.core.tool_registry import get_registered_agentic_tools
 from src.tool_calls.aggregator import (
     CONVERSATION_AGGREGATOR_TOOL_DEFINITIONS,
     CONVERSATION_AGGREGATOR_TOOL_HANDLERS,

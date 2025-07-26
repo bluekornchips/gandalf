@@ -8,7 +8,7 @@ from various conversation data formats across different IDEs.
 from datetime import datetime, timedelta
 from typing import Any
 
-from src.config.constants.conversation import CONVERSATION_TEXT_EXTRACTION_LIMIT
+from src.config.conversation_config import CONVERSATION_TEXT_EXTRACTION_LIMIT
 from src.utils.common import log_debug
 
 

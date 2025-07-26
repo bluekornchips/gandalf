@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from src.config.constants.server_config import (
+from src.config.core_constants import (
     GANDALF_SERVER_VERSION,
     MCP_PROTOCOL_VERSION,
 )

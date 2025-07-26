@@ -4,7 +4,7 @@ Tests for lightweight conversation creation across all tools.
 
 import unittest
 
-from src.config.constants.conversation import (
+from src.config.conversation_config import (
     CONVERSATION_ID_DISPLAY_LIMIT,
     CONVERSATION_SNIPPET_DISPLAY_LIMIT,
     CONVERSATION_TITLE_DISPLAY_LIMIT,
@@ -532,7 +532,7 @@ class TestStandardizeConversations(unittest.TestCase):
                 self.test_conversation, large_keywords, lightweight=False
             )
 
-            from src.config.constants.context import (
+            from src.config.conversation_config import (
                 TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS,
             )
 

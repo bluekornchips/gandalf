@@ -2,7 +2,7 @@
 
 Model Context Protocol (MCP) Server for Agentic Development Tools
 
-[![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/bluekornchips/gandalf/releases)
+[![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)](https://github.com/bluekornchips/gandalf/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![MCP](https://img.shields.io/badge/protocol-MCP%202025--06--18-purple.svg)](https://modelcontextprotocol.io)
@@ -36,7 +36,7 @@ cd gandalf
 ./gandalf test
 
 # Extended verification
-./gandalf lembas --all
+./gandalf lembas
 ```
 
 ### First Use
@@ -137,7 +137,7 @@ The modular system automatically adapts resource usage based on:
 ./gandalf test
 
 # Extended validation
-./gandalf lembas --all
+./gandalf lembas
 ```
 
 ## Commands

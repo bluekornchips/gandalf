@@ -13,7 +13,7 @@ from src.config.config_data import (
     CONTEXT_SKIP_DIRECTORIES,
     TECHNOLOGY_KEYWORD_MAPPING,
 )
-from src.config.constants.context import (
+from src.config.conversation_config import (
     CONTEXT_KEYWORD_MAX_COUNT,
     CONTEXT_MAX_FILES_TO_CHECK,
     CONTEXT_MIN_EXTENSIONS_BEFORE_DEEP_SCAN,

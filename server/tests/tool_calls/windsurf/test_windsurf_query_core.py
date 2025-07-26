@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.config.constants.database import (
+from src.config.tool_config import (
     WINDSURF_KEY_CHAT_SESSION_STORE,
 )
 from src.tool_calls.windsurf.query import (

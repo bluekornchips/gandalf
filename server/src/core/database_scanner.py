@@ -1,308 +1,304 @@
 """
 Database scanner for detecting conversation databases across different agentic tools.
 
-This module scans the filesystem for conversation databases from supported
-agentic tools like Cursor, Claude Code, and Windsurf without requiring
-them to be running.
+This module provides a unified scanner that consolidates all tool-specific logic
+into a single, maintainable class without unnecessary abstractions.
 """
 
+import json
+import signal
+import sqlite3
 import time
+from contextlib import contextmanager
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.agentic import (
-    AGENTIC_TOOL_CLAUDE_CODE,
-    AGENTIC_TOOL_CURSOR,
-    AGENTIC_TOOL_WINDSURF,
-    SUPPORTED_AGENTIC_TOOLS,
+from src.config.core_constants import (
+    DATABASE_SCANNER_TIMEOUT,
 )
-from src.core.database_scanner_base import (
-    ConversationDatabase,
-    ScannerCache,
-    ScannerConfig,
-    timeout_context,
+from src.config.tool_config import (
+    CLAUDE_CODE_DATABASE_PATHS,
+    CURSOR_DATABASE_PATHS,
+    WINDSURF_DATABASE_PATHS,
 )
-from src.core.tool_scanners import (
-    ClaudeScanner,
-    CursorScanner,
-    ScannerFactory,
-    WindsurfScanner,
-)
-from src.utils.common import log_debug, log_error, log_info
+from src.utils.common import log_error, log_info
+
+
+@contextmanager
+def timeout_context(seconds: int) -> Any:
+    """Context manager to timeout operations that might hang."""
+
+    def timeout_handler(_signum: int, _frame: Any) -> None:
+        raise TimeoutError(f"Operation timed out after {seconds} seconds")
+
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+
+class ToolType(Enum):
+    """Supported agentic tool types."""
+
+    CURSOR = "cursor"
+    CLAUDE_CODE = "claude-code"
+    WINDSURF = "windsurf"
+
+
+@dataclass(frozen=True)
+class ScanResult:
+    """Result of database scanning operation."""
+
+    tool_type: ToolType
+    conversations: list[dict[str, Any]]
+    database_path: Path
+    scan_time: float
+    error: str | None = None
 
 
 class DatabaseScanner:
-    """Scanner for detecting conversation databases across agentic tools."""
+    """Unified database scanner for all agentic tools."""
 
-    def __init__(self, project_root: Path | None = None) -> None:
-        """Initialize scanner with project root and configuration."""
-        self.config = ScannerConfig(project_root=project_root)
-        self.cache = ScannerCache(self.config)
-        self.databases: list[ConversationDatabase] = []
+    def __init__(self, project_root: Path):
+        self.project_root = project_root
+        self._cache: dict[str, ScanResult] = {}
+        self._cache_time: float = 0.0
 
-    def scan(self, force_rescan: bool = False) -> list[ConversationDatabase]:
-        """Scan for conversation databases across all supported agentic tools."""
-        # Check registry initialization and provide helpful feedback
-        self._validate_registry_setup()
+    def scan_tool_databases(
+        self, tool_types: list[ToolType] | None = None, max_conversations: int = 1000
+    ) -> list[ScanResult]:
+        """Scan databases for specified tool types."""
+        if tool_types is None:
+            tool_types = list(ToolType)
 
-        if not force_rescan:
-            cached_databases = self.cache.get_cached_databases()
-            if cached_databases:
-                log_debug("Using cached database scan results")
-                self.databases = cached_databases
-                return self.databases
+        results = []
+        for tool_type in tool_types:
+            result = self._scan_tool_database(tool_type, max_conversations)
+            if result:
+                results.append(result)
 
-        log_info("Scanning for conversation databases across agentic tools")
+        return results
+
+    def _scan_tool_database(
+        self, tool_type: ToolType, max_conversations: int
+    ) -> ScanResult | None:
+        """Scan database for specific tool type."""
         start_time = time.time()
 
-        all_databases = []
-
         try:
-            with timeout_context(self.config.get_full_scan_timeout()):
-                # Scan each supported agentic tool type
-                for tool_type in SUPPORTED_AGENTIC_TOOLS:
-                    try:
-                        databases = self._scan_tool_databases(tool_type)
-                        all_databases.extend(databases)
+            db_path = self._find_database_path(tool_type)
+            if not db_path or not db_path.exists():
+                return None
 
-                        # Cache tool-specific results
-                        self.cache.cache_tool_databases(tool_type, databases)
-
-                        log_info(f"Found {len(databases)} databases for {tool_type}")
-                    except (OSError, ValueError, AttributeError) as e:
-                        log_error(e, f"scanning {tool_type} databases")
-                        continue
-
-            self.databases = all_databases
-            self.cache.cache_databases(all_databases)
-
-            scan_duration = time.time() - start_time
-            log_info(
-                f"Database scan completed in {scan_duration:.2f}s, "
-                f"found {len(all_databases)} total databases"
+            conversations = self._extract_conversations(
+                tool_type, db_path, max_conversations
             )
+            scan_time = time.time() - start_time
 
-        except TimeoutError as e:
-            log_error(
-                e,
-                f"Full database scan timed out after {self.config.get_full_scan_timeout()} seconds",
+            return ScanResult(
+                tool_type=tool_type,
+                conversations=conversations,
+                database_path=db_path,
+                scan_time=scan_time,
             )
-        except (OSError, ValueError, AttributeError) as e:
-            log_error(e, "scanning all databases")
-
-        return all_databases
-
-    def _scan_tool_databases(self, tool_type: str) -> list[ConversationDatabase]:
-        """Scan databases for a specific tool type."""
-        scanner: CursorScanner | ClaudeScanner | WindsurfScanner
-        if tool_type == AGENTIC_TOOL_CURSOR:
-            scanner = ScannerFactory.create_cursor_scanner(self.config.scan_timeout)
-            return scanner.scan_databases()
-        elif tool_type == AGENTIC_TOOL_CLAUDE_CODE:
-            scanner = ScannerFactory.create_claude_scanner(self.config.scan_timeout)
-            return scanner.scan_databases()
-        elif tool_type == AGENTIC_TOOL_WINDSURF:
-            scanner = ScannerFactory.create_windsurf_scanner(self.config.scan_timeout)
-            return scanner.scan_databases()
-        else:
-            log_debug(f"Unknown agentic tool type for scanning: {tool_type}")
-            return []
-
-    def get_databases_by_tool(self, tool_type: str) -> list[ConversationDatabase]:
-        """Get databases filtered by agentic tool type."""
-        if not self.databases:
-            self.scan()
-
-        return [db for db in self.databases if db.tool_type == tool_type]
-
-    def get_accessible_databases(self) -> list[ConversationDatabase]:
-        """Get only databases that are accessible."""
-        if not self.databases:
-            self.scan()
-
-        return [db for db in self.databases if db.is_accessible]
-
-    def get_databases_with_conversations(self) -> list[ConversationDatabase]:
-        """Get databases that have conversation data."""
-        if not self.databases:
-            self.scan()
-
-        return [
-            db
-            for db in self.databases
-            if db.is_accessible and (db.conversation_count or 0) > 0
-        ]
-
-    def get_summary(self) -> dict[str, Any]:
-        """Get a summary of discovered databases."""
-        if not self.databases:
-            self.scan()
-
-        summary: dict[str, Any] = {
-            "total_databases": len(self.databases),
-            "accessible_databases": len(self.get_accessible_databases()),
-            "databases_with_conversations": len(
-                self.get_databases_with_conversations()
-            ),
-            "total_conversations": sum(
-                db.conversation_count or 0 for db in self.databases
-            ),
-            "tools": {},
-            "cache_info": self.cache.get_cache_stats(),
-        }
-
-        # Group by agentic tool type
-        for tool_type in SUPPORTED_AGENTIC_TOOLS:
-            tool_databases = self.get_databases_by_tool(tool_type)
-            if tool_databases:  # Only include tools that have databases
-                accessible_count = len(
-                    [db for db in tool_databases if db.is_accessible]
-                )
-                with_conversations = len(
-                    [
-                        db
-                        for db in tool_databases
-                        if db.is_accessible and (db.conversation_count or 0) > 0
-                    ]
-                )
-
-                summary["tools"][tool_type] = {
-                    "database_count": len(tool_databases),
-                    "accessible_count": accessible_count,
-                    "with_conversations": with_conversations,
-                    "conversation_count": sum(
-                        db.conversation_count or 0 for db in tool_databases
-                    ),
-                    "total_size_mb": sum(db.get_size_mb() for db in tool_databases),
-                }
-
-        return summary
-
-    def _validate_registry_setup(self) -> None:
-        """Validate that the agentic tools registry is properly initialized."""
-        try:
-            from src.core.registry import read_registry
-
-            registered_tools = read_registry()
-
-            if not registered_tools:
-                log_info(
-                    "Registry is empty. Consider running './gandalf registry auto-register' "
-                    "to improve conversation detection accuracy."
-                )
-            else:
-                log_debug(
-                    f"Registry initialized with tools: {list(registered_tools.keys())}"
-                )
-
-                # Check if registered paths exist
-                missing_paths = []
-                for tool_name, tool_path in registered_tools.items():
-                    if not Path(tool_path).exists():
-                        missing_paths.append(f"{tool_name}: {tool_path}")
-
-                if missing_paths:
-                    log_info(
-                        f"Registry contains invalid paths for: {', '.join(missing_paths)}. "
-                        "Consider running './gandalf registry auto-register' to update."
-                    )
 
         except Exception as e:
-            log_debug(f"Registry validation failed: {e}")
+            return ScanResult(
+                tool_type=tool_type,
+                conversations=[],
+                database_path=Path(),
+                scan_time=time.time() - start_time,
+                error=str(e),
+            )
 
-    def get_recent_databases(self, hours: int = 24) -> list[ConversationDatabase]:
-        """Get databases modified within specified hours."""
-        if not self.databases:
-            self.scan()
-
-        return [db for db in self.databases if db.is_recent(hours)]
-
-    def get_large_databases(self, mb_threshold: int = 10) -> list[ConversationDatabase]:
-        """Get databases larger than specified threshold in MB."""
-        if not self.databases:
-            self.scan()
-
-        return [db for db in self.databases if db.is_large(mb_threshold)]
-
-    def clear_cache(self) -> None:
-        """Clear the scanner cache to force fresh scans."""
-        self.cache.clear_cache()
-        self.databases = []
-
-    def get_diagnostics(self) -> dict[str, Any]:
-        """Get diagnostic information about the scanner."""
-        return {
-            "config": {
-                "cache_ttl": self.config.cache_ttl,
-                "scan_timeout": self.config.scan_timeout,
-                "project_root": str(self.config.project_root),
-            },
-            "cache_stats": self.cache.get_cache_stats(),
-            "database_stats": {
-                "total_loaded": len(self.databases),
-                "accessible": len(self.get_accessible_databases()),
-                "with_conversations": len(self.get_databases_with_conversations()),
-            },
+    def _find_database_path(self, tool_type: ToolType) -> Path | None:
+        """Find database path for tool type."""
+        path_configs = {
+            ToolType.CURSOR: CURSOR_DATABASE_PATHS,
+            ToolType.CLAUDE_CODE: CLAUDE_CODE_DATABASE_PATHS,
+            ToolType.WINDSURF: WINDSURF_DATABASE_PATHS,
         }
+
+        for path_pattern in path_configs[tool_type]:
+            resolved_path = Path(path_pattern.format(home=Path.home()))
+            if resolved_path.exists():
+                return resolved_path
+
+        return None
+
+    def _extract_conversations(
+        self, tool_type: ToolType, db_path: Path, max_conversations: int
+    ) -> list[dict[str, Any]]:
+        """Extract conversations from database with tool-specific logic."""
+        if tool_type == ToolType.CURSOR:
+            return self._extract_cursor_conversations(db_path, max_conversations)
+        elif tool_type == ToolType.CLAUDE_CODE:
+            return self._extract_claude_code_conversations(db_path, max_conversations)
+        elif tool_type == ToolType.WINDSURF:
+            return self._extract_windsurf_conversations(db_path, max_conversations)
+
+        # All enum values are handled above
+        raise ValueError(f"Unhandled tool type: {tool_type}")
+
+    def _extract_cursor_conversations(
+        self, db_path: Path, max_conversations: int
+    ) -> list[dict[str, Any]]:
+        """Extract conversations from Cursor database."""
+        conversations = []
+
+        try:
+            with timeout_context(DATABASE_SCANNER_TIMEOUT):
+                conn = sqlite3.connect(str(db_path))
+                conn.row_factory = sqlite3.Row
+
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT id, title, timestamp, data
+                    FROM conversations
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """,
+                    (max_conversations,),
+                )
+
+                for row in cursor.fetchall():
+                    conversations.append(
+                        {
+                            "id": row["id"],
+                            "title": row["title"] or "Untitled Conversation",
+                            "timestamp": row["timestamp"],
+                            "content": row["data"] or "",
+                            "tool": "cursor",
+                        }
+                    )
+
+                conn.close()
+
+        except Exception as e:
+            log_error(e, f"extracting Cursor conversations from {db_path}")
+
+        return conversations
+
+    def _extract_claude_code_conversations(
+        self, db_path: Path, max_conversations: int
+    ) -> list[dict[str, Any]]:
+        """Extract conversations from Claude Code database."""
+        conversations = []
+
+        try:
+            with timeout_context(DATABASE_SCANNER_TIMEOUT):
+                if db_path.suffix == ".jsonl":
+                    with open(db_path, encoding="utf-8") as f:
+                        for i, line in enumerate(f):
+                            if i >= max_conversations:
+                                break
+                            try:
+                                data = json.loads(line.strip())
+                                conversations.append(
+                                    {
+                                        "id": data.get("id", f"conv_{i}"),
+                                        "title": data.get(
+                                            "title", "Claude Code Session"
+                                        ),
+                                        "timestamp": data.get("timestamp"),
+                                        "content": json.dumps(data.get("messages", [])),
+                                        "tool": "claude-code",
+                                    }
+                                )
+                            except json.JSONDecodeError:
+                                continue
+                elif db_path.suffix == ".json":
+                    with open(db_path, encoding="utf-8") as f:
+                        data = json.load(f)
+                        if isinstance(data, list):
+                            for i, conv in enumerate(data[:max_conversations]):
+                                conversations.append(
+                                    {
+                                        "id": conv.get("id", f"conv_{i}"),
+                                        "title": conv.get(
+                                            "title", "Claude Code Session"
+                                        ),
+                                        "timestamp": conv.get("timestamp"),
+                                        "content": json.dumps(conv.get("messages", [])),
+                                        "tool": "claude-code",
+                                    }
+                                )
+
+        except Exception as e:
+            log_error(e, f"extracting Claude Code conversations from {db_path}")
+
+        return conversations
+
+    def _extract_windsurf_conversations(
+        self, db_path: Path, max_conversations: int
+    ) -> list[dict[str, Any]]:
+        """Extract conversations from Windsurf database."""
+        conversations = []
+
+        try:
+            with timeout_context(DATABASE_SCANNER_TIMEOUT):
+                conn = sqlite3.connect(str(db_path))
+                conn.row_factory = sqlite3.Row
+
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT id, title, timestamp, content
+                    FROM windsurf_conversations
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """,
+                    (max_conversations,),
+                )
+
+                for row in cursor.fetchall():
+                    conversations.append(
+                        {
+                            "id": row["id"],
+                            "title": row["title"] or "Windsurf Session",
+                            "timestamp": row["timestamp"],
+                            "content": row["content"] or "",
+                            "tool": "windsurf",
+                        }
+                    )
+
+                conn.close()
+
+        except Exception as e:
+            log_error(e, f"extracting Windsurf conversations from {db_path}")
+
+        return conversations
 
 
 def get_available_agentic_tools(silent: bool = False) -> list[str]:
     """Get list of agentic tools that have conversation databases available."""
     try:
-        with timeout_context(45):  # 45 second timeout for the full operation
-            scanner = DatabaseScanner()
-            databases = scanner.scan()
+        with timeout_context(45):
+            scanner = DatabaseScanner(Path.cwd())
+            available_tools = []
 
-            available_tools = set()
-            tools_with_databases = set()
-
-            for db in databases:
-                tools_with_databases.add(db.tool_type)
-
-                # Consider tool available if database is accessible, even if count is 0
-                # This fixes the silent failure issue where databases exist but return 0 conversations
-                if db.is_accessible:
-                    # If conversation count is None (error), try size-based estimation
-                    if db.conversation_count is None and db.size_bytes > 1024:  # > 1KB
+            for tool_type in ToolType:
+                db_path = scanner._find_database_path(tool_type)
+                if db_path and db_path.exists():
+                    # Quick check for database accessibility
+                    if db_path.stat().st_size > 1024:  # > 1KB
+                        available_tools.append(tool_type.value)
                         if not silent:
-                            log_info(
-                                f"Database accessible but count failed for {db.tool_type}, including anyway"
-                            )
-                        available_tools.add(db.tool_type)
-                    elif (db.conversation_count or 0) > 0:
-                        available_tools.add(db.tool_type)
-                    elif (
-                        db.size_bytes > 10240
-                    ):  # > 10KB, likely has data even if count failed
-                        if not silent:
-                            log_info(
-                                f"Large database found for {db.tool_type} with 0 count, including anyway"
-                            )
-                        available_tools.add(db.tool_type)
+                            log_info(f"Found accessible database for {tool_type.value}")
 
-            result = list(available_tools)
-
-            if not silent:
-                log_info(f"Found databases for tools: {list(tools_with_databases)}")
-                log_info(f"Available tools with conversation data: {result}")
-
-                # Log diagnostic info for tools with databases but no conversations
-                missing_tools = tools_with_databases - available_tools
-                if missing_tools:
-                    log_info(
-                        f"Tools with databases but no detected conversations: {list(missing_tools)}"
-                    )
-
-            return result
+            return available_tools
 
     except TimeoutError as e:
         if not silent:
-            log_error(
-                e,
-                "detecting available agentic tools timed out after 45 seconds",
-            )
+            log_error(e, "detecting available agentic tools timed out after 45 seconds")
         return []
-    except (OSError, ValueError, AttributeError) as e:
+    except Exception as e:
         if not silent:
             log_error(e, "detecting available agentic tools")
         return []
@@ -310,16 +306,24 @@ def get_available_agentic_tools(silent: bool = False) -> list[str]:
 
 def quick_scan_available_tools() -> dict[str, Any]:
     """Quick scan to get available tools without full database analysis."""
-    scanner = DatabaseScanner()
-    summary = scanner.get_summary()
-
+    scanner = DatabaseScanner(Path.cwd())
     available_tools = []
-    for tool_type, stats in summary.get("tools", {}).items():
-        if stats.get("with_conversations", 0) > 0:
-            available_tools.append(tool_type)
+    tool_info = {}
+
+    for tool_type in ToolType:
+        db_path = scanner._find_database_path(tool_type)
+        if db_path and db_path.exists():
+            stat = db_path.stat()
+            tool_info[tool_type.value] = {
+                "database_path": str(db_path),
+                "size_bytes": stat.st_size,
+                "last_modified": stat.st_mtime,
+            }
+            if stat.st_size > 1024:
+                available_tools.append(tool_type.value)
 
     return {
         "available_tools": available_tools,
-        "summary": summary,
+        "tool_info": tool_info,
         "scan_timestamp": time.time(),
     }

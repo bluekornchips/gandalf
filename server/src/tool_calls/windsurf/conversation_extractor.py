@@ -36,7 +36,7 @@ class ConversationExtractor:
             chat_sessions = self.query_instance.get_chat_session_data(db_path)
         else:
             # Fallback: try multiple keys when no query instance available
-            from src.config.constants.database import WINDSURF_KEY_CHAT_SESSION_STORE
+            from src.config.tool_config import WINDSURF_KEY_CHAT_SESSION_STORE
 
             chat_sessions = None
             for key in WINDSURF_KEY_CHAT_SESSION_STORE:

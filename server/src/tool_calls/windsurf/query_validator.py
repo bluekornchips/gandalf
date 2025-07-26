@@ -9,12 +9,10 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.database import (
+from src.config.core_constants import MAX_QUERY_LENGTH, MAX_STRING_LENGTH
+from src.config.tool_config import (
     DATABASE_OPERATION_TIMEOUT,
     SQL_GET_TABLE_NAMES,
-)
-from src.config.constants.limits import MAX_QUERY_LENGTH, MAX_STRING_LENGTH
-from src.config.constants.windsurf import (
     WINDSURF_CONTENT_KEYS,
     WINDSURF_FALSE_POSITIVE_INDICATORS,
     WINDSURF_MESSAGE_INDICATORS,

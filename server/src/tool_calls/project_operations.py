@@ -2,21 +2,30 @@
 Project-level operations for Gandalf MCP server.
 """
 
-import json
 import subprocess  # nosec B404 - safe git/find operations with fixed commands
-import time
-from pathlib import Path
-from typing import Any
 
-from src.config.constants.server_config import (
-    GANDALF_SERVER_VERSION,
+# Use common imports for frequently used utilities
+from src.common_imports import (
     MCP_PROTOCOL_VERSION,
+    AccessValidator,
+    Any,
+    Path,
+    create_mcp_tool_result,
+    get_duration,
+    json,
+    log_debug,
+    log_error,
+    log_info,
+    start_timer,
+    time,
+)
+
+# Specific imports not in common_imports
+from src.config.core_constants import (
+    GANDALF_SERVER_VERSION,
     SUBPROCESS_TIMEOUT,
 )
 from src.core.file_scoring import get_files_list
-from src.utils.access_control import AccessValidator, create_mcp_tool_result
-from src.utils.common import log_debug, log_error, log_info
-from src.utils.performance import get_duration, start_timer
 from src.utils.project import ProjectContext
 
 

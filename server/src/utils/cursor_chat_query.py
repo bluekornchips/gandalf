@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.database import (
+from src.config.tool_config import (
     CURSOR_CONVERSATION_KEYS,
     CURSOR_DATABASE_FILES,
     SQL_GET_VALUE_BY_KEY,

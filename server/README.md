@@ -30,7 +30,7 @@ pip install -e .
 # Comprehensive testing
 pytest --cov=src --cov-report=html
 ./gandalf test
-./gandalf lembas --all
+./gandalf lembas
 
 # Performance profiling
 python -m cProfile -o profile.stats src/main.py

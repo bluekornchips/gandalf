@@ -7,7 +7,7 @@ Use the MCP tool 'export_individual_conversations' for the primary export functi
 
 from pathlib import Path
 
-from src.config.constants.conversation import (
+from src.config.conversation_config import (
     CONVERSATION_EXPORT_FORMAT_DEFAULT,
     CONVERSATION_EXPORT_FORMATS,
 )

@@ -346,8 +346,8 @@ class TestClaudeCodeIntegration:
         }
 
         with patch(
-            "src.core.registry.get_registry_path",
-            return_value=self.registry_file,
+            "src.tool_calls.tool_aggregation.get_registered_agentic_tools",
+            return_value=["claude-code"],
         ):
             self.registry_file.write_text(json.dumps(registry_content))
 

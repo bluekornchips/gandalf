@@ -10,7 +10,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.database import (
+from src.config.core_constants import DATABASE_OPERATION_TIMEOUT
+from src.config.tool_config import (
     CONVERSATION_TABLE_NAMES,
     CURSOR_CONVERSATION_KEYS,
     SQL_CHECK_ITEMTABLE_EXISTS,
@@ -20,8 +21,7 @@ from src.config.constants.database import (
     SQL_GET_VALUE_BY_KEY,
     WINDSURF_KEY_CHAT_SESSION_STORE,
 )
-from src.config.constants.limits import DATABASE_OPERATION_TIMEOUT
-from src.core.database_scanner_base import timeout_context
+from src.core.database_scanner import timeout_context
 from src.utils.common import log_debug, log_error
 from src.utils.database_pool import get_database_connection
 

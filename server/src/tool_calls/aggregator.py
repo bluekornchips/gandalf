@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.conversation import (
+from src.config.conversation_config import (
     CONVERSATION_DEFAULT_FAST_MODE,
     CONVERSATION_DEFAULT_LIMIT,
     CONVERSATION_DEFAULT_LOOKBACK_DAYS,
@@ -36,8 +36,8 @@ def handle_recall_conversations(
     """
     import time
 
-    from src.config.constants.agentic import SUPPORTED_AGENTIC_TOOLS
-    from src.config.constants.context import (
+    from src.config.conversation_config import (
+        SUPPORTED_AGENTIC_TOOLS,
         TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS,
         TOKEN_OPTIMIZATION_MAX_RESPONSE_SIZE,
     )

@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.cache import (
+from src.config.core_constants import (
     CONVERSATION_CACHE_MIN_SIZE,
     CONVERSATION_CACHE_TTL_HOURS,
 )

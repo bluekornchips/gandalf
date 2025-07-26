@@ -9,16 +9,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.config.constants.context import (
+from src.config.conversation_config import (
+    CONVERSATION_ID_DISPLAY_LIMIT,
+    CONVERSATION_SNIPPET_DISPLAY_LIMIT,
+    CONVERSATION_TITLE_DISPLAY_LIMIT,
     TOKEN_OPTIMIZATION_CONTENT_TRUNCATION_LIMIT,
     TOKEN_OPTIMIZATION_MAX_RESPONSE_SIZE,
     TOKEN_OPTIMIZATION_MAX_TOOL_RESULT_FIELDS,
     TOKEN_OPTIMIZATION_SUMMARY_MODE_THRESHOLD,
-)
-from src.config.constants.conversation import (
-    CONVERSATION_ID_DISPLAY_LIMIT,
-    CONVERSATION_SNIPPET_DISPLAY_LIMIT,
-    CONVERSATION_TITLE_DISPLAY_LIMIT,
 )
 from src.utils.common import log_debug, log_info
 
@@ -112,20 +110,20 @@ def _standardize_conversation_format(
     }
 
     # Add optional fields if present
-    from src.config.constants.conversation import CONVERSATION_OPTIONAL_FIELDS
+    from src.config.conversation_config import CONVERSATION_OPTIONAL_FIELDS
 
     for field in CONVERSATION_OPTIONAL_FIELDS:
         if field in conversation:
             standardized[field] = conversation[field]
 
-    from src.config.constants.agentic import AGENTIC_TOOL_WINDSURF
+    from src.config.conversation_config import AGENTIC_TOOL_WINDSURF
 
     if source_tool == AGENTIC_TOOL_WINDSURF:
         if "source" in conversation:
             standardized["windsurf_source"] = conversation["source"]
 
     # Add truncated context keywords
-    from src.config.constants.context import TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS
+    from src.config.conversation_config import TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS
 
     standardized["context_keywords"] = context_keywords[
         :TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS

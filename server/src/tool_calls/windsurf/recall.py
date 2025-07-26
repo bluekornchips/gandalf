@@ -13,10 +13,7 @@ from typing import Any
 from src.config.config_data import (
     CONVERSATION_TYPES,
 )
-from src.config.constants.context import (
-    TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS,
-)
-from src.config.constants.conversation import (
+from src.config.conversation_config import (
     CONVERSATION_DEFAULT_LIMIT,
     CONVERSATION_DEFAULT_LOOKBACK_DAYS,
     CONVERSATION_DEFAULT_MIN_SCORE,
@@ -27,6 +24,7 @@ from src.config.constants.conversation import (
     CONVERSATION_SNIPPET_MAX_LENGTH,
     CONVERSATION_TEXT_EXTRACTION_LIMIT,
     CONVERSATION_TITLE_DISPLAY_LIMIT,
+    TOKEN_OPTIMIZATION_MAX_CONTEXT_KEYWORDS,
 )
 from src.core.conversation_analysis import (
     analyze_session_relevance,
