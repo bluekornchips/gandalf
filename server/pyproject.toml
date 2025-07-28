@@ -37,6 +37,7 @@ dev = [
     "isort>=5.12.0",
     "bandit>=1.7.0",
     "pip-audit>=2.9.0",
+    "psutil>=5.9.0",
     "types-PyYAML>=6.0.0",
 ]
 
