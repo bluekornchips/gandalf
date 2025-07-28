@@ -7,10 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.core.project_filtering import (
-    filter_project_files,
-    get_excluded_patterns,
-)
+from src.core.project_filtering import filter_project_files, get_excluded_patterns
 
 
 class TestFilterProjectFiles:

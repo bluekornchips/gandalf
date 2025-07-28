@@ -27,10 +27,7 @@ from src.tool_calls.export import (
     CONVERSATION_EXPORT_TOOL_DEFINITIONS,
     CONVERSATION_EXPORT_TOOL_HANDLERS,
 )
-from src.tool_calls.file_tools import (
-    FILE_TOOL_DEFINITIONS,
-    FILE_TOOL_HANDLERS,
-)
+from src.tool_calls.file_tools import FILE_TOOL_DEFINITIONS, FILE_TOOL_HANDLERS
 from src.tool_calls.project_operations import (
     PROJECT_TOOL_DEFINITIONS,
     PROJECT_TOOL_HANDLERS,
@@ -38,10 +35,7 @@ from src.tool_calls.project_operations import (
 from src.utils.access_control import AccessValidator
 from src.utils.common import initialize_session_logging, log_error, log_info
 from src.utils.database_pool import DatabaseService
-from src.utils.jsonrpc import (
-    create_error_response,
-    create_success_response,
-)
+from src.utils.jsonrpc import create_error_response, create_success_response
 from src.utils.performance import log_operation_time, start_timer
 
 TOOL_DEFINITIONS = [

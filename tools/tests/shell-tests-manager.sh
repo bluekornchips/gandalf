@@ -2,12 +2,12 @@
 # Test Manager for Gandalf MCP Server
 
 set -euo pipefail
-
-readonly SHELL_MANAGER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${0}}")" && pwd -P)"
-readonly GANDALF_ROOT="$(cd "$SHELL_MANAGER_DIR/../.." && pwd -P)"
+GIT_ROOT="$(git rev-parse --show-toplevel)"
+readonly GANDALF_ROOT="$GIT_ROOT"
 readonly TESTS_DIR="$GANDALF_ROOT/tools/tests"
 
-
+export GANDALF_ROOT
+export TESTS_DIR
 
 declare -A SHELL_TEST_SUITES=(
 	["platform-compatibility"]="Cross-platform compatibility and path detection"
@@ -43,7 +43,7 @@ test_suite_exists() {
 	echo "${SHELL_TEST_SUITES[$suite]}"
 }
 
-source "$GANDALF_ROOT/tools/lib/test-helpers.sh"
+source "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 
 DEPENDENCIES_CHECKED=false
 
@@ -52,7 +52,7 @@ validate_positive_integer() {
 	local name="$2"
 	local max_value="${3:-}"
 
-	source "$GANDALF_ROOT/tools/config/test-config.sh"
+	source "$GANDALF_ROOT/tools/tests/fixtures/conftest.sh"
 
 	if [[ ! "$value" =~ ^[0-9]+$ ]]; then
 		echo "$name must be a positive integer" >&2
@@ -164,9 +164,9 @@ check_dependencies() {
 
 	echo "Checking test dependencies..." >&2
 	# Source centralized configuration
-	source "$GANDALF_ROOT/tools/config/test-config.sh"
+	source "$GANDALF_ROOT/tools/tests/fixtures/conftest.sh"
 
-	if ! timeout "$TEST_TIMEOUT_DEPENDENCY_CHECK" bash -c "source '$GANDALF_ROOT/tools/lib/test-helpers.sh' && check_test_dependencies"; then
+	if ! timeout "$TEST_TIMEOUT_DEPENDENCY_CHECK" bash -c "source '$GANDALF_ROOT/tools/tests/test-helpers.sh' && check_test_dependencies"; then
 		echo "Test dependencies not satisfied. Aborting test run." >&2
 		return 1
 	fi
@@ -282,7 +282,7 @@ run_suite() {
 	temp_dir=$(setup_test_environment "$suite")
 
 	if [[ -z "${TEST_TIMEOUT_INTEGRATION:-}" ]]; then
-		source "$GANDALF_ROOT/tools/config/test-config.sh"
+		source "$GANDALF_ROOT/tools/tests/fixtures/conftest.sh"
 	fi
 
 	if ! timeout "$TEST_TIMEOUT_INTEGRATION" bats "${bats_args_array[@]}" "$TESTS_DIR/$test_file"; then
@@ -417,7 +417,7 @@ main() {
 		run)
 			action="run"
 			shift
-			if [[ -n "$1" && ! "$1" =~ ^-- ]]; then
+			if [[ $# -gt 0 && -n "$1" && ! "$1" =~ ^-- ]]; then
 				suite="$1"
 				shift
 			fi

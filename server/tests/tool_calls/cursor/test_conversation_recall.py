@@ -10,9 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.tool_calls.cursor.conversation_analyzer import (
-    analyze_conversation_relevance,
-)
+from src.tool_calls.cursor.conversation_analyzer import analyze_conversation_relevance
 from src.tool_calls.cursor.conversation_cache import (
     get_project_cache_hash,
     is_cache_valid,

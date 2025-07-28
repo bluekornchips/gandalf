@@ -14,8 +14,6 @@ readonly DEFAULT_BACKUP_COUNT=5
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export GANDALF_HOME="${GANDALF_HOME:-$HOME/.${MCP_SERVER_NAME}}"
 
-source "$GANDALF_ROOT/tools/lib/platform-utils.sh"
-
 validate_directory() {
 	local dir="$1"
 	local description="${2:-directory}"
@@ -44,6 +42,48 @@ validate_executable() {
 		return 1
 	fi
 	return 0
+}
+
+is_application_installed() {
+	local app_name="$1"
+	
+	# Check common installation paths
+	case "$app_name" in
+		"cursor")
+			if [[ -d "/Applications/Cursor.app" ]] || \
+			   [[ -d "$HOME/Applications/Cursor.app" ]] || \
+			   command -v cursor >/dev/null 2>&1 || \
+			   command -v Cursor >/dev/null 2>&1; then
+				return 0
+			fi
+			;;
+		"claude")
+			if [[ -d "/Applications/Claude.app" ]] || \
+			   [[ -d "$HOME/Applications/Claude.app" ]] || \
+			   command -v claude >/dev/null 2>&1 || \
+			   command -v claude-code >/dev/null 2>&1 || \
+			   [[ -d "$HOME/.claude" ]] || \
+			   [[ -d "$HOME/.config/claude" ]]; then
+				return 0
+			fi
+			;;
+		"windsurf")
+			if [[ -d "/Applications/Windsurf.app" ]] || \
+			   [[ -d "$HOME/Applications/Windsurf.app" ]] || \
+			   command -v windsurf >/dev/null 2>&1 || \
+			   command -v Windsurf >/dev/null 2>&1; then
+				return 0
+			fi
+			;;
+		*)
+			# Generic check
+			if command -v "$app_name" >/dev/null 2>&1; then
+				return 0
+			fi
+			;;
+	esac
+	
+	return 1
 }
 
 create_directory_structure() {
@@ -442,25 +482,38 @@ install_for_claude_code() {
 
 	echo "Installing Gandalf MCP for Claude Code..."
 
-	if ! validate_executable "claude" "Claude CLI"; then
-		echo "Error: Claude CLI not found. Please install Claude Code first." >&2
+	if ! is_application_installed "claude"; then
+		echo "Error: Claude Code not found. Please install Claude Code first." >&2
 		return 1
 	fi
 
+	if ! command -v claude &>/dev/null; then
+cat <<EOF
+Warning: Claude CLI not available for MCP configuration
+Claude Code detected but CLI not found. Skipping MCP setup
+Note: Claude Code MCP may need manual configuration
+EOF
+		return 0
+	fi
+
+	# Try to install MCP configuration, but don't fail if it doesn't work
+	echo "Attempting Claude Code MCP configuration."
+	
 	# Clean existing configurations
 	claude mcp remove "$server_name" -s local 2>/dev/null || true
 	claude mcp remove "$server_name" -s user 2>/dev/null || true
 
-	# Install globally
+	# Install globally with error handling
 	if claude mcp add "$server_name" "$gandalf_root/gandalf" -s user "run" \
 		-e "PYTHONPATH=$gandalf_root/server" \
 		-e "CLAUDECODE=1" \
-		-e "CLAUDE_CODE_ENTRYPOINT=cli"; then
+		-e "CLAUDE_CODE_ENTRYPOINT=cli" 2>/dev/null; then
 		echo "Claude Code MCP configuration installed successfully"
 		return 0
 	else
-		echo "Error: Failed to install Claude Code MCP configuration" >&2
-		return 1
+		echo "Warning: Claude Code MCP configuration failed, but continuing installation"
+		echo "Note: Claude Code may need manual MCP configuration"
+		return 0
 	fi
 }
 

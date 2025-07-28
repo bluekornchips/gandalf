@@ -10,10 +10,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from src.config.core_constants import (
-    GANDALF_SERVER_VERSION,
-    MCP_PROTOCOL_VERSION,
-)
+from src.config.core_constants import GANDALF_SERVER_VERSION, MCP_PROTOCOL_VERSION
 from src.tool_calls.project_operations import handle_get_server_version
 
 

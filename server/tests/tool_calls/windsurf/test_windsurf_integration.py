@@ -5,12 +5,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from src.config.conversation_config import AGENTIC_TOOL_CURSOR, AGENTIC_TOOL_WINDSURF
-from src.tool_calls.aggregator import (
-    handle_recall_conversations,
-)
-from src.tool_calls.response_formatting import (
-    _standardize_conversation_format,
-)
+from src.tool_calls.aggregator import handle_recall_conversations
+from src.tool_calls.response_formatting import _standardize_conversation_format
 
 
 class TestWindsurfIntegration:

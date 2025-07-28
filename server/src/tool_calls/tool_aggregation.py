@@ -19,9 +19,7 @@ from src.core.tool_registry import get_registered_agentic_tools
 from src.tool_calls.claude_code.recall import (
     handle_recall_claude_conversations as claude_recall_handler,
 )
-from src.tool_calls.cursor.recall import (
-    CONVERSATION_RECALL_TOOL_HANDLERS,
-)
+from src.tool_calls.cursor.recall import CONVERSATION_RECALL_TOOL_HANDLERS
 from src.tool_calls.windsurf.recall import (
     handle_recall_windsurf_conversations as windsurf_recall_handler,
 )

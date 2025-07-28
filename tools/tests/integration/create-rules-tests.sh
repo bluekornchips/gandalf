@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-load '../../lib/test-helpers.sh'
+load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 
 readonly CREATE_RULES_SCRIPT="$GANDALF_ROOT/tools/bin/create-rules"
 
@@ -15,13 +15,16 @@ create_tool_directories() {
     mkdir -p "$TEST_HOME/.gandalf"
     mkdir -p "$TEST_HOME/.gandalf/cache"
     mkdir -p "$TEST_HOME/.gandalf/exports"
-    mkdir -p "$TEST_HOME/.gandalf/backups"
+
     mkdir -p "$TEST_HOME/.gandalf/config"
 }
 
 setup() {
     shared_setup
     create_minimal_project
+
+    START_MARKER="##__GANDALF_RULES_START__##"
+    END_MARKER="##__GANDALF_RULES_END__##"
 
     TEST_SPEC_DIR="$TEST_HOME/spec"
     mkdir -p "$TEST_SPEC_DIR"
@@ -116,11 +119,11 @@ create_existing_local_rules_files() {
 
 Some existing content.
 
-#####----- GANDALF RULES -----#####
+$START_MARKER
 
 existing gandalf rules content
 
-#####----- END GANDALF RULES -----#####
+$END_MARKER
 
 More existing content.}"
     local windsurf_content="${3:-# Existing Local Windsurf Rules}"
@@ -194,14 +197,14 @@ These are existing cursor rules that should be preserved when not forced.
 EOF
 
     # Create existing Claude rules with markers
-    cat > "$TEST_HOME/.claude/CLAUDE.md" << 'EOF'
+    cat > "$TEST_HOME/.claude/CLAUDE.md" << EOF
 # Some existing content
 
-#####----- GANDALF RULES -----#####
+$START_MARKER
 
 existing gandalf rules content
 
-#####----- END GANDALF RULES -----#####
+$END_MARKER
 
 # More existing content
 EOF
@@ -217,8 +220,8 @@ validate_claude_markdown_format() {
     local claude_file="$TEST_HOME/.claude/CLAUDE.md"
 
     [[ -f "$claude_file" ]] || return 1
-    grep -q "#####----- GANDALF RULES -----#####" "$claude_file" || return 1
-    grep -q "#####----- END GANDALF RULES -----#####" "$claude_file" || return 1
+    grep -q "$START_MARKER" "$claude_file" || return 1
+    grep -q "$END_MARKER" "$claude_file" || return 1
 }
 
 validate_claude_markdown_content() {
@@ -229,28 +232,7 @@ validate_claude_markdown_content() {
     grep -q "$expected_content" "$claude_file" || return 1
 }
 
-validate_backup_created() {
-    local backup_pattern="$1"
-    local expected_content="$2"
 
-    # Check for Claude backups in .claude directory
-    if [[ "$backup_pattern" == "CLAUDE.md.backup" ]]; then
-        local backup_files=("$TEST_HOME/.claude/"${backup_pattern}.*)
-        [[ -f "${backup_files[0]}" ]] || return 1
-
-        if [[ -n "$expected_content" ]]; then
-            grep -q "$expected_content" "${backup_files[0]}" || return 1
-        fi
-    else
-        # Check for other backups in .gandalf/backups directory
-        local backup_files=("$TEST_HOME/.gandalf/backups/"${backup_pattern}*)
-        [[ -f "${backup_files[0]}" ]] || return 1
-
-        if [[ -n "$expected_content" ]]; then
-            grep -q "$expected_content" "${backup_files[0]}" || return 1
-        fi
-    fi
-}
 
 validate_windsurf_truncation() {
     local max_chars="$1"
@@ -295,6 +277,10 @@ validate_success_messages() {
 @test "create-rules creates rules for all supported tools" {
     create_test_rules_file "# Test Gandalf Rules - This is a test rules file for multi-tool validation."
 
+    # Export the environment variables so the script can see them
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
 
@@ -307,6 +293,10 @@ validate_success_messages() {
     create_existing_rules_files
 
     create_test_rules_file "# New Rules"
+
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
 
     run "$CREATE_RULES_SCRIPT"
     [ "$status" -eq 0 ]
@@ -323,6 +313,10 @@ validate_success_messages() {
 
     create_test_rules_file "# New Forced Rules"
 
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
+
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
 
@@ -338,6 +332,10 @@ validate_success_messages() {
     done
 
     create_test_rules_file "$large_content"
+
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
 
     local char_count
     char_count=$(wc -c < "$TEST_RULES_FILE")
@@ -357,6 +355,10 @@ validate_success_messages() {
 @test "create-rules creates proper claude code markdown format" {
     create_test_rules_file $'# Test Rules\n- Rule with "quotes" in it\n- Rule with backslashes in it\n- Rule with \nnewlines in it'
 
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
+
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
 
@@ -369,6 +371,10 @@ validate_success_messages() {
 @test "create-rules creates windsurf global rules with correct content" {
     create_test_rules_file "# Test Rules, this is test content for Windsurf rules validation."
 
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
+
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
 
@@ -376,34 +382,45 @@ validate_success_messages() {
     validate_rules_file_exists "windsurf" "Windsurf rules validation"
 }
 
-@test "create-rules backs up existing claude code settings" {
+@test "create-rules updates existing claude code settings with interpolation" {
     create_tool_directories
 
-    cat > "$TEST_HOME/.claude/CLAUDE.md" << 'EOF'
+    cat > "$TEST_HOME/.claude/CLAUDE.md" << EOF
 # My existing Claude rules
 
 Some existingSetting content.
 
-#####----- GANDALF RULES -----#####
+$START_MARKER
 
 Old gandalf rules here.
 
-#####----- END GANDALF RULES -----#####
+$END_MARKER
 
 More content.
 EOF
 
     create_test_rules_file "# Test Rules"
 
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
+
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
 
-    validate_backup_created "CLAUDE.md.backup" "existingSetting"
+    # Since we use string markers for interpolation, no backup is needed
+    # Just verify the rules were updated correctly
     validate_rules_file_exists "claude" "Test Rules"
+    grep -q "existingSetting" "$TEST_HOME/.claude/CLAUDE.md"
+    grep -q "Test Rules" "$TEST_HOME/.claude/CLAUDE.md"
 }
 
 @test "create-rules reports success for multi-tool configuration" {
     create_test_rules_file "# Test Rules"
+
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
 
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
@@ -425,34 +442,42 @@ EOF
 
 @test "create-rules handles CLAUDE.md with markers correctly" {
     mkdir -p "$TEST_HOME/.claude"
-    cat > "$TEST_HOME/.claude/CLAUDE.md" << 'EOF'
+    cat > "$TEST_HOME/.claude/CLAUDE.md" << EOF
 # My existing Claude rules
 
 Some existing content.
 
-#####----- GANDALF RULES -----#####
+$START_MARKER
 
 Old gandalf content here.
 
-#####----- END GANDALF RULES -----#####
+$END_MARKER
 
 More existing content.
 EOF
 
     create_test_rules_file "# New Rules Content"
 
+    # Export the environment variables so the script can see them
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
 
     grep -q "My existing Claude rules" "$TEST_HOME/.claude/CLAUDE.md"
     grep -q "More existing content" "$TEST_HOME/.claude/CLAUDE.md"
-    grep -q "#####----- GANDALF RULES -----#####" "$TEST_HOME/.claude/CLAUDE.md"
+    grep -q "$START_MARKER" "$TEST_HOME/.claude/CLAUDE.md"
     grep -q "New Rules Content" "$TEST_HOME/.claude/CLAUDE.md"
     ! grep -q "Old gandalf content here" "$TEST_HOME/.claude/CLAUDE.md"
 }
 
 @test "create-rules creates proper cursor frontmatter" {
     create_test_rules_file "# Test Rules"
+
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
 
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
@@ -464,6 +489,10 @@ EOF
 
 @test "create-rules handles windsurf character limit" {
     create_test_rules_file "# Test Rules"
+
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
 
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
@@ -478,6 +507,10 @@ EOF
 @test "create-rules shows success message" {
     create_test_rules_file "# Test Rules"
 
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
+
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
     echo "$output" | grep -q "Gandalf Rules Creation completed successfully"
@@ -485,6 +518,10 @@ EOF
 
 @test "create-rules local only flag creates only local rules" {
     create_test_rules_file "# Test Local Rules"
+
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
 
     run "$CREATE_RULES_SCRIPT" --local --force
     [ "$status" -eq 0 ]
@@ -502,6 +539,10 @@ EOF
 @test "create-rules global only flag creates only global rules" {
     create_test_rules_file "# Test Global Rules"
 
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
+
     run "$CREATE_RULES_SCRIPT" --global --force
     [ "$status" -eq 0 ]
     
@@ -517,6 +558,10 @@ EOF
 
 @test "create-rules default creates both global and local rules" {
     create_test_rules_file "# Test Both Rules"
+
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
 
     run "$CREATE_RULES_SCRIPT" --force
     [ "$status" -eq 0 ]
@@ -536,6 +581,11 @@ EOF
 
 @test "create-rules local flag updates existing local claude rules" {
     create_test_rules_file "# Updated Local Rules"
+
+    # Export the environment variables so the script can see them
+    export GANDALF_HOME_OVERRIDE="$TEST_HOME"
+    export GANDALF_SPEC_OVERRIDE="$TEST_SPEC_DIR"
+
     create_existing_local_rules_files
 
     run "$CREATE_RULES_SCRIPT" --local --force

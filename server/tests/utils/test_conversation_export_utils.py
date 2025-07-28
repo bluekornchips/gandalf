@@ -10,10 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.utils.conversation_export import (
-    export_conversations_simple,
-    list_workspaces,
-)
+from src.utils.conversation_export import export_conversations_simple, list_workspaces
 
 
 class TestConversationExportUtils:

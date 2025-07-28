@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-load '../../lib/test-helpers.sh'
+load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 
 # Security validation helper functions
 validate_dangerous_pattern_response() {
