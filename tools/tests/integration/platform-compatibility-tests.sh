@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-load '../../lib/test-helpers.sh'
+load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 
 readonly PLATFORM_TEST_TIMEOUT=30
 readonly PLATFORM_WAIT_TIME=2

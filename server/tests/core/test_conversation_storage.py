@@ -577,9 +577,7 @@ class TestUtilityFunctions:
     def test_generate_context_keywords_alias(self):
         """Test that generate_context_keywords is properly aliased."""
         from src.core.conversation_storage import generate_context_keywords
-        from src.core.keyword_extractor import (
-            generate_shared_context_keywords,
-        )
+        from src.core.keyword_extractor import generate_shared_context_keywords
 
         # Check that they point to the same function (same name)
         assert (

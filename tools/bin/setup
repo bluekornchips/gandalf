@@ -14,9 +14,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Load platform utilities
-source "$GANDALF_ROOT/tools/lib/platform-utils.sh"
-
 # Default configurations
 MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 _get_version() {
@@ -33,6 +30,52 @@ ENV_FILE="$GANDALF_ROOT/.env"
 
 # Environment setup
 export GANDALF_HOME="${GANDALF_HOME:-$HOME/.gandalf}"
+
+get_cursor_config_dir() {
+    echo "$HOME/.cursor"
+}
+
+is_application_installed() {
+    local app_name="$1"
+    
+    # Check common installation paths
+    case "$app_name" in
+        "cursor")
+            if [[ -d "/Applications/Cursor.app" ]] || \
+               [[ -d "$HOME/Applications/Cursor.app" ]] || \
+               command -v cursor >/dev/null 2>&1 || \
+               command -v Cursor >/dev/null 2>&1; then
+                return 0
+            fi
+            ;;
+        "claude")
+            if [[ -d "/Applications/Claude.app" ]] || \
+               [[ -d "$HOME/Applications/Claude.app" ]] || \
+               command -v claude >/dev/null 2>&1 || \
+               command -v claude-code >/dev/null 2>&1 || \
+               [[ -d "$HOME/.claude" ]] || \
+               [[ -d "$HOME/.config/claude" ]]; then
+                return 0
+            fi
+            ;;
+        "windsurf")
+            if [[ -d "/Applications/Windsurf.app" ]] || \
+               [[ -d "$HOME/Applications/Windsurf.app" ]] || \
+               command -v windsurf >/dev/null 2>&1 || \
+               command -v Windsurf >/dev/null 2>&1; then
+                return 0
+            fi
+            ;;
+        *)
+            # Generic check
+            if command -v "$app_name" >/dev/null 2>&1; then
+                return 0
+            fi
+            ;;
+    esac
+    
+    return 1
+}
 
 load_env_variables() {
     if [[ -f "$ENV_FILE" ]]; then
@@ -246,7 +289,7 @@ detect_agentic_tool_availability() {
     fi
 
     # Check for Claude Code
-    if [[ -d "$HOME/.claude" ]] || [[ -d "$HOME/.config/claude" ]]; then
+    if is_application_installed "claude-code"; then
         CLAUDE_CODE_AVAILABLE=true
         echo "Claude Code detected"
     else

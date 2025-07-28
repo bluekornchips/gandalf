@@ -9,10 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.core.tool_registry import (
-    get_available_tools,
-    get_registered_agentic_tools,
-)
+from src.core.tool_registry import get_available_tools, get_registered_agentic_tools
 
 
 class TestToolRegistry(unittest.TestCase):

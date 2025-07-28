@@ -15,9 +15,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from src.config.core_constants import (
-    DATABASE_SCANNER_TIMEOUT,
-)
+from src.config.core_constants import DATABASE_SCANNER_TIMEOUT
 from src.config.tool_config import (
     CLAUDE_CODE_DATABASE_PATHS,
     CURSOR_DATABASE_PATHS,

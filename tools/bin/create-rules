@@ -8,6 +8,10 @@ readonly GANDALF_ROOT="$(dirname "$(dirname "$(dirname "$SCRIPT_PATH")")")"
 
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 
+# Define section markers
+readonly START_MARKER="##__GANDALF_RULES_START__##"
+readonly END_MARKER="##__GANDALF_RULES_END__##"
+
 usage() {
 	cat <<EOF
 Usage: $0 [OPTIONS]
@@ -116,7 +120,7 @@ EOF
 
 create_claude_rules() {
 	local rules_content="$1"
-	local rules_dir="$HOME/.claude"
+	local rules_dir="${GANDALF_HOME_OVERRIDE:-$HOME}/.claude"
 	local claude_file="$rules_dir/CLAUDE.md"
 
 	# Check if file exists and force is not enabled
@@ -125,22 +129,10 @@ create_claude_rules() {
 		return 0
 	fi
 
-	# Define section markers
-	local start_marker="#####----- GANDALF RULES -----#####"
-	local end_marker="#####----- END GANDALF RULES -----#####"
 
-	# Create backup if file exists
-	if [[ -f "$claude_file" ]]; then
-		local backup_file="$claude_file.backup.$(date +%s)"
-		if cp "$claude_file" "$backup_file"; then
-			echo "Backed up existing Claude Code CLAUDE.md: $backup_file"
-		else
-			echo "Warning: Failed to create backup, continuing..." >&2
-		fi
-	fi
 
 	# Check if file exists and has Gandalf section
-	if [[ -f "$claude_file" ]] && grep -q "$start_marker" "$claude_file"; then
+	if [[ -f "$claude_file" ]] && grep -q "$START_MARKER" "$claude_file"; then
 		echo "Updating Gandalf rules section in existing CLAUDE.md"
 		
 		local temp_file
@@ -153,7 +145,7 @@ create_claude_rules() {
 		local found_start_marker=false
 		
 		while IFS= read -r line; do
-			if [[ "$line" == "$start_marker" ]]; then
+			if [[ "$line" == "$START_MARKER" ]]; then
 				if [[ "$found_start_marker" == "false" ]]; then
 					# First marker - write it and our new content
 					echo "$line" >> "$temp_file"
@@ -163,7 +155,7 @@ create_claude_rules() {
 					found_start_marker=true
 					in_gandalf_rules=true
 				fi
-			elif [[ "$line" == "$end_marker" ]]; then
+			elif [[ "$line" == "$END_MARKER" ]]; then
 				if [[ "$in_gandalf_rules" == "true" ]]; then
 					# End marker - write it and continue
 					echo "$line" >> "$temp_file"
@@ -192,21 +184,21 @@ create_claude_rules() {
 			# Append to existing file
 			cat >> "$claude_file" <<EOF
 
-$start_marker
+$START_MARKER
 
 $rules_content
 
-$end_marker
+$END_MARKER
 EOF
 		else
 			echo "Creating new CLAUDE.md with Gandalf rules"
 			# Create new file with just Gandalf section
 			cat > "$claude_file" <<EOF
-$start_marker
+$START_MARKER
 
 $rules_content
 
-$end_marker
+$END_MARKER
 EOF
 		fi
 		
@@ -273,22 +265,8 @@ create_local_claude_rules() {
 		return 0
 	fi
 
-	# Define section markers
-	local start_marker="#####----- GANDALF RULES -----#####"
-	local end_marker="#####----- END GANDALF RULES -----#####"
-
-	# Create backup if file exists
-	if [[ -f "$claude_file" ]]; then
-		local backup_file="$claude_file.backup.$(date +%s)"
-		if cp "$claude_file" "$backup_file"; then
-			echo "Backed up existing local CLAUDE.md: $backup_file"
-		else
-			echo "Warning: Failed to create backup, continuing..." >&2
-		fi
-	fi
-
 	# Check if file exists and has Gandalf section
-	if [[ -f "$claude_file" ]] && grep -q "$start_marker" "$claude_file"; then
+	if [[ -f "$claude_file" ]] && grep -q "$START_MARKER" "$claude_file"; then
 		echo "Updating Gandalf rules section in local CLAUDE.md"
 		
 		local temp_file
@@ -301,7 +279,7 @@ create_local_claude_rules() {
 		local found_start_marker=false
 		
 		while IFS= read -r line; do
-			if [[ "$line" == "$start_marker" ]]; then
+			if [[ "$line" == "$START_MARKER" ]]; then
 				if [[ "$found_start_marker" == "false" ]]; then
 					# First marker - write it and our new content
 					echo "$line" >> "$temp_file"
@@ -311,7 +289,7 @@ create_local_claude_rules() {
 					found_start_marker=true
 					in_gandalf_rules=true
 				fi
-			elif [[ "$line" == "$end_marker" ]]; then
+			elif [[ "$line" == "$END_MARKER" ]]; then
 				if [[ "$in_gandalf_rules" == "true" ]]; then
 					# End marker - write it and continue
 					echo "$line" >> "$temp_file"
@@ -340,21 +318,21 @@ create_local_claude_rules() {
 			# Append to existing file
 			cat >> "$claude_file" <<EOF
 
-$start_marker
+$START_MARKER
 
 $rules_content
 
-$end_marker
+$END_MARKER
 EOF
 		else
 			echo "Creating new local CLAUDE.md with Gandalf rules"
 			# Create new file with just Gandalf section
 			cat > "$claude_file" <<EOF
-$start_marker
+$START_MARKER
 
 $rules_content
 
-$end_marker
+$END_MARKER
 EOF
 		fi
 		
@@ -375,7 +353,8 @@ create_global_rules_files() {
 	echo "Creating global rules files for all supported tools..."
 
 	# Create necessary directories
-	local -a rule_dirs=("$HOME/.cursor/rules" "$HOME/.claude" "$HOME/.windsurf")
+	local home_dir="${GANDALF_HOME_OVERRIDE:-$HOME}"
+	local -a rule_dirs=("$home_dir/.cursor/rules" "$home_dir/.claude" "$home_dir/.windsurf")
 	for dir in "${rule_dirs[@]}"; do
 		mkdir -p "$dir" || {
 			echo "Warning: Failed to create rules directory: $dir" >&2
@@ -387,7 +366,7 @@ create_global_rules_files() {
 	local windsurf_success=false
 
 	# Create rules for each tool using the combined content
-	if create_cursor_rules "$rules_content" "$HOME/.cursor/rules"; then
+	if create_cursor_rules "$rules_content" "$home_dir/.cursor/rules"; then
 		cursor_success=true
 		echo "Installing global rules for Cursor IDE"
 	fi
@@ -397,16 +376,16 @@ create_global_rules_files() {
 		echo "Installing global rules for Claude Code"
 	fi
 
-	if create_windsurf_rules "$rules_content" "$HOME/.windsurf"; then
+	if create_windsurf_rules "$rules_content" "$home_dir/.windsurf"; then
 		windsurf_success=true
 		echo "Installing global rules for Windsurf IDE"
 	fi
 
 	if [[ "$cursor_success" = true || "$claude_success" = true || "$windsurf_success" = true ]]; then
 		echo "Global Rules Files Created:"
-		[[ "$cursor_success" = true ]] && echo "Cursor: $HOME/.cursor/rules/$MCP_SERVER_NAME-rules.mdc"
-		[[ "$claude_success" = true ]] && echo "Claude Code: $HOME/.claude/CLAUDE.md"
-		[[ "$windsurf_success" = true ]] && echo "Windsurf: $HOME/.windsurf/global_rules.md"
+		[[ "$cursor_success" = true ]] && echo "Cursor: $home_dir/.cursor/rules/$MCP_SERVER_NAME-rules.mdc"
+		[[ "$claude_success" = true ]] && echo "Claude Code: $home_dir/.claude/CLAUDE.md"
+		[[ "$windsurf_success" = true ]] && echo "Windsurf: $home_dir/.windsurf/global_rules.md"
 	fi
 
 	return 0

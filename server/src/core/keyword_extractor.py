@@ -9,10 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.config.config_data import (
-    CONTEXT_SKIP_DIRECTORIES,
-    TECHNOLOGY_KEYWORD_MAPPING,
-)
+from src.config.config_data import CONTEXT_SKIP_DIRECTORIES, TECHNOLOGY_KEYWORD_MAPPING
 from src.config.conversation_config import (
     CONTEXT_KEYWORD_MAX_COUNT,
     CONTEXT_MAX_FILES_TO_CHECK,

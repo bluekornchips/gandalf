@@ -8,9 +8,7 @@ allowing retrieval and analysis of conversation data from Claude Code sessions.
 from pathlib import Path
 from typing import Any
 
-from src.config.config_data import (
-    CONVERSATION_TYPES,
-)
+from src.config.config_data import CONVERSATION_TYPES
 from src.config.conversation_config import (
     CONVERSATION_DEFAULT_LIMIT,
     CONVERSATION_DEFAULT_LOOKBACK_DAYS,

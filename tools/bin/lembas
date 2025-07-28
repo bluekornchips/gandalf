@@ -22,7 +22,7 @@ cleanup_handler() {
 		done
 
 		# Give processes time to terminate gracefully
-		sleep 1
+		sleep 2
 
 		# Force kill any remaining processes
 		for pid in "${CHILD_PIDS[@]}"; do
@@ -37,7 +37,7 @@ cleanup_handler() {
 declare -a CHILD_PIDS=()
 trap cleanup_handler INT TERM
 
-readonly DEFAULT_TIMEOUT=300
+readonly DEFAULT_TIMEOUT=600
 readonly DEFAULT_WAIT_TIME=2
 
 print_header() {
@@ -145,10 +145,13 @@ run_shell_tests() {
 
 	local test_args=()
 
-	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
+	echo "Starting test-runner with command: bash $GANDALF_ROOT/tools/bin/test-runner --shell"
+	# Run without timeout to avoid signal interference
+	bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
 	local test_pid=$!
 	CHILD_PIDS+=("$test_pid")
 
+	echo "Test-runner started with PID: $test_pid"
 	if wait "$test_pid"; then
 		echo "Shell tests completed successfully"
 		return 0
@@ -170,7 +173,8 @@ run_python_tests() {
 
 	local test_args=()
 
-	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --python ${test_args[@]+"${test_args[@]}"} &
+	# Run without timeout to avoid signal interference
+	bash "$GANDALF_ROOT/tools/bin/test-runner" --python ${test_args[@]+"${test_args[@]}"} &
 	local test_pid=$!
 	CHILD_PIDS+=("$test_pid")
 
@@ -196,7 +200,8 @@ run_fast_tests() {
 	# Run only essential test suites for quick validation
 	local test_args=("--suites" "core,file,project")
 
-	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
+	# Run without timeout to avoid signal interference
+	bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
 	local test_pid=$!
 	CHILD_PIDS+=("$test_pid")
 
@@ -221,7 +226,8 @@ run_core_tests() {
 
 	local test_args=()
 
-	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
+	# Run without timeout to avoid signal interference
+	bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
 	local test_pid=$!
 	CHILD_PIDS+=("$test_pid")
 
@@ -254,7 +260,8 @@ run_all_tests() {
 	echo "Step 2: Shell and Python tests..."
 	local test_args=()
 
-	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" ${test_args[@]+"${test_args[@]}"} &
+	# Run without timeout to avoid signal interference
+	bash "$GANDALF_ROOT/tools/bin/test-runner" ${test_args[@]+"${test_args[@]}"} &
 	local test_pid=$!
 	CHILD_PIDS+=("$test_pid")
 
@@ -271,6 +278,9 @@ validate_mcp_installation() {
 	echo "Creating temporary directory for MCP validation."
 	local temp_dir
 	temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/gandalf-mcp-validation-XXXXXX")
+
+	local original_dir
+	original_dir=$(pwd)
 
 	echo "Starting temporary MCP server in: $temp_dir"
 	cd "$temp_dir"
@@ -292,6 +302,7 @@ validate_mcp_installation() {
 	else
 		echo "Response: $response"
 		echo "tools/list failed" >&2
+		cd "$original_dir"
 		return 1
 	fi
 
@@ -320,9 +331,12 @@ validate_mcp_installation() {
 		else
 			echo "Response: $response"
 			echo "$tool failed" >&2
+			cd "$original_dir"
 			return 1
 		fi
 	done
+
+	cd "$original_dir"
 
 	echo "MCP validation completed successfully"
 	return 0

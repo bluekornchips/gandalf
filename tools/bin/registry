@@ -5,12 +5,55 @@
 
 set -euo pipefail
 
-# Load platform utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-source "$GANDALF_ROOT/tools/lib/platform-utils.sh"
-
 REGISTRY_FILE="$HOME/.gandalf/registry.json"
+
+# Missing function: Get Cursor config directory
+get_cursor_config_dir() {
+    echo "$HOME/.cursor"
+}
+
+# Missing function: Check if application is installed
+is_application_installed() {
+    local app_name="$1"
+    
+    # Check common installation paths
+    case "$app_name" in
+        "cursor")
+            if [[ -d "/Applications/Cursor.app" ]] || \
+               [[ -d "$HOME/Applications/Cursor.app" ]] || \
+               command -v cursor >/dev/null 2>&1 || \
+               command -v Cursor >/dev/null 2>&1; then
+                return 0
+            fi
+            ;;
+        "claude")
+            if [[ -d "/Applications/Claude.app" ]] || \
+               [[ -d "$HOME/Applications/Claude.app" ]] || \
+               command -v claude >/dev/null 2>&1 || \
+               command -v claude-code >/dev/null 2>&1 || \
+               [[ -d "$HOME/.claude" ]] || \
+               [[ -d "$HOME/.config/claude" ]]; then
+                return 0
+            fi
+            ;;
+        "windsurf")
+            if [[ -d "/Applications/Windsurf.app" ]] || \
+               [[ -d "$HOME/Applications/Windsurf.app" ]] || \
+               command -v windsurf >/dev/null 2>&1 || \
+               command -v Windsurf >/dev/null 2>&1; then
+                return 0
+            fi
+            ;;
+        *)
+            # Generic check
+            if command -v "$app_name" >/dev/null 2>&1; then
+                return 0
+            fi
+            ;;
+    esac
+    
+    return 1
+}
 
 detect_agentic_tool() {
     # Check for Claude Code environment variables
@@ -65,6 +108,11 @@ detect_agentic_tool() {
     # Check for application installation using platform-aware detection
     if is_application_installed "cursor"; then
         echo "cursor"
+        return 0
+    fi
+
+    if is_application_installed "claude"; then
+        echo "claude-code"
         return 0
     fi
 

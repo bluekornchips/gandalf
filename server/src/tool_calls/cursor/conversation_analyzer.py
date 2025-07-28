@@ -23,9 +23,7 @@ from src.core.conversation_analysis import (
 from src.core.conversation_analysis import (
     score_file_references as _score_file_references,
 )
-from src.core.conversation_scorer import (
-    score_keyword_matches,
-)
+from src.core.conversation_scorer import score_keyword_matches
 from src.tool_calls.cursor.conversation_utils import (
     extract_conversation_text_lazy,
     extract_keywords_from_content,

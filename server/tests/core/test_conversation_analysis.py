@@ -28,9 +28,7 @@ from src.core.conversation_analysis import (
     score_session_recency,
     sort_conversations_by_relevance,
 )
-from src.core.keyword_extractor import (
-    _extract_project_keywords,
-)
+from src.core.keyword_extractor import _extract_project_keywords
 from src.utils.memory_cache import get_keyword_cache
 
 

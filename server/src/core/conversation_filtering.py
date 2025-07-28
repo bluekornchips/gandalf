@@ -8,13 +8,7 @@ based on user prompts and project context.
 import re
 
 # Use common imports for frequently used utilities
-from src.common_imports import (
-    Any,
-    Path,
-    log_debug,
-    log_error,
-    log_info,
-)
+from src.common_imports import Any, Path, log_debug, log_error, log_info
 
 # Specific conversation config imports not in common_imports
 from src.config.conversation_config import (

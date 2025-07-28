@@ -8,9 +8,7 @@ from typing import Any
 
 import yaml
 
-from src.config.conversation_config import (
-    CONTEXT_FILE_SIZE_OPTIMAL_MAX,
-)
+from src.config.conversation_config import CONTEXT_FILE_SIZE_OPTIMAL_MAX
 from src.config.core_constants import (
     DEFAULT_ACTIVITY_BOOST,
     DEFAULT_DIRECTORIES,

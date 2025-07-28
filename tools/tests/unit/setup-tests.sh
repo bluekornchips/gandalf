@@ -8,7 +8,7 @@ TEST_DATA_DIR="$(dirname "$BATS_TEST_DIRNAME")/fixtures/data"
 TEST_VERSION_FILE="$TEST_DATA_DIR/test_version.txt"
 
 load_test_helpers() {
-    local test_helpers_path="$BATS_TEST_DIRNAME/../tools/lib/test-helpers.sh"
+    local test_helpers_path="$BATS_TEST_DIRNAME/../tools/tests/test-helpers.sh"
     if [[ -f "$test_helpers_path" ]]; then
         source "$test_helpers_path"
     fi

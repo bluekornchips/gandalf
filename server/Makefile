@@ -17,7 +17,7 @@ test:
 
 security:
 	bandit -r src/ -f txt -s B603,B607
-	safety check
+	pip-audit
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
