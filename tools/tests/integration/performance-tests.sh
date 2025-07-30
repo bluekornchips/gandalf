@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-load '../../lib/test-helpers.sh'
-
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
+load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 # Flexible performance timing
 check_performance_timing() {
     local duration="$1"

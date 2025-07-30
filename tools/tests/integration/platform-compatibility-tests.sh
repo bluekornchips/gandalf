@@ -4,7 +4,8 @@
 
 set -euo pipefail
 
-load '../../lib/test-helpers.sh'
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
+load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 
 readonly PLATFORM_TEST_TIMEOUT=30
 readonly PLATFORM_WAIT_TIME=2

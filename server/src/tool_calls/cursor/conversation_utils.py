@@ -15,9 +15,7 @@ from src.config.conversation_config import (
     CONVERSATION_PROGRESS_LOG_INTERVAL,
     CONVERSATION_TEXT_EXTRACTION_LIMIT,
 )
-from src.config.tool_config import (
-    DATABASE_STRUCTURE_LIMITATION_NOTE,
-)
+from src.config.tool_config import DATABASE_STRUCTURE_LIMITATION_NOTE
 from src.utils.access_control import AccessValidator
 from src.utils.common import format_json_response, log_debug, log_info
 from src.utils.performance import get_duration

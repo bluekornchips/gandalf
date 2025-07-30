@@ -5,11 +5,6 @@
 
 set -euo pipefail
 
-# Load platform utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-source "$GANDALF_ROOT/tools/lib/platform-utils.sh"
-
 REGISTRY_FILE="$HOME/.gandalf/registry.json"
 
 detect_agentic_tool() {

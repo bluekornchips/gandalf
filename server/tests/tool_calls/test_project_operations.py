@@ -7,10 +7,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.config.core_constants import (
-    GANDALF_SERVER_VERSION,
-    MCP_PROTOCOL_VERSION,
-)
+from src.config.core_constants import GANDALF_SERVER_VERSION, MCP_PROTOCOL_VERSION
 from src.tool_calls.project_operations import (
     PROJECT_TOOL_DEFINITIONS,
     PROJECT_TOOL_HANDLERS,

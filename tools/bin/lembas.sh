@@ -13,28 +13,8 @@ readonly GANDALF_ROOT
 
 cleanup_handler() {
 	echo -e "\nLembas interrupted. Cleaning up..." >&2
-
-	if [[ -n "${CHILD_PIDS:-}" ]]; then
-		for pid in "${CHILD_PIDS[@]}"; do
-			if kill -0 "$pid" 2>/dev/null; then
-				kill -TERM "$pid" 2>/dev/null || true
-			fi
-		done
-
-		# Give processes time to terminate gracefully
-		sleep 1
-
-		# Force kill any remaining processes
-		for pid in "${CHILD_PIDS[@]}"; do
-			if kill -0 "$pid" 2>/dev/null; then
-				kill -KILL "$pid" 2>/dev/null || true
-			fi
-		done
-	fi
-
 	exit 130
 }
-declare -a CHILD_PIDS=()
 trap cleanup_handler INT TERM
 
 readonly DEFAULT_TIMEOUT=300
@@ -145,11 +125,10 @@ run_shell_tests() {
 
 	local test_args=()
 
-	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
-	local test_pid=$!
-	CHILD_PIDS+=("$test_pid")
-
-	if wait "$test_pid"; then
+	# Ensure we're in the correct working directory
+	cd "$GANDALF_ROOT"
+	
+	if timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner.sh" --shell ${test_args[@]+"${test_args[@]}"}; then
 		echo "Shell tests completed successfully"
 		return 0
 	else
@@ -170,11 +149,10 @@ run_python_tests() {
 
 	local test_args=()
 
-	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --python ${test_args[@]+"${test_args[@]}"} &
-	local test_pid=$!
-	CHILD_PIDS+=("$test_pid")
-
-	if wait "$test_pid"; then
+	# Ensure we're in the correct working directory
+	cd "$GANDALF_ROOT"
+	
+	if timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner.sh" --python ${test_args[@]+"${test_args[@]}"}; then
 		echo "Python tests completed successfully"
 		return 0
 	else
@@ -196,11 +174,10 @@ run_fast_tests() {
 	# Run only essential test suites for quick validation
 	local test_args=("--suites" "core,file,project")
 
-	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
-	local test_pid=$!
-	CHILD_PIDS+=("$test_pid")
-
-	if wait "$test_pid"; then
+	# Ensure we're in the correct working directory
+	cd "$GANDALF_ROOT"
+	
+	if timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner.sh" --shell ${test_args[@]+"${test_args[@]}"}; then
 		echo "Fast tests completed successfully"
 		return 0
 	else
@@ -221,11 +198,10 @@ run_core_tests() {
 
 	local test_args=()
 
-	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" --shell ${test_args[@]+"${test_args[@]}"} &
-	local test_pid=$!
-	CHILD_PIDS+=("$test_pid")
-
-	if wait "$test_pid"; then
+	# Ensure we're in the correct working directory
+	cd "$GANDALF_ROOT"
+	
+	if timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner.sh" --shell ${test_args[@]+"${test_args[@]}"}; then
 		echo "Core tests completed successfully"
 		return 0
 	else
@@ -254,11 +230,10 @@ run_all_tests() {
 	echo "Step 2: Shell and Python tests..."
 	local test_args=()
 
-	timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner" ${test_args[@]+"${test_args[@]}"} &
-	local test_pid=$!
-	CHILD_PIDS+=("$test_pid")
-
-	if wait "$test_pid"; then
+	# Ensure we're in the correct working directory
+	cd "$GANDALF_ROOT"
+	
+	if timeout "$timeout" bash "$GANDALF_ROOT/tools/bin/test-runner.sh" ${test_args[@]+"${test_args[@]}"}; then
 		echo "All tests completed successfully"
 		return 0
 	else

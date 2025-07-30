@@ -19,9 +19,7 @@ from src.tool_calls.cursor.conversation_analyzer import (
     score_pattern_matches,
     score_recency,
 )
-from src.tool_calls.cursor.conversation_utils import (
-    quick_conversation_filter,
-)
+from src.tool_calls.cursor.conversation_utils import quick_conversation_filter
 
 
 class TestConversationAnalyzer:

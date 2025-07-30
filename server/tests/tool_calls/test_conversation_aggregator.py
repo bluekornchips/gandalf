@@ -14,16 +14,12 @@ from src.config.conversation_config import (
     CONVERSATION_SNIPPET_DISPLAY_LIMIT,
     CONVERSATION_TITLE_DISPLAY_LIMIT,
 )
-from src.tool_calls.aggregator import (
-    handle_recall_conversations,
-)
+from src.tool_calls.aggregator import handle_recall_conversations
 from src.tool_calls.response_formatting import (
     _create_lightweight_conversation,
     _standardize_conversation_format,
 )
-from src.tool_calls.tool_aggregation import (
-    _detect_available_agentic_tools,
-)
+from src.tool_calls.tool_aggregation import _detect_available_agentic_tools
 
 
 def extract_data_from_mcp_response(response):
@@ -635,9 +631,7 @@ class TestConversationAggregatorEdgeCases(unittest.TestCase):
             return_value=["cursor"],
         ),
     ):
-        from src.tool_calls.tool_aggregation import (
-            _detect_available_agentic_tools,
-        )
+        from src.tool_calls.tool_aggregation import _detect_available_agentic_tools
 
 
 class TestLightweightConversationDispatcher(unittest.TestCase):

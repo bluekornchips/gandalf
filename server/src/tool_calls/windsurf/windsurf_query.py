@@ -15,9 +15,7 @@ from src.config.core_constants import (
     WINDSURF_GLOBAL_STORAGE,
     WINDSURF_WORKSPACE_STORAGE,
 )
-from src.config.tool_config import (
-    WINDSURF_KEY_CHAT_SESSION_STORE,
-)
+from src.config.tool_config import WINDSURF_KEY_CHAT_SESSION_STORE
 from src.tool_calls.windsurf.conversation_extractor import ConversationExtractor
 from src.tool_calls.windsurf.database_reader import DatabaseReader
 from src.tool_calls.windsurf.query_validator import ConversationValidator

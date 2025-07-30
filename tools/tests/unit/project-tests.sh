@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-load '../../lib/test-helpers.sh'
-
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
+load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 create_git_project() {
     local project_path="${1:-$TEST_PROJECT_DIR}"
     local project_name="${2:-there_and_back_again}"

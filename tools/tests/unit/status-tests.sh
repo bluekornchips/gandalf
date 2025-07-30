@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-load '../../lib/test-helpers.sh'
-
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
+load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 setup() {
 	shared_setup
 	export GANDALF_HOME="$TEST_HOME/.gandalf"
@@ -18,9 +18,9 @@ teardown() {
 # Helper function to execute status command with proper env isolation
 execute_status_command() {
 	if [[ -n "${TEMP_GANDALF_ROOT:-}" ]]; then
-		env GANDALF_ROOT="$TEMP_GANDALF_ROOT" bash "$GANDALF_ROOT/tools/bin/status" "$@"
+		env GANDALF_ROOT="$TEMP_GANDALF_ROOT" bash "$GANDALF_ROOT/tools/bin/status.sh" "$@"
 	else
-		bash "$GANDALF_ROOT/tools/bin/status" "$@"
+		bash "$GANDALF_ROOT/tools/bin/status.sh" "$@"
 	fi
 }
 
@@ -89,8 +89,8 @@ remove_repository_server_mock() {
 }
 
 @test "status script exists and is executable" {
-	[ -f "$GANDALF_ROOT/tools/bin/status" ]
-	[ -x "$GANDALF_ROOT/tools/bin/status" ]
+	[ -f "$GANDALF_ROOT/tools/bin/status.sh" ]
+	[ -x "$GANDALF_ROOT/tools/bin/status.sh" ]
 }
 
 @test "status help displays usage information" {

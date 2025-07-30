@@ -11,16 +11,10 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from src.tool_calls.aggregator import (
-    handle_recall_conversations,
-)
+from src.tool_calls.aggregator import handle_recall_conversations
 from src.tool_calls.claude_code.query import ClaudeCodeQuery
-from src.tool_calls.claude_code.recall import (
-    handle_recall_claude_conversations,
-)
-from src.tool_calls.tool_aggregation import (
-    _detect_available_agentic_tools,
-)
+from src.tool_calls.claude_code.recall import handle_recall_claude_conversations
+from src.tool_calls.tool_aggregation import _detect_available_agentic_tools
 
 
 class TestClaudeCodeIntegration:

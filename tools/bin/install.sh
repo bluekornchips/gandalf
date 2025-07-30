@@ -14,8 +14,6 @@ readonly DEFAULT_BACKUP_COUNT=5
 export MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 export GANDALF_HOME="${GANDALF_HOME:-$HOME/.${MCP_SERVER_NAME}}"
 
-source "$GANDALF_ROOT/tools/lib/platform-utils.sh"
-
 validate_directory() {
 	local dir="$1"
 	local description="${2:-directory}"
@@ -552,7 +550,7 @@ install_for_all_tools() {
 create_rules_files() {
 	echo "Creating global rules files using create-rules script..."
 
-	local create_rules_script="$SCRIPTS_DIR/create-rules"
+	local create_rules_script="$SCRIPTS_DIR/create-rules.sh"
 
 	if [[ ! -f "$create_rules_script" ]]; then
 		echo "Warning: create-rules script not found: $create_rules_script" >&2
@@ -592,7 +590,7 @@ register_all_available_tools() {
 
 	for tool in "${available_tools[@]}"; do
 		echo "Registering $tool..."
-		if "$SCRIPTS_DIR/registry" auto-register "$tool"; then
+		if "$SCRIPTS_DIR/registry.sh" auto-register "$tool"; then
 			echo "Successfully registered $tool"
 			((success_count++))
 		else
@@ -604,7 +602,7 @@ register_all_available_tools() {
 
 	if [[ $success_count -gt 0 ]]; then
 		echo "Registry contains:"
-		"$SCRIPTS_DIR/registry" list
+		"$SCRIPTS_DIR/registry.sh" list
 		return 0
 	else
 		echo "Error: No tools were registered successfully" >&2

@@ -14,9 +14,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GANDALF_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Load platform utilities
-source "$GANDALF_ROOT/tools/lib/platform-utils.sh"
-
 # Default configurations
 MCP_SERVER_NAME="${MCP_SERVER_NAME:-gandalf}"
 _get_version() {

@@ -12,9 +12,7 @@ from src.core.conversation_analysis import (
     analyze_session_relevance,
     generate_shared_context_keywords,
 )
-from src.tool_calls.claude_code.recall import (
-    handle_recall_claude_conversations,
-)
+from src.tool_calls.claude_code.recall import handle_recall_claude_conversations
 
 
 class TestClaudeCodeContextKeywords:

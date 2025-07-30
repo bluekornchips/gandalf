@@ -21,10 +21,7 @@ from src.common_imports import (
 )
 
 # Specific imports not in common_imports
-from src.config.core_constants import (
-    GANDALF_SERVER_VERSION,
-    SUBPROCESS_TIMEOUT,
-)
+from src.config.core_constants import GANDALF_SERVER_VERSION, SUBPROCESS_TIMEOUT
 from src.core.file_scoring import get_files_list
 from src.utils.project import ProjectContext
 

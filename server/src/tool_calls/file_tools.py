@@ -13,10 +13,7 @@ from src.config.conversation_config import (
     MEDIUM_PRIORITY_DISPLAY_LIMIT,
     TOP_FILES_DISPLAY_LIMIT,
 )
-from src.config.core_constants import (
-    MAX_FILE_TYPES,
-    MAX_PROJECT_FILES,
-)
+from src.config.core_constants import MAX_FILE_TYPES, MAX_PROJECT_FILES
 from src.core.file_scoring import (
     clear_file_scores,
     get_files_list,

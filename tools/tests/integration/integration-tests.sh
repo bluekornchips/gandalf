@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-load '../../lib/test-helpers.sh'
-
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
+load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 
 execute_tool_call() {
     local tool_name="$1"

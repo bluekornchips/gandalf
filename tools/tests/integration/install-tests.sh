@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-load '../../lib/test-helpers.sh'
-
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
+load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 create_tool_directories() {
     mkdir -p "$TEST_HOME/.cursor/rules"
     mkdir -p "$TEST_HOME/.claude"
@@ -24,7 +24,7 @@ execute_install_command() {
     HOME="$TEST_HOME" \
     GANDALF_HOME="$TEST_HOME/.gandalf" \
     GANDALF_SPEC_OVERRIDE="$spec_override" \
-    "$GANDALF_ROOT/tools/bin/install" $args
+    	"$GANDALF_ROOT/tools/bin/install.sh" $args
 }
 
 validate_backup_created() {
@@ -238,8 +238,8 @@ teardown() {
 
 @test "install handles missing create-rules script gracefully" {
     # Temporarily rename the create-rules script
-    local create_rules_script="$GANDALF_ROOT/tools/bin/create-rules"
-    local backup_script="$GANDALF_ROOT/tools/bin/create-rules.backup"
+    	local create_rules_script="$GANDALF_ROOT/tools/bin/create-rules.sh"
+	local backup_script="$GANDALF_ROOT/tools/bin/create-rules.sh.backup"
     
     mv "$create_rules_script" "$backup_script" 2>/dev/null || true
 

@@ -12,9 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.tool_calls.aggregator import (
-    handle_recall_conversations,
-)
+from src.tool_calls.aggregator import handle_recall_conversations
 from src.tool_calls.cursor.query import CursorQuery
 from src.tool_calls.cursor.recall import handle_recall_cursor_conversations
 
@@ -516,9 +514,7 @@ class TestCursorIntegration:
         # real database connections that aren't properly cleaned up
 
         # Simple verification that the recall function exists and can be called
-        from src.tool_calls.cursor.recall import (
-            handle_recall_cursor_conversations,
-        )
+        from src.tool_calls.cursor.recall import handle_recall_cursor_conversations
 
         # Verify the function exists
         assert handle_recall_cursor_conversations is not None

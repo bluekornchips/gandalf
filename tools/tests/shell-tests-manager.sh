@@ -43,7 +43,7 @@ test_suite_exists() {
 	echo "${SHELL_TEST_SUITES[$suite]}"
 }
 
-source "$GANDALF_ROOT/tools/lib/test-helpers.sh"
+source "$GANDALF_ROOT/tools/tests/test-helpers.sh"
 
 DEPENDENCIES_CHECKED=false
 
@@ -166,7 +166,7 @@ check_dependencies() {
 	# Source centralized configuration
 	source "$GANDALF_ROOT/tools/config/test-config.sh"
 
-	if ! timeout "$TEST_TIMEOUT_DEPENDENCY_CHECK" bash -c "source '$GANDALF_ROOT/tools/lib/test-helpers.sh' && check_test_dependencies"; then
+	if ! timeout "$TEST_TIMEOUT_DEPENDENCY_CHECK" bash -c "source '$GANDALF_ROOT/tools/tests/test-helpers.sh' && check_test_dependencies"; then
 		echo "Test dependencies not satisfied. Aborting test run." >&2
 		return 1
 	fi
@@ -285,7 +285,10 @@ run_suite() {
 		source "$GANDALF_ROOT/tools/config/test-config.sh"
 	fi
 
-	if ! timeout "$TEST_TIMEOUT_INTEGRATION" bats "${bats_args_array[@]}" "$TESTS_DIR/$test_file"; then
+	# Change to the tests directory before running BATS
+	cd "$TESTS_DIR"
+	
+	if ! timeout "$TEST_TIMEOUT_INTEGRATION" bats "${bats_args_array[@]}" "$test_file"; then
 		exit_code=1
 	fi
 

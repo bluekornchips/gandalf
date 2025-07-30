@@ -8,14 +8,8 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
-from src.config.config_data import (
-    EXCLUDE_DIRECTORIES,
-    EXCLUDE_FILE_PATTERNS,
-)
-from src.config.core_constants import (
-    FIND_COMMAND_TIMEOUT,
-    MAX_PROJECT_FILES,
-)
+from src.config.config_data import EXCLUDE_DIRECTORIES, EXCLUDE_FILE_PATTERNS
+from src.config.core_constants import FIND_COMMAND_TIMEOUT, MAX_PROJECT_FILES
 from src.utils.common import log_debug, log_error
 
 

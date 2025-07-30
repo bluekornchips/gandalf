@@ -746,7 +746,7 @@ class TestRegistryInitialization:
         # Mock the Path constructor to return a mock that makes registry script appear to exist
         def mock_path_constructor(path_str):
             mock_path_obj = mock.Mock()
-            if "tools/bin/registry" in str(path_str):
+            if "tools/bin/registry.sh" in str(path_str):
                 # This is the registry script path - make it exist
                 mock_path_obj.exists.return_value = True
                 mock_path_obj.is_file.return_value = True
