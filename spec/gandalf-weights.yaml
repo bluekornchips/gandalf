@@ -1,7 +1,3 @@
-# Shire Weights - Peaceful and Minimal
-# Test configuration with disabled/minimal weights
-# "The Shire is quiet and peaceful" - minimal scoring
-
 file_scoring:
   recent_modification_weight: 0.1
   file_size_weight: 0.1

@@ -285,7 +285,10 @@ run_suite() {
 		source "$GANDALF_ROOT/tools/tests/fixtures/conftest.sh"
 	fi
 
-	if ! timeout "$TEST_TIMEOUT_INTEGRATION" bats "${bats_args_array[@]}" "$TESTS_DIR/$test_file"; then
+	# Change to the tests directory before running BATS
+	cd "$TESTS_DIR"
+	
+	if ! timeout "$TEST_TIMEOUT_INTEGRATION" bats "${bats_args_array[@]}" "$test_file"; then
 		exit_code=1
 	fi
 

@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
 load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
-
 execute_server_command() {
     local command="$1"
     local project_root="${2:-$TEST_PROJECT_DIR}"
