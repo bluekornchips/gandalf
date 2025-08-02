@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
 load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
-
 create_git_workspace() {
     local workspace_path="$1"
     local user_email="${2:-test@gandalf.test}"

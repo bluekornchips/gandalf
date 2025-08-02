@@ -88,28 +88,28 @@ main() {
 		handle_run "$@"
 		;;
 	install)
-		exec "$GANDALF_ROOT/tools/bin/install" "${@:2}"
+		exec "$GANDALF_ROOT/tools/bin/install.sh" "${@:2}"
 		;;
 	setup)
-		exec "$GANDALF_ROOT/tools/bin/setup" "${@:2}"
+		exec "$GANDALF_ROOT/tools/bin/setup.sh" "${@:2}"
 		;;
 	uninstall)
-		exec "$GANDALF_ROOT/tools/bin/uninstall" "${@:2}"
+		exec "$GANDALF_ROOT/tools/bin/uninstall.sh" "${@:2}"
 		;;
 	test)
-		exec "$GANDALF_ROOT/tools/bin/test-runner" "${@:2}"
+		exec "$GANDALF_ROOT/tools/bin/test-runner.sh" "${@:2}"
 		;;
 	docker-test)
-		exec "$GANDALF_ROOT/tools/bin/docker-test" "${@:2}"
+		exec "$GANDALF_ROOT/tools/bin/docker-test.sh" "${@:2}"
 		;;
 	conv)
-		exec "$GANDALF_ROOT/tools/bin/conversations" "${@:2}"
+		exec "$GANDALF_ROOT/tools/bin/conversations.sh" "${@:2}"
 		;;
 	lembas)
-		exec "$GANDALF_ROOT/tools/bin/lembas" "${@:2}"
+		exec "$GANDALF_ROOT/tools/bin/lembas.sh" "${@:2}"
 		;;
 	status)
-		exec "$GANDALF_ROOT/tools/bin/status" "${@:2}"
+		exec "$GANDALF_ROOT/tools/bin/status.sh" "${@:2}"
 		;;
 	help | --help | -h)
 		show_help

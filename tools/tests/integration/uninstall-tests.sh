@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
 load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
-
 create_mock_cursor_config() {
     local with_gandalf="${1:-true}"
     local with_others="${2:-false}"
@@ -147,7 +147,7 @@ validate_directory_preserved() {
 
 execute_uninstall_command() {
     local args="$1"
-    bash "$GANDALF_ROOT/tools/bin/uninstall" $args
+    	bash "$GANDALF_ROOT/tools/bin/uninstall.sh" $args
 }
 
 validate_uninstall_success() {

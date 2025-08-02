@@ -100,7 +100,7 @@ execute_rpc() {
 	local project_root="${3:-${TEST_PROJECT_DIR:-$PWD}}"
 
 	# Source centralized configuration
-	source "$GANDALF_ROOT/tools/tests/fixtures/conftest.sh"
+	source "$GANDALF_ROOT/tools/config/test-config.sh"
 
 	export PYTHONPATH="$GANDALF_ROOT/server:${PYTHONPATH:-}"
 

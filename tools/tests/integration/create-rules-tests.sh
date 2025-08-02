@@ -4,9 +4,9 @@
 
 set -euo pipefail
 
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
 load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
-
-readonly CREATE_RULES_SCRIPT="$GANDALF_ROOT/tools/bin/create-rules"
+readonly CREATE_RULES_SCRIPT="$GANDALF_ROOT/tools/bin/create-rules.sh"
 
 create_tool_directories() {
     mkdir -p "$TEST_HOME/.cursor/rules"

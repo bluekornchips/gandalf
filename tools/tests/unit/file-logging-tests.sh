@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
+GANDALF_ROOT=$(git rev-parse --show-toplevel)
 load "$GANDALF_ROOT/tools/tests/test-helpers.sh"
-
 execute_logging_test() {
     local python_code="$1"
     local session_id="${2:-$TEST_SESSION_ID}"
