@@ -3,56 +3,78 @@
 # Gandalf Core Library Tests
 # Tests for centralized common functionality
 
-if [[ -z "${GANDALF_ROOT:-}" ]]; then
-  GIT_ROOT="$(git rev-parse --show-toplevel)"
-  GANDALF_ROOT="${GIT_ROOT}"
-
-	if [[ -z "${GANDALF_HOME:-}" ]]; then
-		GANDALF_HOME="${GANDALF_HOME:-$HOME/.gandalf}"
-	fi
+if [[ -z "${GANDALF_PROJECT_ROOT:-}" ]]; then
+	GANDALF_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+	GANDALF_PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+	export GANDALF_PROJECT_ROOT
 fi
 
-readonly CORE_SCRIPT="$GANDALF_ROOT/cli/lib/core.sh"
-[[ -z "$CORE_SCRIPT" ]] && echo "'CORE_SCRIPT' is not set" && exit 1
-[[ ! -f "$CORE_SCRIPT" ]] && echo "'CORE_SCRIPT' file does not exist" && exit 1
+readonly CORE_SCRIPT="$GANDALF_PROJECT_ROOT/cli/lib/core.sh"
+[[ -z "$CORE_SCRIPT" ]] && echo "'CORE_SCRIPT' is not set" >&2 && exit 1
+[[ ! -f "$CORE_SCRIPT" ]] && echo "'CORE_SCRIPT' file does not exist" >&2 && exit 1
 
+# Setup test environment before each test
 setup() {
-	unset GANDALF_PLATFORM
-	unset GANDALF_DB_PATHS
-	# shellcheck disable=SC1090,SC1091
-	source "$CORE_SCRIPT"
+  unset GANDALF_PLATFORM
+  unset GANDALF_DB_PATHS
+  # shellcheck disable=SC1090,SC1091
+  source "$CORE_SCRIPT"
 }
 
-@test "'CORE_SCRIPT' exists and is executable" {
-	[[ -f "$CORE_SCRIPT" ]]
-	[[ -x "$CORE_SCRIPT" ]]
+@test "CORE_SCRIPT exists and is executable" {
+  [[ -f "$CORE_SCRIPT" ]]
+  [[ -x "$CORE_SCRIPT" ]]
 }
 
 @test "detect_platform::macos, mocked uname" {
-	export MOCKED_UNAME_RETURN_VALUE="Darwin"
-	uname() { echo "$MOCKED_UNAME_RETURN_VALUE"; }
-	
-	detect_platform
-	[[ "$GANDALF_PLATFORM" == "macos" ]]
+  export MOCKED_UNAME_RETURN_VALUE="Darwin"
+  uname() { echo "$MOCKED_UNAME_RETURN_VALUE"; }
+  
+  detect_platform
+  [[ "$GANDALF_PLATFORM" == "macos" ]]
 }
 
 @test "detect_platform::linux, mocked uname" {
-	export MOCKED_UNAME_RETURN_VALUE="Linux"
-	uname() { echo "$MOCKED_UNAME_RETURN_VALUE"; }
-	
-	detect_platform
-	[[ "$GANDALF_PLATFORM" == "linux" ]]
+  export MOCKED_UNAME_RETURN_VALUE="Linux"
+  uname() { echo "$MOCKED_UNAME_RETURN_VALUE"; }
+  
+  detect_platform
+  [[ "$GANDALF_PLATFORM" == "linux" ]]
 }
 
 @test "detect_platform::unknown, mocked uname" {
-	export MOCKED_UNAME_RETURN_VALUE="Unknown"
-	uname() { echo "$MOCKED_UNAME_RETURN_VALUE"; }
-	
-	detect_platform
-	[[ "$GANDALF_PLATFORM" == "unknown" ]]
+  export MOCKED_UNAME_RETURN_VALUE="Unknown"
+  uname() { echo "$MOCKED_UNAME_RETURN_VALUE"; }
+  
+  detect_platform
+  [[ "$GANDALF_PLATFORM" == "unknown" ]]
 }
 
 @test "detect_platform::real, check db paths" {
-	detect_platform
-	[[ "${#GANDALF_DB_PATHS[@]}" -eq 5 ]]
+  detect_platform
+  [[ "${#GANDALF_DB_PATHS[@]}" -eq 5 ]]
+}
+
+@test "detect_platform::exports variables correctly" {
+  detect_platform
+  [[ -n "${GANDALF_PLATFORM:-}" ]]
+  [[ -n "${GANDALF_DB_PATHS:-}" ]]
+}
+
+@test "detect_platform::db paths contain expected elements" {
+  detect_platform
+  local found_cursor=0
+  local found_claude=0
+  
+  for path in "${GANDALF_DB_PATHS[@]}"; do
+    if [[ "$path" == *"Cursor"* ]]; then
+      found_cursor=$((found_cursor + 1))
+    fi
+    if [[ "$path" == *"Claude"* ]]; then
+      found_claude=$((found_claude + 1))
+    fi
+  done
+  
+  [[ $found_cursor -gt 0 ]]
+  [[ $found_claude -gt 0 ]]
 }

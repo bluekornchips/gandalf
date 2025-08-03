@@ -5,19 +5,14 @@ set -euo pipefail
 # The Fellowship
 # Shell Test Manager for Gandalf MCP Server
 
-cd "$(dirname "${BASH_SOURCE[0]}")" || {
-	echo "Unable to change to test directory" >&2
-	exit 1
-}
-
-if [[ -z "${GANDALF_ROOT:-}" ]]; then
-	GIT_ROOT="$(git rev-parse --show-toplevel)"
-	GANDALF_ROOT="${GIT_ROOT}"
-	export GANDALF_ROOT
+if [[ -z "${GANDALF_PROJECT_ROOT:-}" ]]; then
+	GANDALF_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+	GANDALF_PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+	export GANDALF_PROJECT_ROOT
 fi
 
-readonly TESTS_DIR="${GANDALF_ROOT}/cli/tests"
-readonly DEPENDENCIES_SCRIPT="${GANDALF_ROOT}/cli/etc/dependencies.sh"
+readonly TESTS_DIR="${GANDALF_PROJECT_ROOT}/cli/tests"
+readonly DEPENDENCIES_SCRIPT="${GANDALF_PROJECT_ROOT}/cli/etc/dependencies.sh"
 readonly BATS_ARGS=("--pretty" "--timing")
 
 test_config=""

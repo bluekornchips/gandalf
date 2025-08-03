@@ -4,18 +4,10 @@ set -euo pipefail
 
 # Registry Management for Gandalf
 
-if [[ -z "${GANDALF_ROOT:-}" ]]; then
-	cd "$(dirname "${BASH_SOURCE[0]}")" || {
-		echo "Unable to change to ./bin directory" >&2
-		exit 1
-	}
-
-  GIT_ROOT="$(git rev-parse --show-toplevel)"
-  GANDALF_ROOT="${GIT_ROOT}"
-
-	if [[ -z "${GANDALF_HOME:-}" ]]; then
-		GANDALF_HOME="${GANDALF_HOME:-$HOME/.gandalf}"
-	fi
+if [[ -z "${GANDALF_PROJECT_ROOT:-}" ]]; then
+	GANDALF_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+	GANDALF_PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+	export GANDALF_PROJECT_ROOT
 fi
 
 if [[ -z "$HOME" ]]; then
