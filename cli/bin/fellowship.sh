@@ -11,8 +11,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")" || {
 }
 
 if [[ -z "${GANDALF_ROOT:-}" ]]; then
-  GIT_ROOT="$(git rev-parse --show-toplevel)"
-  GANDALF_ROOT="${GIT_ROOT}"
+	GIT_ROOT="$(git rev-parse --show-toplevel)"
+	GANDALF_ROOT="${GIT_ROOT}"
 	export GANDALF_ROOT
 fi
 
@@ -53,17 +53,17 @@ load_test_config() {
 		jq -n \
 			--arg test_dir "${TESTS_DIR}" \
 			'[
-        {
-          "name": "mota",
-          "file": "\($test_dir)/lib/music-of-the-ainur-tests.sh",
-          "description": "Music of the Ainur logging library functionality"
-        },
 				{
-          "name": "core",
-          "file": "\($test_dir)/lib/core-tests.sh",
-          "description": "Core library functionality"
-        }
-      ]'
+				"name": "mota",
+				"file": "\($test_dir)/lib/music-of-the-ainur-tests.sh",
+				"description": "Music of the Ainur logging library functionality"
+				},
+						{
+				"name": "core",
+				"file": "\($test_dir)/lib/core-tests.sh",
+				"description": "Core library functionality"
+				}
+			]'
 	)
 
 	export test_config
@@ -119,7 +119,7 @@ run_tests() {
 	local test_file
 	local time_end
 	local duration
-	
+
 	tests_count=0
 	time_start=$(date +%s)
 	failed_file_names=()
@@ -141,7 +141,8 @@ EOF
 	for test in "${tests[@]}"; do
 		test_file=$(jq -r ".[] | select(.name == \"${test}\") | .file" <<<"${test_config}")
 		tests_count=$((tests_count + $(bats --count "${test_file}")))
-
+		
+		echo "Running test file ${test_file}"
 		if ! run_test "${test_file}"; then
 			failed_file_names+=("${test}")
 		else
