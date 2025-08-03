@@ -106,9 +106,13 @@ create_context_intelligence_project() {
     dd if=/dev/zero of=large.txt bs=1024 count=500 2>/dev/null
 
     # Make some files recently modified
-    touch -t $(date -v-2H +%Y%m%d%H%M) src/core.py 2>/dev/null ||
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        touch -t $(date -v-2H +%Y%m%d%H%M) src/core.py 2>/dev/null ||
+            touch src/core.py
+    else
         touch -d "2 hours ago" src/core.py 2>/dev/null ||
-        touch src/core.py
+            touch src/core.py
+    fi
 
     git add . >/dev/null 2>&1
     git commit -m "context intelligence test project" >/dev/null 2>&1

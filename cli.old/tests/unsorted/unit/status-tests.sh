@@ -62,7 +62,7 @@ create_broken_server_installation() {
 	mkdir -p "$server_dir"
 
 	# Create non-executable or missing gandalf-server
-	echo "#!/bin/bash" >"$server_dir/gandalf-server"
+	echo "#!/usr/bin/env bash" >"$server_dir/gandalf-server"
 	# Don't make it executable - this makes it "broken"
 
 	echo "1.0.0" >"$server_dir/VERSION"
@@ -276,7 +276,7 @@ remove_repository_server_mock() {
 
 	mkdir -p "$server_dir"
 	cat >"$server_dir/gandalf-server" <<'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 echo "mock server"
 EOF
 	chmod +x "$server_dir/gandalf-server"

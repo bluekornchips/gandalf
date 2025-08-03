@@ -6,6 +6,22 @@ set -euo pipefail
 
 readonly TEST_ID_COUNTER_START=0
 readonly MCP_DEBUG_DEFAULT="false"
+readonly MAX_JSON_PARAM_SIZE=10000
+readonly TEST_TIMEOUT_DEFAULT=30
+
+# Security patterns to detect in JSON parameters
+readonly DANGEROUS_PATTERNS=(
+	"\.\.\/"
+	"\/etc\/"
+	"\/root"
+	";"
+	"&&"
+	"\`"
+	"\$\("
+	"exec"
+	"eval"
+	"rm -rf"
+)
 
 # Global test counter
 TEST_ID_COUNTER=${TEST_ID_COUNTER_START}
@@ -92,6 +108,35 @@ export MCP_DEBUG="${MCP_DEBUG:-$MCP_DEBUG_DEFAULT}"
 generate_test_id() {
 	TEST_ID_COUNTER=$((TEST_ID_COUNTER + 1))
 	echo "$TEST_ID_COUNTER"
+}
+
+# Enhanced JSON validation function
+validate_json_params() {
+	local params="$1"
+
+	# Basic JSON syntax validation
+	if ! echo "$params" | jq . >/dev/null 2>&1; then
+		echo "Invalid JSON syntax in params: $params" >&2
+		return 1
+	fi
+
+	# Validate against size limits
+	local param_size=${#params}
+	if [[ $param_size -gt $MAX_JSON_PARAM_SIZE ]]; then
+		echo "JSON params exceed size limit (${param_size} > ${MAX_JSON_PARAM_SIZE})" >&2
+		return 1
+	fi
+
+	# Validate no dangerous patterns
+	local pattern
+	for pattern in "${DANGEROUS_PATTERNS[@]}"; do
+		if echo "$params" | grep -qE "$pattern"; then
+			echo "Dangerous pattern '$pattern' detected in JSON params" >&2
+			return 1
+		fi
+	done
+
+	return 0
 }
 
 execute_rpc() {

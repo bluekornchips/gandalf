@@ -26,7 +26,7 @@ COPY --chown=gandalf:gandalf scripts/ scripts/
 RUN chmod +x gandalf/gandalf \
     && mkdir -p /home/gandalf/.local/bin \
     && ln -s /app/gandalf/gandalf /home/gandalf/.local/bin/gandalf \
-    && echo '#!/bin/bash' > /home/gandalf/.local/bin/gdlf \
+    && echo '#!/usr/bin/env bash' > /home/gandalf/.local/bin/gdlf \
     && echo 'exec /app/gandalf/gandalf "$@"' >> /home/gandalf/.local/bin/gdlf \
     && chmod +x /home/gandalf/.local/bin/gdlf
 

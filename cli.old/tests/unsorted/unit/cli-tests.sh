@@ -46,7 +46,7 @@ EOF
 	echo "PyYAML>=6.0" >"$server_dir/requirements.txt"
 
 	# Create mock venv
-	echo "#!/bin/bash" >"$server_dir/.venv/bin/python3"
+	echo "#!/usr/bin/env bash" >"$server_dir/.venv/bin/python3"
 	chmod +x "$server_dir/.venv/bin/python3"
 }
 
