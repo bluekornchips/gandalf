@@ -4,9 +4,10 @@
 # Tests for centralized common functionality
 
 if [[ -z "${GANDALF_PROJECT_ROOT:-}" ]]; then
-	GANDALF_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-	GANDALF_PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-	export GANDALF_PROJECT_ROOT
+  SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+  cd "$SCRIPT_DIR" || exit 1
+  GANDALF_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  export GANDALF_PROJECT_ROOT
 fi
 
 readonly CORE_SCRIPT="$GANDALF_PROJECT_ROOT/cli/lib/core.sh"

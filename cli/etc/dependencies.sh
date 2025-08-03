@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-#
-# Check if shell dependencies are installed
-# If not, print a message to the user to install them
 
+# Dependencies Checker
+# Validates that required shell dependencies are installed
+# Provides helpful installation links when dependencies are missing
+
+# Check if BATS testing framework is installed
 check_bats() {
   local link="https://github.com/bats-core/bats-core"
   if which bats >/dev/null 2>&1; then
@@ -12,6 +14,7 @@ check_bats() {
   return 1
 }
 
+# Check if jq JSON processor is installed
 check_jq() {
   local link="https://github.com/jqlang/jq"
   if which jq >/dev/null 2>&1; then
@@ -21,6 +24,7 @@ check_jq() {
   return 1
 }
 
+# Main function that checks all dependencies
 main() {
   local bats_result
   local jq_result

@@ -3,18 +3,44 @@
 # Gandalf Core Library
 # Centralized common functionality for all shell scripts and the python server
 
-set -euo pipefail
+set -eo pipefail
 
-readonly LINUX_DB_PATHS=(
-  "$HOME/.config/Cursor/User"
-  "$HOME/.config/Claude"
+readonly CURSOR_DB_PATHS=(
+  # Linux
+  "$HOME/.config/Cursor/User/workspaceStorage"
+  # macOS
+  "$HOME/Library/Application Support/Cursor/User/workspaceStorage"
   # Windows/WSL
   "/mnt/c/Users/$(whoami)/AppData/Roaming/Cursor/User/workspaceStorage"
 )
 
-readonly MACOS_DB_PATHS=(
-  "$HOME/Library/Application Support/Cursor/User"
+readonly CLAUDE_CODE_DB_PATHS=(
+  # Linux
+  "$HOME/.claude"
+  "$HOME/.config/claude"
+  # macOS
   "$HOME/Library/Application Support/Claude"
+  # Windows/WSL
+  "/mnt/c/Users/$(whoami)/AppData/Roaming/Claude"  
+)
+
+readonly WINDSURF_DB_PATHS=(
+  # macOS
+  "$HOME/Library/Application Support/Windsurf/User/workspaceStorage"
+  "$HOME/Library/Application Support/Windsurf/User/globalStorage"
+  # Windows/WSL
+  "/mnt/c/Users/$(whoami)/AppData/Roaming/Windsurf/User/workspaceStorage"
+  "/mnt/c/Users/$(whoami)/AppData/Roaming/Windsurf/User/globalStorage"
+  # Linux
+  "$HOME/.config/Windsurf/User/workspaceStorage"
+  "$HOME/.config/Windsurf/User/globalStorage"
+)
+
+readonly CURSOR_DB_FILES=(
+  "state.vscdb"
+  "workspace.db"
+  "storage.db"
+  "cursor.db"
 )
 
 # Initialize platform detection and establish database paths
@@ -34,8 +60,12 @@ detect_platform() {
       ;;
   esac
 
-  # Combine macOS and Linux database paths
-  GANDALF_DB_PATHS=("${MACOS_DB_PATHS[@]}" "${LINUX_DB_PATHS[@]}")
+  # Combine all database paths for comprehensive coverage
+  GANDALF_DB_PATHS=(
+    "${CURSOR_DB_PATHS[@]}"
+    "${CLAUDE_CODE_DB_PATHS[@]}"
+    "${WINDSURF_DB_PATHS[@]}"
+  )
 
   export GANDALF_PLATFORM
   export GANDALF_DB_PATHS

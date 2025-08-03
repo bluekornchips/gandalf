@@ -22,14 +22,15 @@
 [[ -z "${LOG_LEVEL_ERROR:-}" ]] && readonly LOG_LEVEL_ERROR=2
 
 # Default log level
-LOG_LEVEL=${LOG_LEVEL:-$LOG_LEVEL_INFO}
+LOG_LEVEL=${LOG_LEVEL:-$LOG_LEVEL_DEBUG}
+LOG_TO_FILE=${LOG_TO_FILE:-false}
 
 # Log file configuration
 [[ -z "${LOG_FILE_TIMESTAMP_FORMAT:-}" ]] && readonly LOG_FILE_TIMESTAMP_FORMAT="+%Y-%m-%d %H:%M:%S"
 [[ -z "${LOG_DIR:-}" ]] && readonly LOG_DIR="${GANDALF_HOME:-$HOME/.gandalf}/logs"
 LOG_FILE=""
 
-# Initialize logging
+# Initialize logging, should only be called from 'gandalf.sh'
 init_logging() {
   mkdir -p "$LOG_DIR"
   
@@ -53,10 +54,12 @@ log_message() {
   timestamp=$(date "$LOG_FILE_TIMESTAMP_FORMAT")
   
   if [[ "$level" -ge "$LOG_LEVEL" ]]; then
-    echo -e "${COLOR_YELLOW}[$timestamp]${COLOR_RESET} $message${COLOR_RESET}" >> "$LOG_FILE"
+    if [[ "$LOG_TO_FILE" == "true" ]]; then
+      echo -e "${COLOR_YELLOW}[$timestamp]${COLOR_RESET} $message${COLOR_RESET}" >> "$LOG_FILE"
+    fi
+    echo -e "${COLOR_RESET} $message${COLOR_RESET}"
   fi
 }
-
 
 # Not turned on by default for the user.
 log_debug() {
@@ -86,3 +89,7 @@ log_error() {
   formatted_message=$(echo -e "${COLOR_RED}ERR:${COLOR_RESET} $message")
   log_message "$LOG_LEVEL_ERROR" "$formatted_message"
 }
+
+if [[ ! "$MOTA_LOADED" == "true" ]]; then
+  export MOTA_LOADED=true
+fi

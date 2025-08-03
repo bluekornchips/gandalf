@@ -3,7 +3,15 @@
 # Music of the Ainur (MOTA)Logging Library Tests
 # Tests for centralized logging functionality
 
-readonly MOTA_SCRIPT="$BATS_TEST_DIRNAME/../../lib/music-of-the-ainur.sh"
+
+if [[ -z "${GANDALF_PROJECT_ROOT:-}" ]]; then
+  SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+  cd "$SCRIPT_DIR" || exit 1
+  GANDALF_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  export GANDALF_PROJECT_ROOT
+fi
+
+readonly MOTA_SCRIPT="${GANDALF_PROJECT_ROOT}/cli/lib/music-of-the-ainur.sh"
 [[ -z "$MOTA_SCRIPT" ]] && echo "'MOTA_SCRIPT' is not set" && exit 1
 [[ ! -f "$MOTA_SCRIPT" ]] && echo "'MOTA_SCRIPT' file does not exist" && exit 1
 
@@ -44,59 +52,69 @@ teardown() {
 
 @test "log_debug:: writes debug message when level allows" {
 	LOG_LEVEL=$LOG_LEVEL_DEBUG
+	LOG_TO_FILE=false
 	init_logging
 
 	local test_message="Test debug message"
-	log_debug "$test_message"
-
-	run cat "$LOG_FILE"
+	run log_debug "$test_message"
+	
+	# Should output to stdout
 	echo "$output" | grep -q "$LOG_DEB_MSG_PATTERN"
 	echo "$output" | grep -q "$test_message"
 }
 
 @test "log_debug:: does not write when level is too high" {
 	LOG_LEVEL=$LOG_LEVEL_INFO
+	LOG_TO_FILE=false
 	init_logging
 
 	local test_message="Test debug message"
-	log_debug "$test_message"
-
-	! cat <"$LOG_FILE" | grep -q "$LOG_DEB_MSG_PATTERN"
+	run log_debug "$test_message"
+	
+	# Should not output anything
+	[[ -z "$output" ]]
 }
 
 @test "log_info:: writes info message when level allows" {
 	LOG_LEVEL=$LOG_LEVEL_INFO
+	LOG_TO_FILE=false
 	init_logging
 
 	local test_message="Test info message"
-	log_info "$test_message"
-
-	cat <"$LOG_FILE" | grep -q "$LOG_INF_MSG_PATTERN"
-	cat <"$LOG_FILE" | grep -q "$test_message"
+	run log_info "$test_message"
+	
+	# Should output to stdout
+	echo "$output" | grep -q "$LOG_INF_MSG_PATTERN"
+	echo "$output" | grep -q "$test_message"
 }
 
 @test "log_error:: writes error message when level allows" {
 	LOG_LEVEL=$LOG_LEVEL_ERROR
+	LOG_TO_FILE=false
 	init_logging
 
 	local test_message="Test error message"
-	log_error "$test_message"
-
-	cat <"$LOG_FILE" | grep -q "$LOG_ERR_MSG_PATTERN"
-	cat <"$LOG_FILE" | grep -q "$test_message"
+	run log_error "$test_message"
+	
+	# Should output to stdout
+	echo "$output" | grep -q "$LOG_ERR_MSG_PATTERN"
+	echo "$output" | grep -q "$test_message"
 }
 
 @test "log_error:: does not write when level is too high" {
 	LOG_LEVEL=3
+	LOG_TO_FILE=false
 	init_logging
 
 	local test_message="Test error message"
-	log_error "$test_message"
-
-	! cat <"$LOG_FILE" | grep -q "$LOG_ERR_MSG_PATTERN"
+	run log_error "$test_message"
+	
+	# Should not output anything
+	[[ -z "$output" ]]
 }
 
-@test "log messages include timestamp" {
+@test "log messages include timestamp when LOG_TO_FILE=true" {
+	LOG_TO_FILE=true
 	init_logging
 
 	log_info "Test message"
@@ -106,7 +124,8 @@ teardown() {
 	echo "$output" | grep -q "\[[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\]"
 }
 
-@test "log messages include level information" {
+@test "log messages include level information when LOG_TO_FILE=true" {
+	LOG_TO_FILE=true
 	init_logging
 
 	log_info "Test message"
@@ -146,6 +165,7 @@ teardown() {
 
 @test "log messages contain color codes" {
 	LOG_LEVEL=$LOG_LEVEL_DEBUG
+	LOG_TO_FILE=true
 	init_logging
 
 	log_debug "Debug test"
@@ -165,6 +185,7 @@ teardown() {
 }
 
 @test "color codes are properly terminated" {
+	LOG_TO_FILE=true
 	init_logging
 
 	log_info "Test message"
@@ -177,8 +198,8 @@ teardown() {
 	has_resets=$(echo "$output" | grep -c $'\033\[0m' || echo "0")
 
 	# Should have at least one color and one reset
-	[[ $has_colors -gt 0 ]]
-	[[ $has_resets -gt 0 ]]
+	[[ "$has_colors" -gt 0 ]]
+	[[ "$has_resets" -gt 0 ]]
 }
 
 @test "log level constants are correctly defined" {
@@ -190,9 +211,10 @@ teardown() {
 @test "default log level is INFO" {
 	# Reset LOG_LEVEL to test default
 	unset LOG_LEVEL
+	unset LOG_TO_FILE
 	source "$BATS_TEST_DIRNAME/../../lib/music-of-the-ainur.sh"
 
-	[[ "$LOG_LEVEL" -eq "$LOG_LEVEL_INFO" ]]
+	[[ "$LOG_LEVEL" -eq "$LOG_LEVEL_DEBUG" ]]
 }
 
 @test "log directory uses GANDALF_HOME when set" {
@@ -207,20 +229,216 @@ teardown() {
 }
 
 @test "multiple log calls work correctly" {
+	LOG_TO_FILE=false
 	init_logging
 
-	log_info "First message"
-	log_info "Second message"
-	log_error "Error message"
-
-	# Check all messages are in log file
-	run cat "$LOG_FILE"
+	run bash -c "
+		source '$MOTA_SCRIPT'
+		log_info 'First message'
+		log_info 'Second message'
+		log_error 'Error message'
+	"
+	
+	# Check all messages are in stdout output
 	echo "$output" | grep -q "First message"
 	echo "$output" | grep -q "Second message"
 	echo "$output" | grep -q "Error message"
+}
 
+# LOG_TO_FILE functionality tests
+
+@test "LOG_TO_FILE::default value is false" {
+	# Reset LOG_TO_FILE to test default
+	unset LOG_TO_FILE
+	source "$BATS_TEST_DIRNAME/../../lib/music-of-the-ainur.sh"
+	
+	[[ "$LOG_TO_FILE" == "false" ]]
+}
+
+@test "LOG_TO_FILE::when false, messages go to stdout only" {
+	LOG_TO_FILE=false
+	init_logging
+	
+	local test_message="Test stdout message"
+	run log_info "$test_message"
+	
+	# Should output to stdout
+	echo "$output" | grep -q "$LOG_INF_MSG_PATTERN"
+	echo "$output" | grep -q "$test_message"
+	
+	# Log file should be empty
+	[[ ! -s "$LOG_FILE" ]]
+}
+
+@test "LOG_TO_FILE::when true, messages go to both stdout and log file" {
+	LOG_TO_FILE=true
+	init_logging
+	
+	local test_message="Test file message"
+	run log_info "$test_message"
+	
+	# Should output to stdout
+	echo "$output" | grep -q "$LOG_INF_MSG_PATTERN"
+	echo "$output" | grep -q "$test_message"
+	
+	# Should also write to log file with timestamp
+	run cat "$LOG_FILE"
+	echo "$output" | grep -q "$LOG_INF_MSG_PATTERN"
+	echo "$output" | grep -q "$test_message"
+	echo "$output" | grep -q "\[[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\]"
+}
+
+@test "LOG_TO_FILE::when true, debug messages include timestamp" {
+	LOG_TO_FILE=true
+	LOG_LEVEL=$LOG_LEVEL_DEBUG
+	init_logging
+	
+	local test_message="Test debug file message"
+	run log_debug "$test_message"
+	
+	# Should output to stdout
+	echo "$output" | grep -q "$LOG_DEB_MSG_PATTERN"
+	echo "$output" | grep -q "$test_message"
+	
+	# Should also write to log file with timestamp
+	run cat "$LOG_FILE"
+	echo "$output" | grep -q "$LOG_DEB_MSG_PATTERN"
+	echo "$output" | grep -q "$test_message"
+	echo "$output" | grep -q "\[[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\]"
+}
+
+@test "LOG_TO_FILE::when true, error messages include timestamp" {
+	LOG_TO_FILE=true
+	LOG_LEVEL=$LOG_LEVEL_ERROR
+	init_logging
+	
+	local test_message="Test error file message"
+	run log_error "$test_message"
+	
+	# Should output to stdout
+	echo "$output" | grep -q "$LOG_ERR_MSG_PATTERN"
+	echo "$output" | grep -q "$test_message"
+	
+	# Should also write to log file with timestamp
+	run cat "$LOG_FILE"
+	echo "$output" | grep -q "$LOG_ERR_MSG_PATTERN"
+	echo "$output" | grep -q "$test_message"
+	echo "$output" | grep -q "\[[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\]"
+}
+
+@test "LOG_TO_FILE::when true, multiple messages are appended to file" {
+	LOG_TO_FILE=true
+	init_logging
+	
+	log_info "First file message"
+	log_info "Second file message"
+	log_error "Error file message"
+	
+	# Check all messages are also in log file
+	run cat "$LOG_FILE"
+	echo "$output" | grep -q "First file message"
+	echo "$output" | grep -q "Second file message"
+	echo "$output" | grep -q "Error file message"
+	
 	# Count total log entries
 	local line_count
 	line_count=$(wc -l <"$LOG_FILE")
 	[[ "$line_count" -eq 3 ]]
+}
+
+@test "LOG_TO_FILE::when false, multiple messages go to stdout only" {
+	LOG_TO_FILE=false
+	init_logging
+	
+	run bash -c "
+		source '$MOTA_SCRIPT'
+		log_info 'First stdout message'
+		log_info 'Second stdout message'
+		log_error 'Error stdout message'
+	"
+	
+	# Check all messages are in stdout output
+	echo "$output" | grep -q "First stdout message"
+	echo "$output" | grep -q "Second stdout message"
+	echo "$output" | grep -q "Error stdout message"
+	
+	# Log file should be empty
+	[[ ! -s "$LOG_FILE" ]]
+}
+
+@test "LOG_TO_FILE::respects log level when true" {
+	LOG_TO_FILE=true
+	LOG_LEVEL=$LOG_LEVEL_INFO
+	init_logging
+	
+	log_debug "Debug message should not appear"
+	log_info "Info message should appear"
+	log_error "Error message should appear"
+	
+	# Check only appropriate messages are in log file
+	run cat "$LOG_FILE"
+	! echo "$output" | grep -q "Debug message should not appear"
+	echo "$output" | grep -q "Info message should appear"
+	echo "$output" | grep -q "Error message should appear"
+}
+
+@test "LOG_TO_FILE::respects log level when false" {
+	LOG_TO_FILE=false
+	LOG_LEVEL=$LOG_LEVEL_INFO
+	init_logging
+	
+	run bash -c "
+		source '$MOTA_SCRIPT'
+		log_debug 'Debug message should not appear'
+		log_info 'Info message should appear'
+		log_error 'Error message should appear'
+	"
+	
+	# Check only appropriate messages are in stdout
+	! echo "$output" | grep -q "Debug message should not appear"
+	echo "$output" | grep -q "Info message should appear"
+	echo "$output" | grep -q "Error message should appear"
+}
+
+@test "LOG_TO_FILE::color codes work in file mode" {
+	LOG_TO_FILE=true
+	LOG_LEVEL=$LOG_LEVEL_DEBUG
+	init_logging
+	
+	log_debug "Debug test"
+	log_info "Info test"
+	log_error "Error test"
+	
+	# Check that log file contains ANSI color escape sequences
+	run cat "$LOG_FILE"
+	echo "$output" | grep -q $'\033'
+	
+	# Check for specific color codes in the log file
+	echo "$output" | grep -q $'\033\[33m' # Yellow timestamp
+	echo "$output" | grep -q $'\033\[34m' # Blue debug
+	echo "$output" | grep -q $'\033\[32m' # Green info
+	echo "$output" | grep -q $'\033\[31m' # Red error
+	echo "$output" | grep -q $'\033\[0m'  # Reset
+}
+
+@test "LOG_TO_FILE::color codes work in stdout mode" {
+	LOG_TO_FILE=false
+	LOG_LEVEL=$LOG_LEVEL_DEBUG
+	init_logging
+	
+	run bash -c "
+		source '$MOTA_SCRIPT'
+		log_debug 'Debug test'
+		log_info 'Info test'
+		log_error 'Error test'
+	"
+	
+	# Check that stdout contains ANSI color escape sequences
+	echo "$output" | grep -q $'\033'
+	
+	# Check for specific color codes in stdout
+	echo "$output" | grep -q $'\033\[34m' # Blue debug
+	echo "$output" | grep -q $'\033\[32m' # Green info
+	echo "$output" | grep -q $'\033\[31m' # Red error
+	echo "$output" | grep -q $'\033\[0m'  # Reset
 }
