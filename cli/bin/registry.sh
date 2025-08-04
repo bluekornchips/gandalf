@@ -156,7 +156,8 @@ main() {
 		return 1
 	fi
 
-	echo "Registry set."
+	echo "Registry set:"
+	jq -r '.' "${REGISTRY_FILE}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
