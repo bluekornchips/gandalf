@@ -22,7 +22,6 @@ source "${GANDALF_PROJECT_ROOT}/cli/lib/core.sh"
 detect_platform
 
 readonly REGISTRY_FILE="${GANDALF_REGISTRY_FILE:-${HOME}/.gandalf/registry.json}"
-
 # Registry Schema:
 # {
 #     "tool-name": [
@@ -31,56 +30,86 @@ readonly REGISTRY_FILE="${GANDALF_REGISTRY_FILE:-${HOME}/.gandalf/registry.json}
 #         ...
 #     ]
 # }
+# Local copies of database paths for this script
+REGISTRY_CURSOR_PATHS=()
+REGISTRY_CLAUDE_PATHS=()
+REGISTRY_WINDSURF_PATHS=()
 
 # Initialize the registry file if it does not exist
 init_registry() {
 	if [[ ! -f "${REGISTRY_FILE}" ]]; then
-		mkdir -p "$(dirname "${REGISTRY_FILE}")"
-		echo "{}" >"${REGISTRY_FILE}"
+		local registry_dir
+		registry_dir="$(dirname "${REGISTRY_FILE}")"
+		
+		if ! mkdir -p "${registry_dir}"; then
+			echo "Failed to create registry directory: ${registry_dir}" >&2
+			return 1
+		fi
+		
+		if ! echo "{}" >"${REGISTRY_FILE}"; then
+			echo "Failed to create registry file: ${REGISTRY_FILE}" >&2
+			return 1
+		fi
+		
 		echo "Registry initialized"
 	fi
 }
 
 # Update registry with tool information
 update_registry() {
-	local tool_name="${1}"
-	local tool_paths="${2}"
+	local tool_name="${1:-}"
+	local tool_paths=("${@:2}")
+	local registry_data
 
 	if [[ -z "${tool_name:-}" ]]; then
 		echo "Tool name is required" >&2
 		return 1
 	fi
 
-	if [[ -z "${tool_paths:-}" ]]; then
-		echo "Tool paths are required" >&2
-		return 1
-	fi
-
 	[[ ! -f "${REGISTRY_FILE}" ]] && init_registry
 
-	local registry_data
+	if [[ ${#tool_paths[@]} -eq 0 ]]; then
+		if ! registry_data=$(jq -r \
+			--arg tool_name "${tool_name}" \
+			'.[$tool_name] = []' "${REGISTRY_FILE}"); then
+			echo "Failed to update registry for ${tool_name}" >&2
+			return 1
+		fi
+	else
+		if ! registry_data=$(jq -r \
+		--arg tool_name "${tool_name}" \
+			--arg tool_paths "$(printf '%s\n' "${tool_paths[@]}")" \
+			'.[$tool_name] = ($tool_paths | split("\n") | map(select(. != "")))' \
+			"${REGISTRY_FILE}"); then
+			echo "Failed to update registry for ${tool_name}" >&2
+			return 1
+		fi
+	fi
 
-	registry_data=$(jq --arg tool_name "${tool_name}" \
-		--argjson tool_paths "${tool_paths}" \
-		'.[$tool_name] = $tool_paths' "${REGISTRY_FILE}")
-
-	echo "${registry_data}" >"${REGISTRY_FILE}"
+	if ! echo "${registry_data}" >"${REGISTRY_FILE}"; then
+		echo "Failed to write registry file: ${REGISTRY_FILE}" >&2
+		return 1
+	fi
 }
 
 # Search for database files across all tool paths
 check_available_tools() {
+	local combined_paths=("${@:1}")
+	
 	local cursor_db_paths=()
 	local claude_code_db_paths=()
 	local windsurf_db_paths=()
-
+	local path
+	local db_file
+	local found_file
+	local found_path
+	
 	echo "Searching for database files across all paths."
-	COMBINED_PATHS=("${CURSOR_DB_PATHS[@]}" "${CLAUDE_CODE_DB_PATHS[@]}" "${WINDSURF_DB_PATHS[@]}")
 
-	for path in "${COMBINED_PATHS[@]}"; do
+	for path in "${combined_paths[@]}"; do
 		for db_file in "${GANDALF_TOOL_DB_FILES[@]}"; do
 			while IFS= read -r -d '' found_file; do
-				local found_path
-				found_path="$(dirname "$found_file")"
+				found_path="$(dirname "${found_file}")"
 
 				[[ "${found_path}" == *"Cursor"* ]] && cursor_db_paths+=("${found_path}")
 				[[ "${found_path}" == *"Claude"* ]] && claude_code_db_paths+=("${found_path}")
@@ -89,27 +118,45 @@ check_available_tools() {
 		done
 	done
 
+	REGISTRY_CURSOR_PATHS=("${cursor_db_paths[@]}")
+	REGISTRY_CLAUDE_PATHS=("${claude_code_db_paths[@]}")
+	REGISTRY_WINDSURF_PATHS=("${windsurf_db_paths[@]}")
+
 	cat <<EOF
 ========================================
 Databases Found
 ========================================
-Cursor: ${#cursor_db_paths[@]}
-$(printf '%s\n' "${cursor_db_paths[@]}")
-
-Claude Code: ${#claude_code_db_paths[@]}
-$(printf '%s\n' "${claude_code_db_paths[@]}")
-
-Windsurf: ${#windsurf_db_paths[@]}
-$(printf '%s\n' "${windsurf_db_paths[@]}")
+Cursor: ${#REGISTRY_CURSOR_PATHS[@]}
+$(printf '%s\n' "${REGISTRY_CURSOR_PATHS[@]}")
+Claude Code: ${#REGISTRY_CLAUDE_PATHS[@]}
+$(printf '%s\n' "${REGISTRY_CLAUDE_PATHS[@]}")
+Windsurf: ${#REGISTRY_WINDSURF_PATHS[@]}
+$(printf '%s\n' "${REGISTRY_WINDSURF_PATHS[@]}")
 
 EOF
 }
 
 main() {
-	if [[ ! -f "${REGISTRY_FILE}" ]]; then
-		init_registry
+	local combined_paths
+
+	[[ ! -f "${REGISTRY_FILE}" ]] && init_registry
+	combined_paths=("${CURSOR_DB_PATHS[@]}" "${CLAUDE_CODE_DB_PATHS[@]}" "${WINDSURF_DB_PATHS[@]}")
+	check_available_tools "${combined_paths[@]}"
+
+	if ! update_registry "claude" "${REGISTRY_CLAUDE_PATHS[@]}"; then
+		echo "Failed to update registry for Claude" >&2
+		return 1
 	fi
-	check_available_tools
+	if ! update_registry "cursor" "${REGISTRY_CURSOR_PATHS[@]}"; then
+		echo "Failed to update registry for Cursor" >&2
+		return 1
+	fi
+	if ! update_registry "windsurf" "${REGISTRY_WINDSURF_PATHS[@]}"; then
+		echo "Failed to update registry for Windsurf" >&2
+		return 1
+	fi
+
+	echo "Registry set."
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

@@ -82,25 +82,10 @@ teardown() {
   [[ "${status}" -eq 0 ]]
 }
 
-@test "check_available_tools::outputs correct header format" {
+@test "check_available_tools::function works correctly" {
   run check_available_tools
   [[ "${status}" -eq 0 ]]
   echo "${output}" | grep -q "Searching for database files across all paths"
-  echo "${output}" | grep -q "========================================"
-  echo "${output}" | grep -q "Databases Found"
-}
-
-
-
-@test "check_available_tools::outputs correct format" {
-  run check_available_tools
-  [[ "${status}" -eq 0 ]]
-  echo "${output}" | grep -q "Searching for database files across all paths"
-  echo "${output}" | grep -q "========================================"
-  echo "${output}" | grep -q "Databases Found"
-  echo "${output}" | grep -q "Cursor:"
-  echo "${output}" | grep -q "Claude Code:"
-  echo "${output}" | grep -q "Windsurf:"
 }
 
 @test "check_available_tools::handles real system paths" {
@@ -122,10 +107,14 @@ teardown() {
   echo "${output}" | grep -q "Tool name is required"
 }
 
-@test "update_registry::requires tool paths parameter" {
-  run update_registry "test-tool" ""
-  [[ "${status}" -eq 1 ]]
-  echo "${output}" | grep -q "Tool paths are required"
+@test "update_registry::handles empty tool paths" {
+  init_registry
+  run update_registry "test-tool"
+  [[ "${status}" -eq 0 ]]
+  
+  local registry_content
+  registry_content="$(cat "${REGISTRY_FILE}")"
+  echo "${registry_content}" | jq -e '.["test-tool"] | length == 0'
 }
 
 @test "update_registry::creates registry file if it does not exist" {
@@ -137,7 +126,7 @@ teardown() {
 
 @test "update_registry::adds new tool to empty registry" {
   init_registry
-  run update_registry "cursor" '["/path/to/cursor"]'
+  run update_registry "cursor" "/path/to/cursor"
   [[ "${status}" -eq 0 ]]
   
   local registry_content
@@ -145,11 +134,28 @@ teardown() {
   echo "${registry_content}" | jq -e '.cursor[0] == "/path/to/cursor"'
 }
 
+@test "main::function exists and is callable" {
+  run main
+  [[ "${status}" -eq 0 ]]
+}
+
+@test "main::outputs correct format" {
+  run main
+  [[ "${status}" -eq 0 ]]
+  echo "${output}" | grep -q "Searching for database files across all paths"
+  echo "${output}" | grep -q "========================================"
+  echo "${output}" | grep -q "Databases Found"
+  echo "${output}" | grep -q "Cursor:"
+  echo "${output}" | grep -q "Claude Code:"
+  echo "${output}" | grep -q "Windsurf:"
+  echo "${output}" | grep -q "Registry set"
+}
+
 @test "update_registry::updates existing tool paths" {
   init_registry
-  update_registry "cursor" '["/old/path"]'
+  update_registry "cursor" "/old/path"
   
-  run update_registry "cursor" '["/new/path"]'
+  run update_registry "cursor" "/new/path"
   [[ "${status}" -eq 0 ]]
   
   local registry_content
@@ -159,7 +165,7 @@ teardown() {
 
 @test "update_registry::handles multiple tool paths" {
   init_registry
-  run update_registry "cursor" '["/path1", "/path2", "/path3"]'
+  run update_registry "cursor" "/path1" "/path2" "/path3"
   [[ "${status}" -eq 0 ]]
   
   local registry_content
@@ -172,8 +178,8 @@ teardown() {
 
 @test "update_registry::adds multiple tools to registry" {
   init_registry
-  update_registry "cursor" '["/cursor/path"]'
-  run update_registry "claude" '["/claude/path"]'
+  update_registry "cursor" "/cursor/path"
+  run update_registry "claude" "/claude/path"
   [[ "${status}" -eq 0 ]]
   
   local registry_content
@@ -197,7 +203,7 @@ teardown() {
 
 @test "update_registry::handles empty tool paths array" {
   init_registry
-  run update_registry "test-tool" '[]'
+  run update_registry "test-tool"
   [[ "${status}" -eq 0 ]]
   
   local registry_content
