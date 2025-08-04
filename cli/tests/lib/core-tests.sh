@@ -17,7 +17,9 @@ readonly CORE_SCRIPT="$GANDALF_PROJECT_ROOT/cli/lib/core.sh"
 # Setup test environment before each test
 setup() {
   unset GANDALF_PLATFORM
-  unset GANDALF_DB_PATHS
+  unset CURSOR_DB_PATHS
+  unset CLAUDE_CODE_DB_PATHS
+  unset WINDSURF_DB_PATHS
   # shellcheck disable=SC1090,SC1091
   source "$CORE_SCRIPT"
 }
@@ -51,26 +53,30 @@ setup() {
   [[ "$GANDALF_PLATFORM" == "unknown" ]]
 }
 
-@test "detect_platform::real, check db paths" {
-  detect_platform
-  [[ "${#GANDALF_DB_PATHS[@]}" -eq 5 ]]
-}
-
-@test "detect_platform::exports variables correctly" {
+@test "detect_platform::exports platform variable correctly" {
   detect_platform
   [[ -n "${GANDALF_PLATFORM:-}" ]]
-  [[ -n "${GANDALF_DB_PATHS:-}" ]]
 }
 
-@test "detect_platform::db paths contain expected elements" {
+@test "detect_platform::separate db path arrays are available" {
+  detect_platform
+  [[ -n "${CURSOR_DB_PATHS:-}" ]]
+  [[ -n "${CLAUDE_CODE_DB_PATHS:-}" ]]
+  [[ -n "${WINDSURF_DB_PATHS:-}" ]]
+}
+
+@test "detect_platform::db path arrays contain expected elements" {
   detect_platform
   local found_cursor=0
   local found_claude=0
   
-  for path in "${GANDALF_DB_PATHS[@]}"; do
+  for path in "${CURSOR_DB_PATHS[@]}"; do
     if [[ "$path" == *"Cursor"* ]]; then
       found_cursor=$((found_cursor + 1))
     fi
+  done
+  
+  for path in "${CLAUDE_CODE_DB_PATHS[@]}"; do
     if [[ "$path" == *"Claude"* ]]; then
       found_claude=$((found_claude + 1))
     fi

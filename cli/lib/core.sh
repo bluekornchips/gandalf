@@ -36,12 +36,18 @@ readonly WINDSURF_DB_PATHS=(
   "$HOME/.config/Windsurf/User/globalStorage"
 )
 
-readonly CURSOR_DB_FILES=(
+readonly GANDALF_TOOL_DB_FILES=(
   "state.vscdb"
   "workspace.db"
   "storage.db"
   "cursor.db"
 )
+
+export CURSOR_DB_PATHS
+export CLAUDE_CODE_DB_PATHS
+export WINDSURF_DB_PATHS
+
+export GANDALF_TOOL_DB_FILES
 
 # Initialize platform detection and establish database paths
 detect_platform() {
@@ -60,15 +66,7 @@ detect_platform() {
       ;;
   esac
 
-  # Combine all database paths for comprehensive coverage
-  GANDALF_DB_PATHS=(
-    "${CURSOR_DB_PATHS[@]}"
-    "${CLAUDE_CODE_DB_PATHS[@]}"
-    "${WINDSURF_DB_PATHS[@]}"
-  )
-
   export GANDALF_PLATFORM
-  export GANDALF_DB_PATHS
 
   return 0
 }

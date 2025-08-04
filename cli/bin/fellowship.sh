@@ -171,7 +171,10 @@ Total Tests Ran: ${tests_count}
 EOF
   if [[ ${#success_file_names[@]} -gt 0 ]]; then
     echo "Success: ${success_file_names[*]}"
+  else
+    echo "No tests ran successfully."
   fi
+
   if [[ ${#failed_file_names[@]} -gt 0 ]]; then
     echo "Failed: ${failed_file_names[*]}"
   fi
