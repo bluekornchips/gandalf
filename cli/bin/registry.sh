@@ -136,30 +136,22 @@ $(printf '%s\n' "${REGISTRY_WINDSURF_PATHS[@]}")
 EOF
 }
 
-main() {
-	local combined_paths
+[[ ! -f "${REGISTRY_FILE}" ]] && init_registry
+combined_paths=("${CURSOR_DB_PATHS[@]}" "${CLAUDE_CODE_DB_PATHS[@]}" "${WINDSURF_DB_PATHS[@]}")
+check_available_tools "${combined_paths[@]}"
 
-	[[ ! -f "${REGISTRY_FILE}" ]] && init_registry
-	combined_paths=("${CURSOR_DB_PATHS[@]}" "${CLAUDE_CODE_DB_PATHS[@]}" "${WINDSURF_DB_PATHS[@]}")
-	check_available_tools "${combined_paths[@]}"
-
-	if ! update_registry "claude" "${REGISTRY_CLAUDE_PATHS[@]}"; then
-		echo "Failed to update registry for Claude" >&2
-		return 1
-	fi
-	if ! update_registry "cursor" "${REGISTRY_CURSOR_PATHS[@]}"; then
-		echo "Failed to update registry for Cursor" >&2
-		return 1
-	fi
-	if ! update_registry "windsurf" "${REGISTRY_WINDSURF_PATHS[@]}"; then
-		echo "Failed to update registry for Windsurf" >&2
-		return 1
-	fi
-
-	echo "Registry set:"
-	jq -r '.' "${REGISTRY_FILE}"
-}
-
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-	main "$@"
+if ! update_registry "claude" "${REGISTRY_CLAUDE_PATHS[@]}"; then
+	echo "Failed to update registry for Claude" >&2
+	return 1
 fi
+if ! update_registry "cursor" "${REGISTRY_CURSOR_PATHS[@]}"; then
+	echo "Failed to update registry for Cursor" >&2
+	return 1
+fi
+if ! update_registry "windsurf" "${REGISTRY_WINDSURF_PATHS[@]}"; then
+	echo "Failed to update registry for Windsurf" >&2
+	return 1
+fi
+
+echo "Registry set:"
+jq -r '.' "${REGISTRY_FILE}"
