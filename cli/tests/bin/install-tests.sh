@@ -25,7 +25,10 @@ setup() {
 	export VERSION_FILE
 
 	GANDALF_PROJECT_ROOT="${TEST_ROOT}"
+	# shellcheck disable=SC1090
 	source "${SCRIPT}"
+
+	return 0
 }
 
 teardown() {

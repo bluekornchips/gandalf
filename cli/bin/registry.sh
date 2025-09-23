@@ -1,27 +1,32 @@
 #!/usr/bin/env bash
-
+#
 # Registry Management for Gandalf
 # Manages tool registrations and database paths for the Gandalf system
+#
+set -euo pipefail
 
-set -eo pipefail
+usage() {
+	cat <<EOF
+Usage: $(basename "$0") [OPTIONS]
 
-# Initialize project root if not set
-if [[ -z "${GANDALF_PROJECT_ROOT:-}" ]]; then
-	SCRIPT_PATH="$(realpath "${BASH_SOURCE:-$0}")"
-	SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-	GANDALF_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-fi
+Registry Management for Gandalf
+Manages tool registrations and database paths for the Gandalf system
 
-if [[ -z "${HOME:-}" ]]; then
-	echo "'HOME' environment variable is not set" >&2
-	exit 1
-fi
+OPTIONS:
+  -h, --help  Show this help message
+
+ENVIRONMENT VARIABLES (If any)
+  GANDALF_REGISTRY_FILE  # Path to registry file (default: ~/.gandalf/registry.json)
+
+EOF
+}
 
 # shellcheck disable=SC1091
 source "${GANDALF_PROJECT_ROOT}/cli/lib/core.sh"
 detect_platform
 
-readonly REGISTRY_FILE="${GANDALF_REGISTRY_FILE:-${HOME}/.gandalf/registry.json}"
+readonly REGISTRY_FILE="${GANDALF_REGISTRY_FILE:-${HOME:-$HOME}/.gandalf/registry.json}"
+
 # Registry Schema:
 # {
 #     "tool-name": [
@@ -30,32 +35,42 @@ readonly REGISTRY_FILE="${GANDALF_REGISTRY_FILE:-${HOME}/.gandalf/registry.json}
 #         ...
 #     ]
 # }
-# Local copies of database paths for this script
-REGISTRY_CURSOR_PATHS=()
-REGISTRY_CLAUDE_PATHS=()
-REGISTRY_WINDSURF_PATHS=()
 
 # Initialize the registry file if it does not exist
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - REGISTRY_FILE, creates directory and file if needed
 init_registry() {
 	if [[ ! -f "${REGISTRY_FILE}" ]]; then
 		local registry_dir
 		registry_dir="$(dirname "${REGISTRY_FILE}")"
-		
+
 		if ! mkdir -p "${registry_dir}"; then
 			echo "Failed to create registry directory: ${registry_dir}" >&2
 			return 1
 		fi
-		
+
 		if ! echo "{}" >"${REGISTRY_FILE}"; then
 			echo "Failed to create registry file: ${REGISTRY_FILE}" >&2
 			return 1
 		fi
-		
+
 		echo "Registry initialized"
 	fi
+	return 0
 }
 
 # Update registry with tool information
+#
+# Inputs:
+# - $1, tool_name, name of the tool
+# - $2+, tool_paths, array of paths to tool databases
+#
+# Side Effects:
+# - REGISTRY_FILE, updates the registry file with tool paths
 update_registry() {
 	local tool_name="${1:-}"
 	local tool_paths=("${@:2}")
@@ -77,7 +92,7 @@ update_registry() {
 		fi
 	else
 		if ! registry_data=$(jq -r \
-		--arg tool_name "${tool_name}" \
+			--arg tool_name "${tool_name}" \
 			--arg tool_paths "$(printf '%s\n' "${tool_paths[@]}")" \
 			'.[$tool_name] = ($tool_paths | split("\n") | map(select(. != "")))' \
 			"${REGISTRY_FILE}"); then
@@ -90,20 +105,28 @@ update_registry() {
 		echo "Failed to write registry file: ${REGISTRY_FILE}" >&2
 		return 1
 	fi
+
+	return 0
 }
 
 # Search for database files across all tool paths
+#
+# Inputs:
+# - $1+, combined_paths, array of paths to search
+#
+# Side Effects:
+# - REGISTRY_CURSOR_PATHS, sets array of Cursor database paths
+# - REGISTRY_CLAUDE_PATHS, sets array of Claude database paths
 check_available_tools() {
 	local combined_paths=("${@:1}")
-	
+
 	local cursor_db_paths=()
 	local claude_code_db_paths=()
-	local windsurf_db_paths=()
 	local path
 	local db_file
 	local found_file
 	local found_path
-	
+
 	echo "Searching for database files across all paths."
 
 	for path in "${combined_paths[@]}"; do
@@ -113,14 +136,12 @@ check_available_tools() {
 
 				[[ "${found_path}" == *"Cursor"* ]] && cursor_db_paths+=("${found_path}")
 				[[ "${found_path}" == *"Claude"* ]] && claude_code_db_paths+=("${found_path}")
-				[[ "${found_path}" == *"Windsurf"* ]] && windsurf_db_paths+=("${found_path}")
 			done < <(find "${path}" -name "${db_file}" -print0 2>/dev/null)
 		done
 	done
 
 	REGISTRY_CURSOR_PATHS=("${cursor_db_paths[@]}")
 	REGISTRY_CLAUDE_PATHS=("${claude_code_db_paths[@]}")
-	REGISTRY_WINDSURF_PATHS=("${windsurf_db_paths[@]}")
 
 	cat <<EOF
 ========================================
@@ -130,28 +151,66 @@ Cursor: ${#REGISTRY_CURSOR_PATHS[@]}
 $(printf '%s\n' "${REGISTRY_CURSOR_PATHS[@]}")
 Claude Code: ${#REGISTRY_CLAUDE_PATHS[@]}
 $(printf '%s\n' "${REGISTRY_CLAUDE_PATHS[@]}")
-Windsurf: ${#REGISTRY_WINDSURF_PATHS[@]}
-$(printf '%s\n' "${REGISTRY_WINDSURF_PATHS[@]}")
 
 EOF
+
+	return 0
 }
 
-[[ ! -f "${REGISTRY_FILE}" ]] && init_registry
-combined_paths=("${CURSOR_DB_PATHS[@]}" "${CLAUDE_CODE_DB_PATHS[@]}" "${WINDSURF_DB_PATHS[@]}")
-check_available_tools "${combined_paths[@]}"
+# Main entry point
+main() {
+	# Initialize project root if not set
+	if [[ -z "${GANDALF_PROJECT_ROOT:-}" ]]; then
+		SCRIPT_PATH="$(realpath "${BASH_SOURCE:-$0}")"
+		SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+		GANDALF_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+	fi
 
-if ! update_registry "claude" "${REGISTRY_CLAUDE_PATHS[@]}"; then
-	echo "Failed to update registry for Claude" >&2
-	return 1
-fi
-if ! update_registry "cursor" "${REGISTRY_CURSOR_PATHS[@]}"; then
-	echo "Failed to update registry for Cursor" >&2
-	return 1
-fi
-if ! update_registry "windsurf" "${REGISTRY_WINDSURF_PATHS[@]}"; then
-	echo "Failed to update registry for Windsurf" >&2
-	return 1
-fi
+	if [[ -z "${HOME:-}" ]]; then
+		echo "'HOME' environment variable is not set" >&2
+		return 1
+	fi
 
-echo "Registry set:"
-jq -r '.' "${REGISTRY_FILE}"
+	# Initialize arrays
+	CURSOR_DB_PATHS=()
+	CLAUDE_CODE_DB_PATHS=()
+
+	export CURSOR_DB_PATHS
+	export CLAUDE_CODE_DB_PATHS
+
+	[[ ! -f "${REGISTRY_FILE}" ]] && init_registry
+	combined_paths=("${CURSOR_DB_PATHS[@]}" "${CLAUDE_CODE_DB_PATHS[@]}")
+	check_available_tools "${combined_paths[@]}"
+
+	if ! update_registry "claude" "${REGISTRY_CLAUDE_PATHS[@]}"; then
+		echo "Failed to update registry for Claude" >&2
+		return 1
+	fi
+	if ! update_registry "cursor" "${REGISTRY_CURSOR_PATHS[@]}"; then
+		echo "Failed to update registry for Cursor" >&2
+		return 1
+	fi
+
+	echo "Registry set:"
+	jq -r '.' "${REGISTRY_FILE}"
+	return 0
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+		-h | --help)
+			usage
+			return 0
+			;;
+		*)
+			echo "Unknown option '$1'" >&2
+			echo "Use '$(basename "$0") --help' for usage information" >&2
+			return 1
+			;;
+		esac
+	done
+
+	main "$@"
+fi

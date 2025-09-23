@@ -23,6 +23,8 @@ setup() {
 
 	# shellcheck disable=SC1090,SC1091
 	source "${REGISTRY_SCRIPT}"
+
+	return 0
 }
 
 teardown() {
@@ -44,17 +46,19 @@ teardown() {
 }
 
 @test "init_registry::creates registry file when it does not exist" {
+	init_registry
 	[[ -f "${REGISTRY_FILE}" ]]
 }
 
 @test "init_registry::creates directory structure when needed" {
-	# Since the script executes when sourced, the directory shoud already exist
+	init_registry
 	local registry_dir
 	registry_dir="$(dirname "${REGISTRY_FILE}")"
 	[[ -d "${registry_dir}" ]]
 }
 
 @test "init_registry::initializes with JSON object" {
+	init_registry
 	[[ -f "${REGISTRY_FILE}" ]]
 	jq -e 'type == "object"' "${REGISTRY_FILE}" >/dev/null
 }
@@ -114,9 +118,9 @@ teardown() {
 }
 
 @test "update_registry::creates registry file if it does not exist" {
-	[[ -f "${REGISTRY_FILE}" ]]
 	run update_registry "test-tool" '["/path/to/tool"]'
 	[[ "${status}" -eq 0 ]]
+	[[ -f "${REGISTRY_FILE}" ]]
 }
 
 @test "update_registry::adds new tool to empty registry" {
@@ -130,6 +134,7 @@ teardown() {
 }
 
 @test "script::executes main logic when sourced" {
+	init_registry
 	[[ -f "${REGISTRY_FILE}" ]]
 	jq -e 'type == "object"' "${REGISTRY_FILE}" >/dev/null
 }

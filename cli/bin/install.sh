@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
-
+#
 # Install Gandalf MCP Server
 # Installs the Gandalf MCP Server and its dependencies
+#
+set -euo pipefail
 
 usage() {
 	cat <<EOF
-  Usage: $0 [OPTIONS]
+Usage: $(basename "$0") [OPTIONS]
 
-  Options:
-    -h, --help      Show this help message and exit
-    -v, --version   Show version information and exit
-    -f, --force     Force overwrite existing config
+Install Gandalf MCP Server
+Installs the Gandalf MCP Server and its dependencies
+
+OPTIONS:
+  -h, --help      Show this help message and exit
+  -v, --version   Show version information and exit
+  -f, --force     Force overwrite existing config
 
 EOF
 }
-set -eo pipefail
 
 # Initialize project root if not set
 if [[ -z "${GANDALF_PROJECT_ROOT:-}" ]]; then
@@ -28,38 +32,66 @@ if [[ -z "${HOME:-}" ]]; then
 	exit 1
 fi
 
+# Get version from VERSION file
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - None
 get_version() {
 	VERSION_FILE="${GANDALF_PROJECT_ROOT}/VERSION"
-	if [[ -f "${VERSION_FILE}" ]]; then
-		cat "${VERSION_FILE}"
-	else
+	if [[ ! -f "${VERSION_FILE}" ]]; then
 		echo "Unable to determine version" >&2
-		exit 1
+		return 1
 	fi
+
+	cat "${VERSION_FILE}"
+
+	return 0
 }
 
+# Run the installer by sourcing registry
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - Sources registry.sh
 run_installer() {
-	# Setup registry
-	source "${GANDALF_PROJECT_ROOT}/cli/bin/registry.sh"
+	# shellcheck disable=SC1091
+	if ! source "${GANDALF_PROJECT_ROOT}/cli/bin/registry.sh"; then
+		echo "Failed to source registry.sh" >&2
+		return 1
+	fi
+
+	return 0
 }
 
-if [[ $# -eq 0 ]]; then
-	run_installer
-fi
+main() {
+	if [[ $# -eq 0 ]]; then
+		run_installer
+	fi
 
-while getopts "hv" opt; do
-	case $opt in
-	h)
-		usage
-		exit 0
-		;;
-	v)
-		echo "Gandalf MCP Server v$(get_version)"
-		exit 0
-		;;
-	*)
-		usage
-		exit 1
-		;;
-	esac
-done
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+		-h | --help)
+			usage
+			exit 0
+			;;
+		-v | --version)
+			echo "Gandalf MCP Server v$(get_version)"
+			exit 0
+			;;
+		*)
+			echo "Unknown option '$1'" >&2
+			echo "Use '$(basename "$0") --help' for usage information" >&2
+			exit 1
+			;;
+		esac
+	done
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	main "$@"
+fi

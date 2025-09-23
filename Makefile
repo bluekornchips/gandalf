@@ -4,7 +4,7 @@ format-python:
 	ruff format server/src/ server/tests/
 
 format-sh:
-	find . -name "*.sh" -exec shfmt --ln=bats -w {} \;
+	find ./cli -name "*.sh" -exec shfmt --ln=bats -w {} \;
 
 format-all: format-python format-sh
 
@@ -17,8 +17,13 @@ isort-check:
 typecheck:
 	python3 -m mypy server/src/
 
-test:
+test-sh:
+	find ./cli -name "*-tests.sh" -type f -exec bats {} \;
+
+test-py:
 	pytest --cov=server/src
+
+test-all: test-sh test-py
 
 security:
 	bandit -r server/src/ -f txt -s B603,B607

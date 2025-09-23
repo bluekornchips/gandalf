@@ -201,14 +201,14 @@ load_test_config
 case $1 in
 --help | -h)
 	usage
-	exit 0
+	return 0
 	;;
 --list | -l)
 	list_files
-	exit 0
+	return 0
 	;;
 *)
 	run_tests "$@"
-	exit $?
+	return $?
 	;;
 esac

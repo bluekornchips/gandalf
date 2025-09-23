@@ -1,26 +1,31 @@
 #!/usr/bin/env bash
-
+#
 # Gandalf main CLI entry point
 # Provides command-line interface for the Gandalf project
-
+#
 set -euo pipefail
 
 # Display help information for the CLI
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - Outputs help text to stdout
 show_help() {
   cat <<EOF
-
-Usage: $0 COMMAND [OPTIONS]
+Usage: $(basename "$0") COMMAND [OPTIONS]
 
 Commands:
-    test                Run test suites (shell, python, or specific test categories)
-    help                Show this help message
+  test                Run test suites (shell, python, or specific test categories)
+  help                Show this help message
 
 Options:
-    --help, -h          Show help for specific command
+  --help, -h          Show help for specific command
 
 Examples:
-    $0 test [name]                # Run a specific test file, by name
-    $0 help                       # Show this help message
+  $0 test [name]                # Run a specific test file, by name
+  $0 help                       # Show this help message
 
 For more information, see: ${GANDALF_PROJECT_ROOT}/README.md
 
@@ -37,6 +42,13 @@ GANDALF_VERSION=$(cat "${GANDALF_PROJECT_ROOT}/VERSION" 2>/dev/null || echo "unk
 export GANDALF_VERSION
 
 # Main CLI function that handles command routing
+#
+# Inputs:
+# - $1, command, the command to execute
+# - $@, args, arguments for the command
+#
+# Side Effects:
+# - Executes commands or shows help
 main() {
   local command="${1:-help}"
   shift || true
