@@ -1,7 +1,12 @@
-format:
+format-python:
 	python3 -m isort server/src/ server/tests/
 	ruff check --fix --unsafe-fixes server/src/ server/tests/
 	ruff format server/src/ server/tests/
+
+format-sh:
+	find . -name "*.sh" -exec shfmt --ln=bats -w {} \;
+
+format-all: format-python format-sh
 
 lint:
 	ruff check server/src/ server/tests/
