@@ -6,31 +6,36 @@
 #   I will now that ye make in harmony together a Great Music.
 #   And since I have kindled you with the Flame Imperishable,
 #   ye shall show forth your powers in adorning this theme,
-#   each with his own thoughts and devices, if he will.”
+#   each with his own thoughts and devices, if he will."
 #       - Eru Iluvatar
 #
 set -euo pipefail
 
-# Color codes for terminal output
-[[ -z "${COLOR_RESET:-}" ]] && readonly COLOR_RESET="\033[0m"
-[[ -z "${COLOR_RED:-}" ]] && readonly COLOR_RED="\033[31m"
-[[ -z "${COLOR_GREEN:-}" ]] && readonly COLOR_GREEN="\033[32m"
-[[ -z "${COLOR_YELLOW:-}" ]] && readonly COLOR_YELLOW="\033[33m"
-[[ -z "${COLOR_BLUE:-}" ]] && readonly COLOR_BLUE="\033[34m"
+# Initialize constants if not already set
+main() {
+	# Color codes for terminal output
+	[[ -z "${COLOR_RESET:-}" ]] && COLOR_RESET="\033[0m"
+	[[ -z "${COLOR_RED:-}" ]] && COLOR_RED="\033[31m"
+	[[ -z "${COLOR_GREEN:-}" ]] && COLOR_GREEN="\033[32m"
+	[[ -z "${COLOR_YELLOW:-}" ]] && COLOR_YELLOW="\033[33m"
+	[[ -z "${COLOR_BLUE:-}" ]] && COLOR_BLUE="\033[34m"
 
-# Logging configuration
-[[ -z "${LOG_LEVEL_DEBUG:-}" ]] && readonly LOG_LEVEL_DEBUG=0
-[[ -z "${LOG_LEVEL_INFO:-}" ]] && readonly LOG_LEVEL_INFO=1
-[[ -z "${LOG_LEVEL_ERROR:-}" ]] && readonly LOG_LEVEL_ERROR=2
+	# Logging configuration
+	[[ -z "${LOG_LEVEL_DEBUG:-}" ]] && LOG_LEVEL_DEBUG=0
+	[[ -z "${LOG_LEVEL_INFO:-}" ]] && LOG_LEVEL_INFO=1
+	[[ -z "${LOG_LEVEL_ERROR:-}" ]] && LOG_LEVEL_ERROR=2
 
-# Default log level
-LOG_LEVEL=${LOG_LEVEL:-$LOG_LEVEL_DEBUG}
-LOG_TO_FILE=${LOG_TO_FILE:-false}
+	# Default log level
+	[[ -z "${LOG_LEVEL:-}" ]] && LOG_LEVEL=$LOG_LEVEL_DEBUG
+	[[ -z "${LOG_TO_FILE:-}" ]] && LOG_TO_FILE=false
 
-# Log file configuration
-[[ -z "${LOG_FILE_TIMESTAMP_FORMAT:-}" ]] && readonly LOG_FILE_TIMESTAMP_FORMAT="+%Y-%m-%d %H:%M:%S"
-[[ -z "${LOG_DIR:-}" ]] && readonly LOG_DIR="${GANDALF_HOME:-$HOME/.gandalf}/logs"
-LOG_FILE=""
+	# Log file configuration
+	[[ -z "${LOG_FILE_TIMESTAMP_FORMAT:-}" ]] && LOG_FILE_TIMESTAMP_FORMAT="+%Y-%m-%d %H:%M:%S"
+	[[ -z "${LOG_DIR:-}" ]] && LOG_DIR="${GANDALF_HOME:-${HOME:-/tmp}/.gandalf}/logs"
+	[[ -z "${LOG_FILE:-}" ]] && LOG_FILE=""
+
+	return 0
+}
 
 usage() {
 	cat <<EOF
@@ -42,14 +47,14 @@ Centralized logging functionality for all shell scripts
 OPTIONS:
   -h, --help  Show this help message
 
-ENVIRONMENT VARIABLES
+ENVIRONMENT VARIABLES:
   LOG_LEVEL=0         # Log level (0=DEBUG, 1=INFO, 2=ERROR)
   LOG_TO_FILE=false   # Whether to log to file
 
 EOF
 }
 
-# Initialize logging, should only be called from 'gandalf.sh'
+# Initialize logging, should only be called from 'gandalf.sh' if following the proper init sequence.
 #
 # Inputs:
 # - None
@@ -143,8 +148,6 @@ log_error() {
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-	# Set input args, if needed
-	# If input args are in fact needed, always handle -h | --help and unknown options at a bare minimum
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-h | --help)
@@ -157,12 +160,11 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 			exit 1
 			;;
 		esac
-		shift
 	done
-
-	main "$@"
 fi
 
+# Initialize constants when sourced if not already done
 if [[ "${MOTA_LOADED:-false}" != "true" ]]; then
+	main
 	export MOTA_LOADED=true
 fi

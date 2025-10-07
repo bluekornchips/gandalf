@@ -65,3 +65,4 @@ htmlcov/
 CLAUDE.md
 !cli/lib
 !cli/tests/lib
+CLAUDE.md

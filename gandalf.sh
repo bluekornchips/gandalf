@@ -18,6 +18,7 @@ Usage: $(basename "$0") COMMAND [OPTIONS]
 
 Commands:
   test                Run test suites (shell, python, or specific test categories)
+  install             Install and configure Gandalf MCP Server
   help                Show this help message
 
 Options:
@@ -25,6 +26,7 @@ Options:
 
 Examples:
   $0 test [name]                # Run a specific test file, by name
+  $0 install                   # Install and configure Gandalf MCP Server
   $0 help                       # Show this help message
 
 For more information, see: ${GANDALF_PROJECT_ROOT}/README.md
@@ -56,6 +58,9 @@ main() {
   case "$command" in
     test)
       "${GANDALF_PROJECT_ROOT}/cli/bin/fellowship.sh" "$@"
+      ;;
+    install)
+      "${GANDALF_PROJECT_ROOT}/cli/bin/install.sh" "$@"
       ;;
     help|--help|-h)
       show_help

@@ -159,6 +159,9 @@ EOF
 
 # Main entry point
 main() {
+	# Source music-of-the-ainur
+	#shellcheck disable=SC1091
+	source "${GANDALF_PROJECT_ROOT}/cli/lib/music-of-the-ainur.sh"
 	# Initialize project root if not set
 	if [[ -z "${GANDALF_PROJECT_ROOT:-}" ]]; then
 		SCRIPT_PATH="$(realpath "${BASH_SOURCE:-$0}")"

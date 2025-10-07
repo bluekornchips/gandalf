@@ -59,6 +59,7 @@ get_version() {
 # Side Effects:
 # - Sources registry.sh
 run_installer() {
+	log_debug "Running installer."
 	# shellcheck disable=SC1091
 	if ! source "${GANDALF_PROJECT_ROOT}/cli/bin/registry.sh"; then
 		echo "Failed to source registry.sh" >&2
@@ -70,7 +71,14 @@ run_installer() {
 
 main() {
 	if [[ $# -eq 0 ]]; then
-		run_installer
+		# Initialize music-of-the-ainur
+		#shellcheck disable=SC1091
+		source "${GANDALF_PROJECT_ROOT}/cli/lib/music-of-the-ainur.sh"
+		init_logging
+
+		log_info "Music of the Ainur (logging)initialized."
+		log_debug "Running installer."
+		# run_installer
 	fi
 
 	while [[ $# -gt 0 ]]; do

@@ -18,7 +18,7 @@ typecheck:
 	python3 -m mypy server/src/
 
 test-sh:
-	find ./cli -name "*-tests.sh" -type f -exec bats {} \;
+	find ./cli -name "*-tests.sh" -type f -exec bats --timing {} \;
 
 test-py:
 	pytest --cov=server/src
