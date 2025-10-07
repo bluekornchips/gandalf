@@ -51,36 +51,24 @@ get_version() {
 	return 0
 }
 
-# Run the installer by sourcing registry
-#
-# Inputs:
-# - None
-#
-# Side Effects:
-# - Sources registry.sh
-run_installer() {
-	log_debug "Running installer."
-	# shellcheck disable=SC1091
-	if ! source "${GANDALF_PROJECT_ROOT}/cli/bin/registry.sh"; then
-		echo "Failed to source registry.sh" >&2
-		return 1
-	fi
-
-	return 0
-}
-
 main() {
 	if [[ $# -eq 0 ]]; then
 		# Initialize music-of-the-ainur
 		#shellcheck disable=SC1091
-		source "${GANDALF_PROJECT_ROOT}/cli/lib/music-of-the-ainur.sh"
-		init_logging
+		if ! source "${GANDALF_PROJECT_ROOT}/cli/lib/music-of-the-ainur.sh"; then
+			echo "Failed to source music-of-the-ainur.sh" >&2
+			return 1
+		fi
+		log_info "Music of the Ainur (logging) initialized."
 
-		log_info "Music of the Ainur (logging)initialized."
-		log_debug "Running installer."
-		# run_installer
+		if ! source "${GANDALF_PROJECT_ROOT}/cli/bin/registry.sh"; then
+			echo "Failed to source registry.sh" >&2
+			return 1
+		fi
 	fi
+}
 
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-h | --help)
@@ -98,8 +86,6 @@ main() {
 			;;
 		esac
 	done
-}
 
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 	main "$@"
 fi

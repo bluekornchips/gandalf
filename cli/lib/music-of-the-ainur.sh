@@ -109,6 +109,22 @@ log_message() {
 	return 0
 }
 
+# Log a multi-line block, preserving clean logging format per line
+#
+# Inputs:
+# - stdin, multi-line content to log (typically via a heredoc)
+#
+# Side Effects:
+# - Writes each line via log_info (and to file if enabled)
+log_block() {
+	local line
+	while IFS= read -r line; do
+		log_info "${line}"
+	done
+
+	return 0
+}
+
 # Not turned on by default for the user.
 log_debug() {
 	local message="$1"

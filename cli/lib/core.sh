@@ -44,15 +44,14 @@ detect_platform() {
 		;;
 	esac
 
-	echo "$GANDALF_PLATFORM"
+	export GANDALF_PLATFORM
 
 	return 0
 }
 
 # Main entry point
-# No
 main() {
-	echo -e "\n=== Entry: ${BASH_SOURCE[0]:-$0} ===\n"
+	echo -e "=== Entry: ${BASH_SOURCE[0]:-$0} ==="
 
 	CURSOR_DB_PATHS=(
 		# Linux
@@ -88,7 +87,7 @@ main() {
 
 	export GANDALF_PLATFORM
 
-	echo -e "\n=== Exit: ${BASH_SOURCE[0]:-$0} ===\n"
+	echo -e "=== Exit: ${BASH_SOURCE[0]:-$0} ==="
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

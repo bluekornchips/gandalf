@@ -21,12 +21,6 @@ ENVIRONMENT VARIABLES (If any)
 EOF
 }
 
-# shellcheck disable=SC1091
-source "${GANDALF_PROJECT_ROOT}/cli/lib/core.sh"
-detect_platform
-
-readonly REGISTRY_FILE="${GANDALF_REGISTRY_FILE:-${HOME:-$HOME}/.gandalf/registry.json}"
-
 # Registry Schema:
 # {
 #     "tool-name": [
@@ -49,17 +43,16 @@ init_registry() {
 		registry_dir="$(dirname "${REGISTRY_FILE}")"
 
 		if ! mkdir -p "${registry_dir}"; then
-			echo "Failed to create registry directory: ${registry_dir}" >&2
+			log_error "Failed to create registry directory: ${registry_dir}" >&2
 			return 1
 		fi
 
 		if ! echo "{}" >"${REGISTRY_FILE}"; then
-			echo "Failed to create registry file: ${REGISTRY_FILE}" >&2
+			log_error "Failed to create registry file: ${REGISTRY_FILE}" >&2
 			return 1
 		fi
-
-		echo "Registry initialized"
 	fi
+
 	return 0
 }
 
@@ -77,7 +70,7 @@ update_registry() {
 	local registry_data
 
 	if [[ -z "${tool_name:-}" ]]; then
-		echo "Tool name is required" >&2
+		log_error "Tool name is required" >&2
 		return 1
 	fi
 
@@ -87,7 +80,7 @@ update_registry() {
 		if ! registry_data=$(jq -r \
 			--arg tool_name "${tool_name}" \
 			'.[$tool_name] = []' "${REGISTRY_FILE}"); then
-			echo "Failed to update registry for ${tool_name}" >&2
+			log_error "Failed to update registry for ${tool_name}" >&2
 			return 1
 		fi
 	else
@@ -96,13 +89,13 @@ update_registry() {
 			--arg tool_paths "$(printf '%s\n' "${tool_paths[@]}")" \
 			'.[$tool_name] = ($tool_paths | split("\n") | map(select(. != "")))' \
 			"${REGISTRY_FILE}"); then
-			echo "Failed to update registry for ${tool_name}" >&2
+			log_error "Failed to update registry for ${tool_name}" >&2
 			return 1
 		fi
 	fi
 
 	if ! echo "${registry_data}" >"${REGISTRY_FILE}"; then
-		echo "Failed to write registry file: ${REGISTRY_FILE}" >&2
+		log_error "Failed to write registry file: ${REGISTRY_FILE}" >&2
 		return 1
 	fi
 
@@ -127,7 +120,7 @@ check_available_tools() {
 	local found_file
 	local found_path
 
-	echo "Searching for database files across all paths."
+	log_info "Searching for database files across all paths."
 
 	for path in "${combined_paths[@]}"; do
 		for db_file in "${GANDALF_TOOL_DB_FILES[@]}"; do
@@ -143,7 +136,7 @@ check_available_tools() {
 	REGISTRY_CURSOR_PATHS=("${cursor_db_paths[@]}")
 	REGISTRY_CLAUDE_PATHS=("${claude_code_db_paths[@]}")
 
-	cat <<EOF
+	log_block <<EOF
 ========================================
 Databases Found
 ========================================
@@ -159,9 +152,16 @@ EOF
 
 # Main entry point
 main() {
-	# Source music-of-the-ainur
+	REGISTRY_FILE="${GANDALF_REGISTRY_FILE:-${HOME:-$HOME}/.gandalf/registry.json}"
+	export REGISTRY_FILE
+
+	# Initialize music-of-the-ainur
 	#shellcheck disable=SC1091
-	source "${GANDALF_PROJECT_ROOT}/cli/lib/music-of-the-ainur.sh"
+	if ! source "${GANDALF_PROJECT_ROOT}/cli/lib/music-of-the-ainur.sh"; then
+		log_error "Failed to source music-of-the-ainur.sh" >&2
+		return 1
+	fi
+
 	# Initialize project root if not set
 	if [[ -z "${GANDALF_PROJECT_ROOT:-}" ]]; then
 		SCRIPT_PATH="$(realpath "${BASH_SOURCE:-$0}")"
@@ -170,9 +170,10 @@ main() {
 	fi
 
 	if [[ -z "${HOME:-}" ]]; then
-		echo "'HOME' environment variable is not set" >&2
+		log_error "'HOME' environment variable is not set" >&2
 		return 1
 	fi
+	log_debug "Home directory set to: ${HOME}"
 
 	# Initialize arrays
 	CURSOR_DB_PATHS=()
@@ -186,21 +187,20 @@ main() {
 	check_available_tools "${combined_paths[@]}"
 
 	if ! update_registry "claude" "${REGISTRY_CLAUDE_PATHS[@]}"; then
-		echo "Failed to update registry for Claude" >&2
+		log_error "Failed to update registry for Claude" >&2
 		return 1
 	fi
 	if ! update_registry "cursor" "${REGISTRY_CURSOR_PATHS[@]}"; then
-		echo "Failed to update registry for Cursor" >&2
+		log_error "Failed to update registry for Cursor" >&2
 		return 1
 	fi
 
-	echo "Registry set:"
-	jq -r '.' "${REGISTRY_FILE}"
+	log_info "Registry set: $(jq -r '.' "${REGISTRY_FILE}")"
+
 	return 0
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-h | --help)
@@ -208,12 +208,12 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 			return 0
 			;;
 		*)
-			echo "Unknown option '$1'" >&2
-			echo "Use '$(basename "$0") --help' for usage information" >&2
+			log_error "Unknown option '$1'" >&2
+			log_error "Use '$(basename "$0") --help' for usage information" >&2
 			return 1
 			;;
 		esac
 	done
-
-	main "$@"
 fi
+
+main "$@"
