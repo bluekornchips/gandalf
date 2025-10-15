@@ -6,7 +6,7 @@ from typing import Any, Dict
 import pytest
 
 from src.protocol.jsonrpc_server import JSONRPCServer
-from src.protocol.types import ToolResult
+from src.protocol.models import ToolResult
 
 
 class MockTool:
@@ -49,6 +49,7 @@ class TestJSONRPCServer:
         with patch("src.protocol.jsonrpc_server.get_version", return_value="1.0.0"):
             response = await self.server.handle_request(request)
 
+        assert response is not None
         assert response["jsonrpc"] == "2.0"
         assert response["id"] == 1
         assert "result" in response
@@ -72,6 +73,7 @@ class TestJSONRPCServer:
 
         response = await self.server.handle_request(request)
 
+        assert response is not None
         assert response["jsonrpc"] == "2.0"
         assert response["id"] == 2
         assert "result" in response
@@ -90,6 +92,7 @@ class TestJSONRPCServer:
 
         response = await self.server.handle_request(request)
 
+        assert response is not None
         assert response["jsonrpc"] == "2.0"
         assert response["id"] == 3
         assert "result" in response
@@ -106,6 +109,7 @@ class TestJSONRPCServer:
 
         response = await self.server.handle_request(request)
 
+        assert response is not None
         assert response["jsonrpc"] == "2.0"
         assert response["id"] == 4
         assert "error" in response
@@ -119,6 +123,7 @@ class TestJSONRPCServer:
 
         response = await self.server.handle_request(request)
 
+        assert response is not None
         assert response["jsonrpc"] == "2.0"
         assert response["id"] == 5
         assert "error" in response
@@ -198,6 +203,7 @@ class TestJSONRPCServer:
         response = await self.server.handle_request(request)
 
         # Should handle gracefully, tool_name will be None and cause unknown tool error
+        assert response is not None
         assert "error" in response
         assert response["error"]["code"] == -32601
 

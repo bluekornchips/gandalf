@@ -4,6 +4,7 @@ import json
 import sqlite3
 import tempfile
 from pathlib import Path
+from typing import Any, Dict
 from unittest.mock import patch, mock_open
 
 import pytest
@@ -204,7 +205,7 @@ class TestRecallConversationsTool:
 
     def test_process_database_files_empty_registry(self) -> None:
         """Test _process_database_files with empty registry."""
-        registry_data = {}
+        registry_data: Dict[str, Any] = {}
         conversations, paths, total_files, file_counts = (
             self.tool._process_database_files(registry_data, 50)
         )
@@ -216,7 +217,7 @@ class TestRecallConversationsTool:
 
     def test_process_database_files_with_keywords(self) -> None:
         """Test _process_database_files with keywords parameter."""
-        registry_data = {}
+        registry_data: Dict[str, Any] = {}
         conversations, paths, total_files, file_counts = (
             self.tool._process_database_files(registry_data, 50, "python")
         )
@@ -332,7 +333,7 @@ class TestRecallConversationsTool:
     @pytest.mark.asyncio
     async def test_execute_with_keywords_parameter(self) -> None:
         """Test execute method with keywords parameter."""
-        registry_data = {"cursor": [], "claude": []}
+        registry_data: Dict[str, Any] = {"cursor": [], "claude": []}
 
         with (
             patch("os.path.exists", return_value=True),
@@ -350,7 +351,7 @@ class TestRecallConversationsTool:
     @pytest.mark.asyncio
     async def test_execute_without_keywords_parameter(self) -> None:
         """Test execute method without keywords parameter."""
-        registry_data = {"cursor": [], "claude": []}
+        registry_data: Dict[str, Any] = {"cursor": [], "claude": []}
 
         with (
             patch("os.path.exists", return_value=True),
@@ -368,7 +369,7 @@ class TestRecallConversationsTool:
     @pytest.mark.asyncio
     async def test_execute_with_arguments(self) -> None:
         """Test execute method with various arguments."""
-        registry_data = {"cursor": [], "claude": []}
+        registry_data: Dict[str, Any] = {"cursor": [], "claude": []}
         test_args = {
             "keywords": "test",
             "limit": 25,

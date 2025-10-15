@@ -9,10 +9,12 @@ lint-py:
 	ruff check server/
 
 test-py:
-	python -m pytest server/tests/ -v
+	cd server && python3 -m pytest tests/ -v
 
 test-sh:
 	bats --timing $$(find ./cli -name "*-tests.sh" -type f)
+
+test-all: test-py test-sh
 
 typecheck-py:
 	python3 -m mypy server/

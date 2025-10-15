@@ -7,7 +7,7 @@ import pytest
 
 from src.tools.registry import ToolRegistry
 from src.tools.base_tool import BaseTool
-from src.protocol.types import ToolResult
+from src.protocol.models import ToolResult
 
 
 class MockTool(BaseTool):
@@ -222,10 +222,14 @@ class TestToolRegistry:
         new_tool = MockTool("duplicate_name", "New tool")
 
         self.registry.register_tool(original_tool)
-        assert self.registry.get_tool("duplicate_name").description == "Original tool"
+        tool = self.registry.get_tool("duplicate_name")
+        assert tool is not None
+        assert tool.description == "Original tool"
 
         self.registry.register_tool(new_tool)
-        assert self.registry.get_tool("duplicate_name").description == "New tool"
+        tool = self.registry.get_tool("duplicate_name")
+        assert tool is not None
+        assert tool.description == "New tool"
 
     @pytest.mark.asyncio
     async def test_error_logging_called(self) -> None:

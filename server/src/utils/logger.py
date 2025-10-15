@@ -18,7 +18,7 @@ def write_log(level: str, message: str, data: dict[str, Any] | None = None) -> N
     logs_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now(timezone.utc).isoformat()
-    log_entry = {
+    log_entry: dict[str, Any] = {
         "timestamp": timestamp,
         "level": level,
         "message": message,

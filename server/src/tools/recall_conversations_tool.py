@@ -11,7 +11,7 @@ from datetime import timezone
 from typing import Any, Dict, List
 
 from src.tools.base_tool import BaseTool
-from src.protocol.types import ToolResult
+from src.protocol.models import ToolResult
 from src.config.constants import (
     GANDALF_REGISTRY_FILE,
     SUPPORTED_DB_FILES,
@@ -118,7 +118,7 @@ class RecallConversationsTool(BaseTool):
         Returns:
             Dictionary containing extracted conversation data
         """
-        conversation_data = {
+        conversation_data: Dict[str, Any] = {
             "prompts": [],
             "generations": [],
             "history_entries": [],
@@ -306,7 +306,7 @@ class RecallConversationsTool(BaseTool):
             Tuple of (all_conversations, found_paths, total_db_files, db_file_counts)
         """
         total_db_files = 0
-        db_file_counts = {}
+        db_file_counts: Dict[str, int] = {}
         found_paths = []
         all_conversations = []
 
