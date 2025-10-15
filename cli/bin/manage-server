@@ -1,0 +1,265 @@
+#!/usr/bin/env bash
+#
+# Manages the Gandalf MCP Server
+#
+set -eo pipefail
+
+usage() {
+	cat <<EOF
+Usage: $(basename "$0") [COMMAND] [OPTIONS]
+
+Manage Gandalf MCP Server
+
+COMMANDS:
+  start        Start the server
+  stop         Stop the server
+  status       Show server status
+  pid          Show server PID
+  version      Show server version
+
+OPTIONS:
+  -h, --help   Show this help message and exit
+
+EOF
+}
+
+# Defaults
+DEFAULT_GANDALF_HOME="${HOME}/.gandalf"
+DEFAULT_SERVER_PID_FILE="$GANDALF_HOME/server.pid"
+
+# Gets the server PID from the PID file
+#
+# Inputs:
+# - None
+#
+# Returns:
+# - Server PID if running, empty string if not
+get_server_pid() {
+	if [[ -f "$DEFAULT_SERVER_PID_FILE" ]]; then
+		cat "$DEFAULT_SERVER_PID_FILE" 2>/dev/null || echo ""
+	else
+		echo ""
+	fi
+}
+
+# Checks if the server process is actually running
+#
+# Inputs:
+# - $1: PID to check
+#
+# Returns:
+# - 0 if process is running, 1 if not
+is_server_running() {
+	local pid="$1"
+	[[ -z "$pid" ]] && return 1
+
+	if ! kill -0 "$pid" 2>/dev/null; then
+		return 1
+	fi
+
+	return 0
+}
+
+# Shows server status
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - Prints server status to stdout
+show_status() {
+	local pid
+	pid="$(get_server_pid)"
+
+	if ! is_server_running "$pid"; then
+		echo "Server is not running"
+		return 1
+	fi
+
+		echo "Server is running (PID: $pid)"
+		
+		return 0
+}
+
+# Starts the server
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - Starts server process in background
+# - Creates PID file
+# - Logs server output
+start_server() {
+	local pid
+	pid="$(get_server_pid)"
+
+	if is_server_running "$pid"; then
+		echo "Server is already running (PID: $pid)"
+		return 0
+	fi
+
+	if [[ -z "${GANDALF_ROOT}" ]]; then
+		echo "GANDALF_ROOT not set" >&2
+		return 1
+	fi
+
+	local server_path
+	local python_path
+	server_path="$GANDALF_ROOT/server/main.py"
+	python_path="$GANDALF_ROOT/.venv/bin/python3"
+
+	if [[ ! -f "$server_path" ]]; then
+		echo "Server file not found: $server_path" >&2
+		return 1
+	fi
+
+	if [[ ! -f "$python_path" ]]; then
+		echo "Python executable not found: $python_path" >&2
+		return 1
+	fi
+
+	# Start server in background
+	"$python_path" "$server_path" >/dev/null 2>&1 &
+	local new_pid=$!
+
+	# Save PID
+	echo "$new_pid" >"$DEFAULT_SERVER_PID_FILE"
+
+	# Wait a moment to check if server started successfully
+	sleep 1
+
+	if ! is_server_running "$new_pid"; then
+		echo "Failed to start server" >&2
+		rm -f "$DEFAULT_SERVER_PID_FILE"
+		return 1
+	fi
+		
+		echo "Server started successfully (PID: $new_pid)"
+
+		return 0
+}
+
+# Stops the server
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - Stops server process
+# - Removes PID file
+stop_server() {
+	local pid
+	pid="$(get_server_pid)"
+
+	if ! is_server_running "$pid"; then
+		echo "Server is not running"
+		return 0
+	fi
+
+	kill "$pid" 2>/dev/null || true
+
+	# Wait for process to stop
+	local count=0
+	while is_server_running "$pid" && [[ $count -lt 10 ]]; do
+		sleep 1
+		((count++))
+	done
+
+	if is_server_running "$pid"; then
+		echo "Failed to stop server, forcing kill" >&2
+		kill -9 "$pid" 2>/dev/null || true
+	fi
+
+	rm -f "$DEFAULT_SERVER_PID_FILE"
+	
+	echo "Server stopped"
+
+	return 0
+}
+
+# Shows server PID
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - Prints server PID to stdout
+show_pid() {
+	local pid
+	pid="$(get_server_pid)"
+
+	if [[ -z "$pid" ]]; then
+		echo "No PID file found"
+		return 1
+	fi
+
+		echo "$pid"
+
+		return 0
+}
+
+# Shows server version
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - Prints version information to stdout
+show_version() {
+	if [[ ! -f "$GANDALF_ROOT/VERSION" ]]; then
+		echo "Version file not found" >&2
+		return 1
+	fi
+
+		cat "$GANDALF_ROOT/VERSION"
+
+		return 0
+}
+
+# Main command dispatcher
+#
+# Inputs:
+# - $@: Command and arguments
+#
+# Side Effects:
+# - Executes the requested command
+manage_server() {
+	if [[ $# -eq 0 ]]; then
+		usage
+		return 1
+	fi
+
+	local command="$1"
+	shift
+
+	case "$command" in
+	status)
+		show_status
+		;;
+	start)
+		start_server
+		;;
+	stop)
+		stop_server
+		;;
+	pid)
+		show_pid
+		;;
+	version)
+		show_version
+		;;
+	-h | --help)
+		usage
+		;;
+	*)
+		echo "Unknown command: $command" >&2
+		echo "Use '$(basename "$0") --help' for usage information" >&2
+		return 1
+		;;
+	esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	manage_server "$@"
+fi

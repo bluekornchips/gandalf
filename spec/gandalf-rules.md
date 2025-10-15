@@ -1,4 +1,3 @@
-###GANDALFRULES###
 # Gandalf MCP Server Usage Rules
 
 RULE APPLIED: Start each response with an acknowledgement icon to confirm this rule is being followed: 🧙
@@ -35,4 +34,3 @@ Keywords that trigger usage of this rule: gandalf,server,mcp,conversation,recall
 - `limit`: Use 10-50 for most cases, max 1000
 - `include_prompts`: Set to `true` for user context
 - `include_generations`: Set to `true` for AI response context
-###GANDALFRULES###
