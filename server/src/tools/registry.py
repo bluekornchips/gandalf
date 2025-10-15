@@ -3,9 +3,9 @@ Tool registry for managing all available tools.
 """
 
 import traceback
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Type
 
-from src.protocol.types import ToolDefinition, ToolResult
+from src.protocol.models import ToolDefinition, ToolResult
 from src.tools.base_tool import BaseTool
 from src.tools.echo_tool import EchoTool
 from src.tools.server_info_tool import ServerInfoTool
@@ -16,13 +16,17 @@ from src.utils.logger import log_error
 class ToolRegistry:
     """Registry for managing all available tools."""
 
-    supported_tools = [EchoTool, ServerInfoTool, RecallConversationsTool]
+    supported_tools: List[Type[BaseTool]] = [
+        EchoTool,
+        ServerInfoTool,
+        RecallConversationsTool,
+    ]
 
     def __init__(self) -> None:
         """Initialize the tool registry."""
         self._tools: Dict[str, BaseTool] = {}
-        for tool in self.supported_tools:
-            self.register_tool(tool())
+        for tool_class in self.supported_tools:
+            self.register_tool(tool_class())
 
     def register_tool(self, tool: BaseTool) -> None:
         """Register a tool in the registry.

@@ -18,7 +18,7 @@ OPTIONS:
   -h, --help  Show this help message
 EOF
 }
-# Return repo root using git; falls back to current directory
+# Return repo root, uses GANDALF_ROOT if set, otherwise falls back to pwd
 #
 # Inputs:
 # - None
@@ -30,51 +30,11 @@ EOF
 # Side Effects:
 # - None
 get_repo_root() {
-	if command -v git >/dev/null 2>&1 && git rev-parse --show-toplevel >/dev/null 2>&1; then
-		git rev-parse --show-toplevel
+	if [[ -n "${GANDALF_ROOT:-}" ]]; then
+		echo "$GANDALF_ROOT"
 		return 0
 	fi
 	pwd
-}
-
-# Check presence of a local virtual environment directory at repo root
-#
-# Inputs:
-# - None
-#
-# Returns 0 if .venv directory exists in repo root
-check_venv_dir() {
-	local repo_root
-	repo_root="$(get_repo_root)"
-	local venv_dir="${repo_root}/.venv"
-
-	if [[ -d "${venv_dir}" ]]; then
-		echo "Virtual environment directory found at ${venv_dir}" >&2
-		return 0
-	fi
-
-	echo ".venv not found at ${repo_root}. Create it with: python3 -m venv .venv" >&2
-	return 1
-}
-
-# Check that the current shell has the repo's .venv activated
-#
-# Inputs:
-# - None
-#
-# Returns 0 if VIRTUAL_ENV points to repo_root/.venv
-check_venv_active() {
-	local repo_root
-	repo_root="$(get_repo_root)"
-	local expected_venv="${repo_root}/.venv"
-
-	if [[ -n "${VIRTUAL_ENV:-}" && "${VIRTUAL_ENV}" == "${expected_venv}" ]]; then
-		echo "Virtual environment activated (${VIRTUAL_ENV})" >&2
-		return 0
-	fi
-
-	echo "Virtual environment not active. Activate with: . .venv/bin/activate" >&2
-	return 1
 }
 
 # Check if a command is available in PATH
@@ -165,10 +125,6 @@ main() {
 	done
 
 	local failed_checks=0
-
-	# Environment checks
-	check_venv_dir || ((failed_checks++))
-	check_venv_active || ((failed_checks++))
 
 	check_bats || ((failed_checks++))
 	check_jq || ((failed_checks++))

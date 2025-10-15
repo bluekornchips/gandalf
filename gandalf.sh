@@ -26,7 +26,7 @@ EOF
 }
 
 # Defaults
-DEFAULT_GANDALF_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || dirname "$0")"
+DEFAULT_GANDALF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_INSTALL_SCRIPT="$DEFAULT_GANDALF_ROOT/cli/bin/install.sh"
 DEFAULT_UNINSTALL_SCRIPT="$DEFAULT_GANDALF_ROOT/cli/bin/uninstall.sh"
 DEFAULT_MANAGE_SERVER_SCRIPT="$DEFAULT_GANDALF_ROOT/cli/bin/manage-server"

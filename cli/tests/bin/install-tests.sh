@@ -190,10 +190,22 @@ EOF
 	export GANDALF_RULES_FILE="$GANDALF_ROOT/spec/gandalf-rules.md"
 }
 
+mock_setup_python_env() {
+	setup_python_env() {
+		mkdir -p "${GANDALF_ROOT}/.venv/bin"
+		touch "${GANDALF_ROOT}/.venv/bin/python3"
+		chmod +x "${GANDALF_ROOT}/.venv/bin/python3"
+		echo "Virtual environment Python found at ${GANDALF_ROOT}/.venv/bin/python3"
+		return 0
+	}
+	export -f setup_python_env
+}
+
 ########################################################
 # install
 ########################################################
 @test "install:: runs successfully when dependencies are available" {
+	mock_setup_python_env
 	mock_check_dependencies
 	mock_registry
 	mock_git_rev_parse
@@ -203,6 +215,7 @@ EOF
 }
 
 @test "install:: installs rules when running complete installation" {
+	mock_setup_python_env
 	mock_check_dependencies
 	mock_registry
 	mock_git_rev_parse
@@ -217,6 +230,7 @@ EOF
 }
 
 @test "install:: fails when dependencies are not available" {
+	mock_setup_python_env
 	mock_check_dependencies_fail
 
 	run install
@@ -692,4 +706,53 @@ EOF
 	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/CLAUDE.md"
 	# Should have 3 markers now (1 original + 2 new)
 	[[ $(grep -c "###GANDALFRULES###" "$GANDALF_ROOT/CLAUDE.md") -eq 3 ]]
+}
+
+########################################################
+# setup_python_env
+########################################################
+@test "setup_python_env:: finds existing venv" {
+	mkdir -p "${GANDALF_ROOT}/.venv/bin"
+	touch "${GANDALF_ROOT}/.venv/bin/python3"
+	chmod +x "${GANDALF_ROOT}/.venv/bin/python3"
+
+	run setup_python_env
+	[[ "$status" -eq 0 ]]
+
+	echo "$output" | grep -q "Virtual environment Python found"
+}
+
+@test "setup_python_env:: creates venv when FORCE_INSTALL is true" {
+	FORCE_INSTALL="true"
+
+	python3() {
+		if [[ "$1" == "-m" && "$2" == "venv" ]]; then
+			mkdir -p "$3/bin"
+			touch "$3/bin/python3"
+			chmod +x "$3/bin/python3"
+			cat >"$3/bin/pip" <<'EOFPIP'
+#!/usr/bin/env bash
+exit 0
+EOFPIP
+			chmod +x "$3/bin/pip"
+			return 0
+		fi
+		command python3 "$@"
+	}
+	export -f python3
+
+	run setup_python_env
+	[[ "$status" -eq 0 ]]
+
+	echo "$output" | grep -q "Creating Python virtual environment"
+	echo "$output" | grep -q "Python environment setup complete"
+}
+
+@test "setup_python_env:: skips when user declines and FORCE_INSTALL is false" {
+	FORCE_INSTALL="false"
+
+	run setup_python_env < <(echo "n")
+	[[ "$status" -eq 1 ]]
+
+	echo "$output" | grep -q "Python environment setup skipped"
 }

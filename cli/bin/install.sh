@@ -52,6 +52,76 @@ setup_gandalf_home() {
 	return 0
 }
 
+# Sets up Python virtual environment
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - Creates .venv directory if user confirms or if FORCE_INSTALL is set
+# - Installs gandalf-server package in editable mode
+setup_python_env() {
+	local python_path
+	python_path="${GANDALF_ROOT}/.venv/bin/python3"
+
+	if [[ -x "${python_path}" ]]; then
+		echo "Virtual environment Python found at ${python_path}"
+		return 0
+	fi
+
+	local should_create
+	should_create="false"
+
+	if [[ "${FORCE_INSTALL}" == "true" ]]; then
+		echo "Virtual environment not found, creating with --force flag..."
+		should_create="true"
+	else
+		cat <<EOF
+
+Virtual environment not found in gandalf project root: ${GANDALF_ROOT}
+
+Python virtual environment is required to run the Gandalf MCP Server.
+Would you like to create it now? (y/N)
+EOF
+
+		local response
+		read -r response
+
+		if [[ "${response}" =~ ^[Yy]$ ]]; then
+			should_create="true"
+		fi
+	fi
+
+	if [[ "${should_create}" != "true" ]]; then
+		echo "Python environment setup skipped. Install manually with:" >&2
+		cat >&2 <<EOF
+
+pushd ${GANDALF_ROOT} >/dev/null
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -e .
+popd >/dev/null
+
+EOF
+		return 1
+	fi
+
+	echo "Creating Python virtual environment..."
+	if ! python3 -m venv "${GANDALF_ROOT}/.venv"; then
+		echo "Failed to create virtual environment" >&2
+		return 1
+	fi
+
+	echo "Installing gandalf-server package..."
+	if ! "${GANDALF_ROOT}/.venv/bin/pip" install -e "${GANDALF_ROOT}"; then
+		echo "Failed to install gandalf-server package" >&2
+		return 1
+	fi
+
+	echo "Python environment setup complete"
+	return 0
+}
+
 # Sets up MCP server connections for editors
 #
 # Inputs:
@@ -315,10 +385,13 @@ Gandalf Installation
 
 EOF
 
-	GIT_ROOT=$(git rev-parse --show-toplevel) || true
+	# Get the user's project root where rules will be installed
+	GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
+	# GANDALF_ROOT should already be set by gandalf.sh
 	if [[ -z "${GANDALF_ROOT}" ]]; then
-		GANDALF_ROOT="$GIT_ROOT"
+		echo "GANDALF_ROOT is not set" >&2
+		return 1
 	fi
 
 	CHECK_DEPENDENCIES_SCRIPT="${CHECK_DEPENDENCIES_SCRIPT:-${DEFAULT_CHECK_DEPENDENCIES_SCRIPT}}"
@@ -332,6 +405,11 @@ EOF
 	PYTHON_PATH="${PYTHON_PATH:-${DEFAULT_PYTHON_PATH}}"
 
 	GANDALF_RULES_FILE="${GANDALF_RULES_FILE:-${DEFAULT_GANDALF_RULES_FILE}}"
+
+	# Setup Python environment
+	if ! setup_python_env; then
+		return 1
+	fi
 
 	# Check dependencies
 	if ! "$CHECK_DEPENDENCIES_SCRIPT"; then

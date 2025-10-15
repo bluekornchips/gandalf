@@ -2,8 +2,6 @@
 
 RULE APPLIED: Start each response with an acknowledgement icon to confirm this rule is being followed: 🧙
 
-Keywords that trigger usage of this rule: gandalf,server,mcp,conversation,recall,registry,database,tool,jsonrpc,protocol
-
 # Gandalf MCP Server Usage Standards
 
 ## Core Rules
@@ -15,7 +13,7 @@ Keywords that trigger usage of this rule: gandalf,server,mcp,conversation,recall
 
 ### Always Use
 
-- The `recall_conversations` tool should be used to get the conversation history at the start of a new conversation, and whenever you need to reference the conversation history.
+- ALWAYS call `recall_conversations` at the start of every conversation to load conversation history
 - Appropriate limits for conversation queries
 
 ## Tool Call Rules

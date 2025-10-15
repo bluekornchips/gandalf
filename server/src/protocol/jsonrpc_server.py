@@ -22,7 +22,7 @@ class JSONRPCServer:
         self.tools: Dict[str, Any] = {}
         self.request_id = 0
 
-    async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_request(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Handle incoming JSON-RPC requests."""
         method = request.get("method")
         params = request.get("params", {})
@@ -58,7 +58,7 @@ class JSONRPCServer:
             )
             version = "1.0.0"
 
-        response = {
+        response: Dict[str, Any] = {
             "jsonrpc": "2.0",
             "result": {
                 "protocolVersion": MCP_PROTOCOL_VERSION,
@@ -82,7 +82,7 @@ class JSONRPCServer:
                 }
             )
 
-        response = {"jsonrpc": "2.0", "result": {"tools": tools}}
+        response: Dict[str, Any] = {"jsonrpc": "2.0", "result": {"tools": tools}}
         if request_id is not None:
             response["id"] = request_id
         return response
@@ -103,7 +103,7 @@ class JSONRPCServer:
             tool = self.tools[tool_name]
             result = await tool.execute(arguments)
             # Convert ToolResult objects to serializable format
-            serializable_result = []
+            serializable_result: list[Dict[str, Any]] = []
             for item in result:
                 if hasattr(item, "text"):
                     serializable_result.append(
@@ -114,9 +114,9 @@ class JSONRPCServer:
                         }
                     )
                 else:
-                    serializable_result.append(str(item))
+                    serializable_result.append({"type": "text", "text": str(item)})
 
-            response = {
+            response: Dict[str, Any] = {
                 "jsonrpc": "2.0",
                 "result": {"content": serializable_result},
             }
@@ -136,7 +136,7 @@ class JSONRPCServer:
         self, code: int, message: str, request_id: Optional[int]
     ) -> Dict[str, Any]:
         """Create error response."""
-        response = {
+        response: Dict[str, Any] = {
             "jsonrpc": "2.0",
             "error": {"code": code, "message": message},
         }

@@ -5,7 +5,7 @@ Base tool class for all Gandalf tools.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
-from src.protocol.types import ToolDefinition, ToolResult
+from src.protocol.models import ToolDefinition, ToolResult
 
 
 class BaseTool(ABC):

@@ -121,6 +121,28 @@ remove_gandalf_home() {
 	return 0
 }
 
+# Removes Python virtual environment
+#
+# Inputs:
+# - None
+#
+# Side Effects:
+# - Removes .venv directory from GANDALF_ROOT
+remove_python_env() {
+	local venv_dir
+	venv_dir="${GANDALF_ROOT}/.venv"
+
+	if [[ ! -d "$venv_dir" ]]; then
+		echo "Python virtual environment not found: $venv_dir"
+		return 0
+	fi
+
+	rm -rf "$venv_dir"
+	echo "Removed Python virtual environment: $venv_dir"
+
+	return 0
+}
+
 uninstall() {
 	echo "=== Entry: ${0} ==="
 
@@ -151,9 +173,8 @@ Gandalf Uninstallation
 EOF
 
 	if [[ -z "${GANDALF_ROOT}" ]]; then
-		GIT_ROOT=$(git rev-parse --show-toplevel) || true
-		[[ -z "${GIT_ROOT}" ]] && echo "Unable to determine project root" >&2 && return 1
-		GANDALF_ROOT="$GIT_ROOT"
+		echo "GANDALF_ROOT is not set" >&2
+		return 1
 	fi
 
 	GANDALF_HOME="${DEFAULT_GANDALF_HOME:-${DEFAULT_GANDALF_HOME}}"
@@ -173,6 +194,10 @@ EOF
 	fi
 
 	if ! remove_gandalf_home; then
+		return 1
+	fi
+
+	if ! remove_python_env; then
 		return 1
 	fi
 

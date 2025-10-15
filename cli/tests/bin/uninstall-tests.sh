@@ -284,3 +284,26 @@ mock_claude_remove_fail() {
 	run remove_gandalf_home
 	[[ "$status" -eq 0 ]]
 }
+
+########################################################
+# remove_python_env
+########################################################
+@test "remove_python_env:: removes existing venv directory" {
+	local venv_dir
+	venv_dir="${GANDALF_ROOT}/.venv"
+	mkdir -p "$venv_dir/bin"
+	touch "$venv_dir/bin/python3"
+
+	run remove_python_env
+	[[ "$status" -eq 0 ]]
+
+	[[ ! -d "$venv_dir" ]]
+	echo "$output" | grep -q "Removed Python virtual environment"
+}
+
+@test "remove_python_env:: handles missing venv directory" {
+	run remove_python_env
+	[[ "$status" -eq 0 ]]
+
+	echo "$output" | grep -q "Python virtual environment not found"
+}
