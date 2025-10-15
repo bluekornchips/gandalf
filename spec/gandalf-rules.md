@@ -2,6 +2,8 @@
 
 RULE APPLIED: Start each response with an acknowledgement icon to confirm this rule is being followed: 🧙
 
+Keywords that trigger usage of this rule: 🧙,gandalf,mcp,recall,conversation,server,tool,database,registry
+
 # Gandalf MCP Server Usage Standards
 
 ## Core Rules
