@@ -2,25 +2,22 @@
 
 Model Context Protocol (MCP) Server for Agentic Development Tools
 
-[![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)](https://github.com/bluekornchips/gandalf/releases)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/bluekornchips/gandalf/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![MCP](https://img.shields.io/badge/protocol-MCP%202025--06--18-purple.svg)](https://modelcontextprotocol.io)
-[![Tests](https://img.shields.io/badge/tests-1118%20passing-green.svg)](#testing)
 
-Gandalf aggregates conversations from multiple agentic tools (Cursor, Claude Code, Windsurf) and provides intelligent context for AI-assisted development.
+Gandalf aggregates conversations from multiple agentic tools (Cursor, Claude Code) and provides intelligent context for AI-assisted development.
 
 In the Lord of the Rings, Gandalf is a powerful wizard, but he is not omnipotent. He can see much, but there's only so much a maiar can do; that's where we mortals come in.
-
-[Quick Start](#quick-start) - [Installation](docs/INSTALLATION.md) - [API Reference](docs/API.md) - [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.10+
 - Git
-- IDE: Cursor, Claude Code, or Windsurf with MCP support
+- IDE: Cursor or  Claude Code  with MCP support
 
 ### Installation
 
@@ -30,59 +27,58 @@ git clone https://github.com/bluekornchips/gandalf.git
 cd gandalf
 
 # Install and configure (auto-detects tools & sets up registry)
-./gandalf install
+./gandalf.sh --install
 
-# Verify installation
-./gandalf test
+# Start the server
+./gandalf.sh --server start
 
-# Extended verification
-./gandalf lembas
+# Check server status
+./gandalf.sh --server status
 ```
 
 ### First Use
 
 ```bash
-# Start with conversation recall
+# Test server connectivity
+echo("Hello, Gandalf!")
+
+# Get server information
+get_server_info()
+
+# Recall conversations from registered tools
 recall_conversations()
-
-# Get project context
-get_project_info()
-
-# Find relevant files
-list_project_files()
 ```
 
 ## Core Features
 
-### Cross-Platform Intelligence
+### MCP Server
 
-- Unified Context: Aggregates conversations from all supported tools
-- Smart Detection: Auto-configures development environment
+- JSON-RPC Protocol: Full MCP 2025-06-18 compliance
+- Tool Registry: Dynamic tool registration and management
+- Async Processing: Non-blocking tool execution
+- Error Handling: Comprehensive request validation and error recovery
+
+### Conversation Aggregation
+
+- Multi-Tool Support: Cursor, Claude Code integration
+- Database Detection: Automatic discovery of conversation databases
+- Smart Filtering: Keyword-based conversation search
+- Export Capabilities: Individual conversation export functionality
+
+### Development Ready
+
 - Zero Configuration: Works immediately with intelligent defaults
+- Cross-Platform: Linux, macOS, and Windows support
+- CLI Management: Full command-line interface for server control
+- Registry System: Tool registration and database path management
 
-### Processing Features
+## Available Tools
 
-- Connection Pooling: SQLite connection pools with health monitoring
-- Intelligent Caching: Memory-managed cache with automatic eviction
-- Streaming Processing: Memory-efficient file iteration
-- Parallel Aggregation: Concurrent processing across multiple tools
-
-### Team Ready
-
-- Relevance Scoring: Multi-point analysis for optimal context prioritization
-- Project Awareness: Deep understanding of codebase structure through context intelligence
-- MCP 2025-06-18: Latest protocol version with enhanced capabilities
-- Robust Error Handling: Comprehensive request validation and error recovery
-
-## Essential Tools
-
-| Tool                              | Purpose                                     | Usage                 |
-| --------------------------------- | ------------------------------------------- | --------------------- |
-| `recall_conversations`            | Cross-platform conversation aggregation     | Always start here     |
-| `get_project_info`                | Project metadata and Git status             | Unfamiliar projects   |
-| `list_project_files`              | Smart file discovery with relevance scoring | Multi-file operations |
-| `export_individual_conversations` | Export conversations to files               | Backup/documentation  |
-| `get_server_version`              | Server version and protocol info            | Troubleshooting       |
+| Tool                   | Purpose                                          | Usage                 |
+| ---------------------- | ------------------------------------------------ | --------------------- |
+| `echo`                 | Test server connectivity and basic functionality | Development/testing   |
+| `get_server_info`      | Server version, capabilities, and status         | Troubleshooting       |
+| `recall_conversations` | Cross-platform conversation aggregation          | Primary functionality |
 
 ## Supported Development Environments
 
@@ -98,70 +94,105 @@ list_project_files()
 - Project-specific context
 - Analysis integration
 
-### Windsurf
-
-- State database integration
-- Session tracking
-- Flow-based architecture
-
 ## Usage Guidelines
 
-Gandalf automatically optimizes for different project sizes:
+Gandalf provides intelligent conversation aggregation with configurable parameters:
 
-| Project Size             | Recommended Usage | Manual Tuning                            |
-| ------------------------ | ----------------- | ---------------------------------------- |
-| Small (<50 files)        | Default settings  | `list_project_files()`                   |
-| Medium (50-500 files)    | Enable fast mode  | `recall_conversations(fast_mode=true)`   |
-| Large (500+ files)       | Limit scope       | `list_project_files(file_types=['.py'])` |
-| Enterprise (1000+ files) | Use filtering     | `list_project_files(max_files=1000)`     |
-
-The modular system automatically adapts resource usage based on:
-
-- Available system memory
-- Project complexity
-- Database sizes
-- Tool availability
-
-## Documentation
-
-- [Installation](docs/INSTALLATION.md): Setup instructions for all platforms
-- [API Reference](docs/API.md): Complete tool documentation with examples
-- [Database Layer](server/src/utils/README.md): Connection pooling and caching implementation
-- [Troubleshooting](docs/TROUBLESHOOTING.md): Common issues and solutions
-- [Contributing](docs/CONTRIBUTING.md): Development guidelines
-
-## Testing
+### Conversation Recall
 
 ```bash
-# Run all tests
-./gandalf test
+# Basic conversation recall
+recall_conversations()
 
-# Extended validation
-./gandalf lembas
+# Search with keywords
+recall_conversations(keywords="python debugging")
+
+# Limit results
+recall_conversations(limit=10)
+
+# Include/exclude content types
+recall_conversations(include_prompts=true, include_generations=false)
 ```
 
-## Commands
+### Server Management
 
 ```bash
-./gandalf install           # Configure MCP & setup registry
-./gandalf test              # Run tests
-./gandalf lembas            # Full validation
-./gandalf registry          # Manage agentic tools registry
-./gandalf uninstall         # Remove configuration
+# Start server
+./gandalf.sh --server start
+
+# Check status
+./gandalf.sh --server status
+
+# Stop server
+./gandalf.sh --server stop
+
+# View server PID
+./gandalf.sh --server pid
+```
+
+## CLI Commands
+
+```bash
+# Installation and setup
+./gandalf.sh --install       # Install and configure Gandalf
+./gandalf.sh --uninstall     # Remove Gandalf configuration
+
+# Server management
+./gandalf.sh --server start  # Start the MCP server
+./gandalf.sh --server stop   # Stop the MCP server
+./gandalf.sh --server status # Check server status
+./gandalf.sh --server pid    # Show server process ID
+
+# General
+./gandalf.sh --version       # Show version information
+./gandalf.sh --help          # Show help
 ```
 
 ### Registry Management
 
 ```bash
-./gandalf registry auto-register    # Auto-detect and register tools
-./gandalf registry list             # Show registered tools
-./gandalf registry register <tool>  # Register specific tool
-./gandalf registry unregister <tool># Remove tool registration
+# Auto-detect and register development tools
+./gandalf.sh --registry auto-register
+
+# List registered tools
+./gandalf.sh --registry list
+
+# Register specific tool
+./gandalf.sh --registry register <tool>
+
+# Unregister tool
+./gandalf.sh --registry unregister <tool>
 ```
 
-## Contributing
+## Development
 
-See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development guidelines.
+### Project Structure
+
+```
+gandalf/
+├── cli/                    # Command-line interface
+│   ├── bin/                # Executable scripts
+│   ├── lib/                # Core library functions
+│   └── tests/              # CLI tests
+├── server/                 # MCP server implementation
+│   ├── src/                # Source code
+│   │   ├── tools/          # Tool implementations
+│   │   ├── protocol/       # MCP protocol handling
+│   │   └── utils/          # Utilities
+│   └── tests/              # Server tests
+├── spec/                   # Specifications and rules
+└── gandalf.sh              # Main CLI entry point
+```
+
+### Running Tests
+
+```bash
+# Run server tests
+cd server && python -m pytest
+
+# Run CLI tests
+cd cli && ./tests/bin/install-tests.sh
+```
 
 ## License
 
@@ -170,11 +201,4 @@ Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 ## Support
 
 - Issues: [GitHub Issues](https://github.com/bluekornchips/gandalf/issues)
-- Documentation: [Installation](docs/INSTALLATION.md) | [API](docs/API.md) | [Troubleshooting](docs/TROUBLESHOOTING.md)
-
-## TODO:
-
-- Complete MCP resource links and embedded resources
-- semgrep integration and security automations
-- Add log confirmation to the lembas server check to confirm logs are generated and appended
-- Fix all the inline imports, move to top of file.
+- Repository: [GitHub Repository](https://github.com/bluekornchips/gandalf)
