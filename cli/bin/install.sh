@@ -107,9 +107,13 @@ EOF
 	fi
 
 	echo "Creating Python virtual environment..."
-	if ! python3 -m venv "${GANDALF_ROOT}/.venv"; then
-		echo "Failed to create virtual environment" >&2
-		return 1
+	if ! python3.10 -m venv "${GANDALF_ROOT}/.venv"; then
+		echo "Failed to create virtual environment with Python 3.10" >&2
+		echo "Falling back to python3." >&2
+		if ! python3 -m venv "${GANDALF_ROOT}/.venv"; then
+			echo "Failed to create virtual environment" >&2
+			return 1
+		fi
 	fi
 
 	echo "Installing gandalf-server package..."

@@ -180,15 +180,15 @@ validate_jsonrpc_response() {
 
 	# Check if this is a security validation error (these are valid security blocks)
 	if echo "$response" | grep -q "Dangerous pattern.*detected in JSON params"; then
-		return 0  # Security validation working correctly
+		return 0 # Security validation working correctly
 	fi
 
 	if echo "$response" | grep -q "JSON params exceed size limit"; then
-		return 0  # Size limit validation working correctly  
+		return 0 # Size limit validation working correctly
 	fi
 
 	if echo "$response" | grep -q "Invalid JSON syntax in params"; then
-		return 0  # JSON validation working correctly
+		return 0 # JSON validation working correctly
 	fi
 
 	# Try to parse as JSON
@@ -270,60 +270,60 @@ readonly TEST_DATA_CACHE_DIR="$GANDALF_ROOT/.test-cache"
 
 # Initialize shared test data cache
 init_test_data_cache() {
-    if [[ ! -d "$TEST_DATA_CACHE_DIR" ]]; then
-        mkdir -p "$TEST_DATA_CACHE_DIR"
-    fi
+	if [[ ! -d "$TEST_DATA_CACHE_DIR" ]]; then
+		mkdir -p "$TEST_DATA_CACHE_DIR"
+	fi
 }
 
 # Get or create cached test project structure
 get_cached_test_project() {
-    local project_type="${1:-standard}"
-    local cache_key="project_${project_type}"
-    local cache_path="$TEST_DATA_CACHE_DIR/$cache_key"
-    
-    init_test_data_cache
-    
-    # Return cached project if it exists and is recent (less than 1 hour old)
-    if [[ -d "$cache_path" ]] && find "$cache_path" -maxdepth 0 -mmin -60 >/dev/null 2>&1; then
-        echo "$cache_path"
-        return 0
-    fi
-    
-    # Create new cached project
-    rm -rf "$cache_path" 2>/dev/null || true
-    mkdir -p "$cache_path"
-    
-    case "$project_type" in
-    "large")
-        create_large_project_structure "$cache_path"
-        ;;
-    "nested")
-        create_nested_project_structure "$cache_path"
-        ;;
-    "performance")
-        create_performance_test_structure "$cache_path"
-        ;;
-    *)
-        create_standard_project_structure "$cache_path"
-        ;;
-    esac
-    
-    echo "$cache_path"
+	local project_type="${1:-standard}"
+	local cache_key="project_${project_type}"
+	local cache_path="$TEST_DATA_CACHE_DIR/$cache_key"
+
+	init_test_data_cache
+
+	# Return cached project if it exists and is recent (less than 1 hour old)
+	if [[ -d "$cache_path" ]] && find "$cache_path" -maxdepth 0 -mmin -60 >/dev/null 2>&1; then
+		echo "$cache_path"
+		return 0
+	fi
+
+	# Create new cached project
+	rm -rf "$cache_path" 2>/dev/null || true
+	mkdir -p "$cache_path"
+
+	case "$project_type" in
+	"large")
+		create_large_project_structure "$cache_path"
+		;;
+	"nested")
+		create_nested_project_structure "$cache_path"
+		;;
+	"performance")
+		create_performance_test_structure "$cache_path"
+		;;
+	*)
+		create_standard_project_structure "$cache_path"
+		;;
+	esac
+
+	echo "$cache_path"
 }
 
 # Create standard test project structure
 create_standard_project_structure() {
-    local project_dir="$1"
-    
-    cd "$project_dir"
-    
-    # Initialize git
-    git init >/dev/null 2>&1
-    git config user.name "Gandalf Test" >/dev/null 2>&1
-    git config user.email "gandalf@shire.test" >/dev/null 2>&1
-    
-    # Create basic project files
-    cat >README.md <<EOF
+	local project_dir="$1"
+
+	cd "$project_dir"
+
+	# Initialize git
+	git init >/dev/null 2>&1
+	git config user.name "Gandalf Test" >/dev/null 2>&1
+	git config user.email "gandalf@shire.test" >/dev/null 2>&1
+
+	# Create basic project files
+	cat >README.md <<EOF
 # Shire Project
 
 A test project for the Fellowship of the Ring.
@@ -334,7 +334,7 @@ A test project for the Fellowship of the Ring.
 - Gandalf the Grey (Wizard)
 EOF
 
-    cat >package.json <<EOF
+	cat >package.json <<EOF
 {
 	"name": "shire-project",
 	"version": "1.0.0",
@@ -348,7 +348,7 @@ EOF
 }
 EOF
 
-    cat >src/fellowship.py <<EOF
+	cat >src/fellowship.py <<EOF
 #!/usr/bin/env python3
 """Fellowship of the Ring module."""
 
@@ -364,9 +364,9 @@ class Fellowship:
         return "Frodo Baggins"
 EOF
 
-    mkdir -p src tests docs
-    
-    cat >tests/test_fellowship.py <<EOF
+	mkdir -p src tests docs
+
+	cat >tests/test_fellowship.py <<EOF
 import unittest
 from src.fellowship import Fellowship
 
@@ -376,24 +376,24 @@ class TestFellowship(unittest.TestCase):
         self.assertEqual(fellowship.get_ring_bearer(), "Frodo Baggins")
 EOF
 
-    echo "# Fellowship Documentation" >docs/fellowship.md
-    
-    git add . >/dev/null 2>&1
-    git commit -m "Initial commit: Fellowship project setup" >/dev/null 2>&1
+	echo "# Fellowship Documentation" >docs/fellowship.md
+
+	git add . >/dev/null 2>&1
+	git commit -m "Initial commit: Fellowship project setup" >/dev/null 2>&1
 }
 
 # Create large project structure for performance testing
 create_large_project_structure() {
-    local project_dir="$1"
-    
-    cd "$project_dir"
-    create_standard_project_structure "$project_dir"
-    
-    # Add many files for performance testing
-    for dir in "src/modules" "src/components" "src/utils" "tests/unit" "tests/integration"; do
-        mkdir -p "$dir"
-        for i in $(seq 1 20); do
-            cat >"$dir/hobbit_$i.py" <<EOF
+	local project_dir="$1"
+
+	cd "$project_dir"
+	create_standard_project_structure "$project_dir"
+
+	# Add many files for performance testing
+	for dir in "src/modules" "src/components" "src/utils" "tests/unit" "tests/integration"; do
+		mkdir -p "$dir"
+		for i in $(seq 1 20); do
+			cat >"$dir/hobbit_$i.py" <<EOF
 """Hobbit module $i for performance testing."""
 
 class Hobbit$i:
@@ -404,26 +404,26 @@ class Hobbit$i:
     def introduce(self):
         return f"I'm {self.name} from {self.home}"
 EOF
-        done
-    done
-    
-    git add . >/dev/null 2>&1
-    git commit -m "Add large project structure for performance testing" >/dev/null 2>&1
+		done
+	done
+
+	git add . >/dev/null 2>&1
+	git commit -m "Add large project structure for performance testing" >/dev/null 2>&1
 }
 
 # Create nested project structure
 create_nested_project_structure() {
-    local project_dir="$1"
-    
-    cd "$project_dir"
-    create_standard_project_structure "$project_dir"
-    
-    # Create deep nested structure
-    local current_dir="src"
-    for level in "rohan" "edoras" "golden_hall" "throne_room"; do
-        current_dir="$current_dir/$level"
-        mkdir -p "$current_dir"
-        cat >"$current_dir/${level}_module.py" <<EOF
+	local project_dir="$1"
+
+	cd "$project_dir"
+	create_standard_project_structure "$project_dir"
+
+	# Create deep nested structure
+	local current_dir="src"
+	for level in "rohan" "edoras" "golden_hall" "throne_room"; do
+		current_dir="$current_dir/$level"
+		mkdir -p "$current_dir"
+		cat >"$current_dir/${level}_module.py" <<EOF
 """$level module for nested testing."""
 
 class ${level^}:
@@ -433,23 +433,23 @@ class ${level^}:
     def describe(self):
         return f"This is {self.location}"
 EOF
-    done
-    
-    git add . >/dev/null 2>&1
-    git commit -m "Add nested structure for deep directory testing" >/dev/null 2>&1
+	done
+
+	git add . >/dev/null 2>&1
+	git commit -m "Add nested structure for deep directory testing" >/dev/null 2>&1
 }
 
 # Create performance-optimized test structure
 create_performance_test_structure() {
-    local project_dir="$1"
-    
-    cd "$project_dir"
-    create_standard_project_structure "$project_dir"
-    
-    # Add specific files for performance benchmarking
-    mkdir -p "benchmarks" "profiles"
-    
-    cat >benchmarks/ring_performance.py <<EOF
+	local project_dir="$1"
+
+	cd "$project_dir"
+	create_standard_project_structure "$project_dir"
+
+	# Add specific files for performance benchmarking
+	mkdir -p "benchmarks" "profiles"
+
+	cat >benchmarks/ring_performance.py <<EOF
 """Ring performance benchmarks."""
 import time
 
@@ -465,33 +465,33 @@ if __name__ == "__main__":
     print(f"Ring power: {power}, calculated in {duration:.4f}s")
 EOF
 
-    git add . >/dev/null 2>&1
-    git commit -m "Add performance benchmarking structure" >/dev/null 2>&1
+	git add . >/dev/null 2>&1
+	git commit -m "Add performance benchmarking structure" >/dev/null 2>&1
 }
 
 # Copy cached project to test directory
 copy_cached_project() {
-    local project_type="${1:-standard}"
-    local target_dir="$2"
-    
-    local cached_project
-    cached_project=$(get_cached_test_project "$project_type")
-    
-    if [[ -d "$cached_project" ]]; then
-        cp -r "$cached_project"/* "$target_dir/"
-        # Reinitialize git in the new location
-        cd "$target_dir"
-        rm -rf .git
-        git init >/dev/null 2>&1
-        git config user.name "Gandalf Test" >/dev/null 2>&1
-        git config user.email "gandalf@shire.test" >/dev/null 2>&1
-        git add . >/dev/null 2>&1
-        git commit -m "Copied from test cache" >/dev/null 2>&1
-        return 0
-    else
-        echo "ERROR: Failed to create cached project of type: $project_type" >&2
-        return 1
-    fi
+	local project_type="${1:-standard}"
+	local target_dir="$2"
+
+	local cached_project
+	cached_project=$(get_cached_test_project "$project_type")
+
+	if [[ -d "$cached_project" ]]; then
+		cp -r "$cached_project"/* "$target_dir/"
+		# Reinitialize git in the new location
+		cd "$target_dir"
+		rm -rf .git
+		git init >/dev/null 2>&1
+		git config user.name "Gandalf Test" >/dev/null 2>&1
+		git config user.email "gandalf@shire.test" >/dev/null 2>&1
+		git add . >/dev/null 2>&1
+		git commit -m "Copied from test cache" >/dev/null 2>&1
+		return 0
+	else
+		echo "ERROR: Failed to create cached project of type: $project_type" >&2
+		return 1
+	fi
 }
 
 shared_setup() {
@@ -519,12 +519,12 @@ shared_setup() {
 
 # Cleanup test data cache (for maintenance)
 cleanup_test_cache() {
-    local max_age_hours="${1:-24}"
-    
-    if [[ -d "$TEST_DATA_CACHE_DIR" ]]; then
-        # Remove cache entries older than specified hours
-        find "$TEST_DATA_CACHE_DIR" -maxdepth 1 -type d -mmin +$((max_age_hours * 60)) -exec rm -rf {} \; 2>/dev/null || true
-    fi
+	local max_age_hours="${1:-24}"
+
+	if [[ -d "$TEST_DATA_CACHE_DIR" ]]; then
+		# Remove cache entries older than specified hours
+		find "$TEST_DATA_CACHE_DIR" -maxdepth 1 -type d -mmin +$((max_age_hours * 60)) -exec rm -rf {} \; 2>/dev/null || true
+	fi
 }
 
 shared_teardown() {
