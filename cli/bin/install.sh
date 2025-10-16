@@ -34,7 +34,7 @@ DEFAULT_PYTHON_PATH="$GANDALF_ROOT/.venv/bin/python3"
 DEFAULT_CURSOR_CONFIG="$HOME/.cursor/mcp.json"
 DEFAULT_CLAUDE_CONFIG="$HOME/.claude/claude_desktop_config"
 
-DEFAULT_GANDALF_RULES_FILE="$GANDALF_ROOT/spec/gandalf-rules.md"
+DEFAULT_GANDALF_RULES_FILE="$GANDALF_ROOT/spec/rules-gandalf.md"
 
 # Delete any existing gandalf home dir if the -f flag was passed in.
 # Create the folder structure
@@ -252,14 +252,14 @@ setup_claude_code_mcp() {
 	return 0
 }
 
-# Sets up Cursor rules by copying gandalf-rules.md to the appropriate location
+# Sets up Cursor rules by copying rules-gandalf.md to the appropriate location
 #
 # Inputs:
 # - None
 #
 # Side Effects:
 # - Creates .cursor/rules directory if needed
-# - Copies gandalf-rules.md to .cursor/rules/
+# - Copies rules-gandalf.md to .cursor/rules/
 setup_cursor_rules() {
 	local installation_root="$1"
 	local rules_file="$2"
@@ -279,7 +279,7 @@ EOF
 	fi
 
 	local rules_dir="$installation_root/.cursor/rules"
-	local rules_dest="$rules_dir/gandalf-rules.mdc"
+	local rules_dest="$rules_dir/rules-gandalf.mdc"
 
 	mkdir -p "$rules_dir"
 
