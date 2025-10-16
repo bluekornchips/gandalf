@@ -17,7 +17,7 @@ In the Lord of the Rings, Gandalf is a powerful wizard, but he is not omnipotent
 
 - Python 3.10+
 - Git
-- IDE: Cursor or  Claude Code  with MCP support
+- IDE: Cursor or Claude Code with MCP support
 
 ### Installation
 

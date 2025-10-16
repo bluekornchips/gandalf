@@ -13,5 +13,6 @@ venv
 *.egg-info
 __pycache__
 .ruff_cache
+build
 
 .DS_Store

@@ -1,15 +1,18 @@
+# Set the python version to use
+PYTHON := $(shell command -v python3.10 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3.12 2>/dev/null || command -v python3 2>/dev/null)
+
 format-py:
-	ruff check --fix --unsafe-fixes server/
-	ruff format server/
+	$(PYTHON) -m ruff check --fix --unsafe-fixes server/
+	$(PYTHON) -m ruff format server/
 
 format-sh:
 	find ./cli -name "*.sh" -exec shfmt --ln=bats -w {} \;
 
 lint-py:
-	ruff check server/
+	$(PYTHON) -m ruff check server/
 
 test-py:
-	cd server && python3 -m pytest tests/ -v
+	cd server && $(PYTHON) -m pytest tests/ -v
 
 test-sh:
 	bats --timing $$(find ./cli -name "*-tests.sh" -type f)
@@ -17,10 +20,10 @@ test-sh:
 test-all: test-py test-sh
 
 typecheck-py:
-	python3 -m mypy server/
+	$(PYTHON) -m mypy server/
 
 install-py:
-	pip install ".[dev]"
+	$(PYTHON) -m pip install ".[dev]"
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

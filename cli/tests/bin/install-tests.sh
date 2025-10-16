@@ -725,6 +725,27 @@ EOF
 @test "setup_python_env:: creates venv when FORCE_INSTALL is true" {
 	FORCE_INSTALL="true"
 
+	# Create minimal pyproject.toml for pip install -e to work
+	cat >"$GANDALF_ROOT/pyproject.toml" <<'EOFPROJECT'
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gandalf-server-test"
+version = "0.1.0"
+description = "Test package"
+
+[tool.setuptools]
+package-dir = {"" = "server"}
+
+[tool.setuptools.packages.find]
+where = ["server"]
+EOFPROJECT
+
+	# Create proper Python package structure
+	touch "$GANDALF_ROOT/server/__init__.py"
+
 	python3() {
 		if [[ "$1" == "-m" && "$2" == "venv" ]]; then
 			mkdir -p "$3/bin"
@@ -732,6 +753,10 @@ EOF
 			chmod +x "$3/bin/python3"
 			cat >"$3/bin/pip" <<'EOFPIP'
 #!/usr/bin/env bash
+if [[ "$1" == "install" && "$2" == "-e" ]]; then
+	echo "Installing in editable mode: $3"
+	exit 0
+fi
 exit 0
 EOFPIP
 			chmod +x "$3/bin/pip"
