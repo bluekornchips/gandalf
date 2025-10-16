@@ -29,11 +29,11 @@ setup() {
 	echo "0.1.0" >"$GANDALF_ROOT/VERSION"
 
 	mkdir -p "$GANDALF_ROOT/spec"
-	cat >"$GANDALF_ROOT/spec/gandalf-rules.md" <<EOF
+	cat >"$GANDALF_ROOT/spec/rules-gandalf.md" <<EOF
 # Gandalf MCP Server Usage Rules
 EOF
 
-	GANDALF_RULES_FILE="$GANDALF_ROOT/spec/gandalf-rules.md"
+	GANDALF_RULES_FILE="$GANDALF_ROOT/spec/rules-gandalf.md"
 	export GANDALF_RULES_FILE
 
 	FORCE_INSTALL="true"
@@ -184,10 +184,10 @@ EOF
 create_rules_file() {
 	# Create minimal rules file
 	mkdir -p "$GANDALF_ROOT/spec"
-	cat >"$GANDALF_ROOT/spec/gandalf-rules.md" <<EOF
+	cat >"$GANDALF_ROOT/spec/rules-gandalf.md" <<EOF
 # Gandalf MCP Server Usage Rules
 EOF
-	export GANDALF_RULES_FILE="$GANDALF_ROOT/spec/gandalf-rules.md"
+	export GANDALF_RULES_FILE="$GANDALF_ROOT/spec/rules-gandalf.md"
 }
 
 mock_setup_python_env() {
@@ -225,8 +225,8 @@ mock_setup_python_env() {
 
 	# Check that rules were installed in the test directory
 	[[ -d "$GANDALF_ROOT/.cursor/rules" ]]
-	[[ -f "$GANDALF_ROOT/.cursor/rules/gandalf-rules.mdc" ]]
-	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/.cursor/rules/gandalf-rules.mdc"
+	[[ -f "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc" ]]
+	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc"
 }
 
 @test "install:: fails when dependencies are not available" {
@@ -564,13 +564,13 @@ EOF
 	mock_git_rev_parse
 	create_rules_file
 
-	run setup_cursor_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/gandalf-rules.md"
+	run setup_cursor_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/rules-gandalf.md"
 	[[ "$status" -eq 0 ]]
 
 	# Rules should be installed in the specified directory
 	[[ -d "$GANDALF_ROOT/.cursor/rules" ]]
-	[[ -f "$GANDALF_ROOT/.cursor/rules/gandalf-rules.mdc" ]]
-	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/.cursor/rules/gandalf-rules.mdc"
+	[[ -f "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc" ]]
+	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc"
 }
 
 @test "setup_cursor_rules:: uses git root when available" {
@@ -582,12 +582,12 @@ EOF
 	git add README.md
 	git commit -m "Initial commit"
 
-	run setup_cursor_rules "$GANDALF_HOME" "$GANDALF_ROOT/spec/gandalf-rules.md"
+	run setup_cursor_rules "$GANDALF_HOME" "$GANDALF_ROOT/spec/rules-gandalf.md"
 	[[ "$status" -eq 0 ]]
 
 	# Should use the new git root (GANDALF_HOME)
 	[[ -d "$GANDALF_HOME/.cursor/rules" ]]
-	[[ -f "$GANDALF_HOME/.cursor/rules/gandalf-rules.mdc" ]]
+	[[ -f "$GANDALF_HOME/.cursor/rules/rules-gandalf.mdc" ]]
 }
 
 @test "setup_cursor_rules:: falls back to current directory when not in git repo" {
@@ -601,11 +601,11 @@ EOF
 
 	export GANDALF_ROOT
 
-	run setup_cursor_rules "$non_git_dir" "$GANDALF_ROOT/spec/gandalf-rules.md"
+	run setup_cursor_rules "$non_git_dir" "$GANDALF_ROOT/spec/rules-gandalf.md"
 	[[ "$status" -eq 0 ]]
 
 	[[ -d "$non_git_dir/.cursor/rules" ]]
-	[[ -f "$non_git_dir/.cursor/rules/gandalf-rules.mdc" ]]
+	[[ -f "$non_git_dir/.cursor/rules/rules-gandalf.mdc" ]]
 
 	# Cleanup
 	rm -rf "$non_git_dir"
@@ -619,7 +619,7 @@ EOF
 	run setup_cursor_rules "$GANDALF_ROOT" "/nonexistent/rules.md"
 	[[ "$status" -eq 0 ]]
 	# Should still create the rules file with empty content
-	[[ -f "$GANDALF_ROOT/.cursor/rules/gandalf-rules.mdc" ]]
+	[[ -f "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc" ]]
 }
 
 @test "setup_cursor_rules:: overwrites existing rules file" {
@@ -628,14 +628,14 @@ EOF
 
 	# Create existing rules file
 	mkdir -p "$GANDALF_ROOT/.cursor/rules"
-	echo "old content" >"$GANDALF_ROOT/.cursor/rules/gandalf-rules.mdc"
+	echo "old content" >"$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc"
 
-	run setup_cursor_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/gandalf-rules.md"
+	run setup_cursor_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/rules-gandalf.md"
 	[[ "$status" -eq 0 ]]
 
-	[[ -f "$GANDALF_ROOT/.cursor/rules/gandalf-rules.mdc" ]]
-	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/.cursor/rules/gandalf-rules.mdc"
-	! grep -q "old content" "$GANDALF_ROOT/.cursor/rules/gandalf-rules.mdc"
+	[[ -f "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc" ]]
+	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc"
+	! grep -q "old content" "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc"
 }
 
 ########################################################
@@ -644,7 +644,7 @@ EOF
 @test "setup_claude_rules:: creates CLAUDE.md when it doesn't exist" {
 	create_rules_file
 
-	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/gandalf-rules.md"
+	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/rules-gandalf.md"
 	[[ "$status" -eq 0 ]]
 
 	[[ -f "$GANDALF_ROOT/CLAUDE.md" ]]
@@ -658,7 +658,7 @@ EOF
 	# Create existing CLAUDE.md without markers
 	echo "Existing content" >"$GANDALF_ROOT/CLAUDE.md"
 
-	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/gandalf-rules.md"
+	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/rules-gandalf.md"
 	[[ "$status" -eq 0 ]]
 
 	[[ -f "$GANDALF_ROOT/CLAUDE.md" ]]
@@ -681,7 +681,7 @@ Old rules content
 More documentation
 EOF
 
-	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/gandalf-rules.md"
+	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/rules-gandalf.md"
 	[[ "$status" -eq 0 ]]
 
 	[[ -f "$GANDALF_ROOT/CLAUDE.md" ]]
@@ -698,7 +698,7 @@ EOF
 	echo "###GANDALFRULES###" >"$GANDALF_ROOT/CLAUDE.md"
 	echo "Incomplete rules" >>"$GANDALF_ROOT/CLAUDE.md"
 
-	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/gandalf-rules.md"
+	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/rules-gandalf.md"
 	[[ "$status" -eq 0 ]]
 
 	[[ -f "$GANDALF_ROOT/CLAUDE.md" ]]
