@@ -34,7 +34,7 @@ DEFAULT_PYTHON_PATH="$GANDALF_ROOT/.venv/bin/python3"
 DEFAULT_CURSOR_CONFIG="$HOME/.cursor/mcp.json"
 DEFAULT_CLAUDE_CONFIG="$HOME/.claude/claude_desktop_config"
 
-DEFAULT_GANDALF_RULES_FILE="$GANDALF_ROOT/spec/rules-gandalf.md"
+DEFAULT_GANDALF_RULES_FILE="$GANDALF_ROOT/spec/gandalf-rules.md"
 
 # Delete any existing gandalf home dir if the -f flag was passed in.
 # Create the folder structure
