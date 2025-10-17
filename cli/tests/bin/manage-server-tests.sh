@@ -4,7 +4,7 @@
 #
 
 GIT_ROOT="$(git rev-parse --show-toplevel)"
-SCRIPT="${GIT_ROOT}/cli/bin/manage-server"
+SCRIPT="${GIT_ROOT}/cli/bin/manage-server.sh"
 [[ ! -f "${SCRIPT}" ]] && echo "Script not found: ${SCRIPT}" >&2 && exit 1
 
 setup() {

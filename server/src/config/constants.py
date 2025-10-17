@@ -37,12 +37,19 @@ RECALL_CONVERSATIONS_QUERIES = {
 }
 
 # Recall conversations tool specific constants
-MAX_CONVERSATIONS = 50
+MAX_CONVERSATIONS = 8
 MAX_KEYWORDS = 8
+MAX_RESULTS_LIMIT = 1000  # Hard cap on total results returned
 INCLUDE_PROMPTS_DEFAULT = True
-# Exclude the AI generations by default. \
-# I think it's more important to see the user prompts as they are instructions and not a generation.
-INCLUDE_GENERATIONS_DEFAULT = False
+# Exclude the AI generations by default unless GANDALF_INCLUDE_GENERATIONS env var is set.
+# AI generations are verbose and not as useful as user prompts.
+INCLUDE_GENERATIONS_DEFAULT = (
+    os.getenv("GANDALF_INCLUDE_GENERATIONS", "false").lower() == "true"
+)
+
+# Optimization constants for concise conversation recall
+MAX_SUMMARY_LENGTH = 200  # Truncate summaries to 200 chars for token efficiency
+MAX_SUMMARY_ENTRIES = 2
 
 IGNORED_KEYWORDS = [
     # Articles

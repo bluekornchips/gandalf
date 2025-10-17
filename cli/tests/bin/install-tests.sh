@@ -223,10 +223,15 @@ mock_setup_python_env() {
 	run install
 	[[ "$status" -eq 0 ]]
 
-	# Check that rules were installed in the test directory
+	# Check that local Cursor rules were installed
 	[[ -d "$GANDALF_ROOT/.cursor/rules" ]]
 	[[ -f "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc" ]]
 	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc"
+
+	# Check that global Claude rules were installed
+	[[ -d "$GANDALF_HOME/.claude" ]]
+	[[ -f "$GANDALF_HOME/.claude/CLAUDE.md" ]]
+	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_HOME/.claude/CLAUDE.md"
 }
 
 @test "install:: fails when dependencies are not available" {
@@ -636,76 +641,6 @@ EOF
 	[[ -f "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc" ]]
 	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc"
 	! grep -q "old content" "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc"
-}
-
-########################################################
-# setup_claude_rules
-########################################################
-@test "setup_claude_rules:: creates CLAUDE.md when it doesn't exist" {
-	create_rules_file
-
-	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/rules-gandalf.md"
-	[[ "$status" -eq 0 ]]
-
-	[[ -f "$GANDALF_ROOT/CLAUDE.md" ]]
-	grep -q "###GANDALFRULES###" "$GANDALF_ROOT/CLAUDE.md"
-	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/CLAUDE.md"
-}
-
-@test "setup_claude_rules:: appends rules when no markers exist" {
-	create_rules_file
-
-	# Create existing CLAUDE.md without markers
-	echo "Existing content" >"$GANDALF_ROOT/CLAUDE.md"
-
-	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/rules-gandalf.md"
-	[[ "$status" -eq 0 ]]
-
-	[[ -f "$GANDALF_ROOT/CLAUDE.md" ]]
-	grep -q "Existing content" "$GANDALF_ROOT/CLAUDE.md"
-	grep -q "###GANDALFRULES###" "$GANDALF_ROOT/CLAUDE.md"
-	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/CLAUDE.md"
-}
-
-@test "setup_claude_rules:: replaces content between existing markers" {
-	create_rules_file
-
-	# Create CLAUDE.md with existing rules section
-	cat >"$GANDALF_ROOT/CLAUDE.md" <<EOF
-# Project Documentation
-
-###GANDALFRULES###
-Old rules content
-###GANDALFRULES###
-
-More documentation
-EOF
-
-	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/rules-gandalf.md"
-	[[ "$status" -eq 0 ]]
-
-	[[ -f "$GANDALF_ROOT/CLAUDE.md" ]]
-	grep -q "# Project Documentation" "$GANDALF_ROOT/CLAUDE.md"
-	grep -q "More documentation" "$GANDALF_ROOT/CLAUDE.md"
-	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/CLAUDE.md"
-	! grep -q "Old rules content" "$GANDALF_ROOT/CLAUDE.md"
-}
-
-@test "setup_claude_rules:: handles single marker by appending" {
-	create_rules_file
-
-	# Create CLAUDE.md with only one marker
-	echo "###GANDALFRULES###" >"$GANDALF_ROOT/CLAUDE.md"
-	echo "Incomplete rules" >>"$GANDALF_ROOT/CLAUDE.md"
-
-	run setup_claude_rules "$GANDALF_ROOT" "$GANDALF_ROOT/spec/rules-gandalf.md"
-	[[ "$status" -eq 0 ]]
-
-	[[ -f "$GANDALF_ROOT/CLAUDE.md" ]]
-	grep -q "Incomplete rules" "$GANDALF_ROOT/CLAUDE.md"
-	grep -q "Gandalf MCP Server Usage Rules" "$GANDALF_ROOT/CLAUDE.md"
-	# Should have 3 markers now (1 original + 2 new)
-	[[ $(grep -c "###GANDALFRULES###" "$GANDALF_ROOT/CLAUDE.md") -eq 3 ]]
 }
 
 ########################################################
