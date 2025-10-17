@@ -142,7 +142,7 @@ class TestToolRegistry:
 
         assert isinstance(result, list)
         assert len(result) == 1
-        assert "Error: Unknown tool: unknown_tool" in result[0].text
+        assert "Unknown tool: unknown_tool" in result[0].text
 
     @pytest.mark.asyncio
     async def test_execute_tool_execution_error(self) -> None:
@@ -154,7 +154,7 @@ class TestToolRegistry:
 
         assert isinstance(result, list)
         assert len(result) == 1
-        assert "Error: Tool execution error:" in result[0].text
+        assert "Tool execution error:" in result[0].text
 
     @pytest.mark.asyncio
     async def test_execute_tool_with_none_arguments(self) -> None:
@@ -173,26 +173,26 @@ class TestToolRegistry:
             self.mock_tool, "execute", side_effect=AttributeError("Attribute error")
         ):
             result = await self.registry.execute_tool("test_tool", {})
-            assert "Error: Tool execution error:" in result[0].text
+            assert "Tool execution error:" in result[0].text
 
         # Test TypeError
         with patch.object(
             self.mock_tool, "execute", side_effect=TypeError("Type error")
         ):
             result = await self.registry.execute_tool("test_tool", {})
-            assert "Error: Tool execution error:" in result[0].text
+            assert "Tool execution error:" in result[0].text
 
         # Test ValueError
         with patch.object(
             self.mock_tool, "execute", side_effect=ValueError("Value error")
         ):
             result = await self.registry.execute_tool("test_tool", {})
-            assert "Error: Tool execution error:" in result[0].text
+            assert "Tool execution error:" in result[0].text
 
         # Test KeyError
         with patch.object(self.mock_tool, "execute", side_effect=KeyError("Key error")):
             result = await self.registry.execute_tool("test_tool", {})
-            assert "Error: Tool execution error:" in result[0].text
+            assert "Tool execution error:" in result[0].text
 
     @pytest.mark.asyncio
     async def test_execute_tool_unexpected_exception(self) -> None:
@@ -201,7 +201,7 @@ class TestToolRegistry:
             self.mock_tool, "execute", side_effect=RuntimeError("Unexpected error")
         ):
             result = await self.registry.execute_tool("test_tool", {})
-            assert "Error: Unexpected tool execution error:" in result[0].text
+            assert "Unexpected tool execution error:" in result[0].text
 
     def test_multiple_tool_registration(self) -> None:
         """Test registering multiple tools."""

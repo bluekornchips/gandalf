@@ -67,7 +67,7 @@ class TestGandalfServer:
 
         result = await server.tool_registry.execute_tool("unknown_tool", {})
 
-        assert "Error: Unknown tool: unknown_tool" in result[0].text
+        assert "Unknown tool: unknown_tool" in result[0].text
 
     @pytest.mark.asyncio
     async def test_concurrent_tool_calls(self) -> None:

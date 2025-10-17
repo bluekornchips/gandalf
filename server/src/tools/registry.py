@@ -67,18 +67,18 @@ class ToolRegistry:
         if tool is None:
             error_msg = f"Unknown tool: {name}"
             log_error(error_msg, {"traceback": traceback.format_exc()})
-            return [ToolResult(text=f"Error: {error_msg}")]
+            return [ToolResult(text=f"{error_msg}")]
 
         try:
             return await tool.execute(arguments)
         except (AttributeError, TypeError, ValueError, KeyError) as e:
             error_msg = f"Tool execution error: {str(e)}"
             log_error(error_msg, {"traceback": traceback.format_exc()})
-            return [ToolResult(text=f"Error: {error_msg}")]
+            return [ToolResult(text=f"{error_msg}")]
         except Exception as e:
             error_msg = f"Unexpected tool execution error: {str(e)}"
             log_error(error_msg, {"traceback": traceback.format_exc()})
-            return [ToolResult(text=f"Error: {error_msg}")]
+            return [ToolResult(text=f"{error_msg}")]
 
     def list_tool_names(self) -> List[str]:
         """List all registered tool names.

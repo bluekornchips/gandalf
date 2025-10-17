@@ -107,13 +107,27 @@ EOF
 	fi
 
 	echo "Creating Python virtual environment..."
-	if ! python3.10 -m venv "${GANDALF_ROOT}/.venv"; then
-		echo "Failed to create virtual environment with Python 3.10" >&2
-		echo "Falling back to python3." >&2
-		if ! python3 -m venv "${GANDALF_ROOT}/.venv"; then
-			echo "Failed to create virtual environment" >&2
-			return 1
+
+	# Try to find the best available Python version
+	local python_cmd=""
+	local python_versions=("python3.12" "python3.11" "python3.10" "python3.9" "python3.8" "python3")
+
+	for version in "${python_versions[@]}"; do
+		if command -v "$version" >/dev/null 2>&1; then
+			python_cmd="$version"
+			break
 		fi
+	done
+
+	if [[ -z "$python_cmd" ]]; then
+		echo "No suitable Python version found. Please install Python 3.8 or later." >&2
+		return 1
+	fi
+
+	echo "Using Python: $python_cmd"
+	if ! "$python_cmd" -m venv "${GANDALF_ROOT}/.venv"; then
+		echo "Failed to create virtual environment with $python_cmd" >&2
+		return 1
 	fi
 
 	echo "Installing gandalf-server package..."
@@ -259,7 +273,8 @@ setup_claude_code_mcp() {
 # Sets up Cursor rules by copying rules-gandalf.md to the appropriate location
 #
 # Inputs:
-# - None
+# - $1, installation_root, root directory for installation
+# - $2, rules_file, path to the rules source file
 #
 # Side Effects:
 # - Creates .cursor/rules directory if needed
@@ -294,67 +309,69 @@ EOF
 	rules_content="$(cat "$rules_file" 2>/dev/null || echo "")"
 
 	# Write rules file
-	echo "$RULES_HEADER" >"$rules_dest"
-	echo "$rules_content" >>"$rules_dest"
+	{
+		echo "$RULES_HEADER"
+		echo "$rules_content"
+	} >"$rules_dest"
 	echo "Cursor rules installed: $rules_dest"
 
 	return 0
 }
 
-# Sets up Claude rules by managing CLAUDE.md file with rules content
+# Sets up global Claude rules by managing ~/.claude/CLAUDE.md file with rules content
 #
 # Inputs:
-# - $1, installation_root, root directory for installation
-# - $2, rules_file, path to the rules source file
+# - $1, rules_file, path to the rules source file
 #
 # Side Effects:
-# - Creates or updates CLAUDE.md with rules content
-setup_claude_rules() {
-	local installation_root="$1"
-	local rules_file="$2"
+# - Creates or updates ~/.claude/CLAUDE.md with rules content
+setup_global_claude_rules() {
+	local rules_file="$1"
 
-	if [[ -z "$installation_root" ]]; then
-		installation_root="$(pwd)"
-	fi
-
-	local claude_file="$installation_root/CLAUDE.md"
+	local global_claude_dir="$HOME/.claude"
+	local global_claude_file="$global_claude_dir/CLAUDE.md"
 	local rules_content
 	rules_content="$(cat "$rules_file" 2>/dev/null || echo "")"
 
+	mkdir -p "$global_claude_dir"
+
 	# If CLAUDE.md doesn't exist, create it with rules
-	if [[ ! -f "$claude_file" ]]; then
-		echo "$RULES_MARKER" >"$claude_file"
-		echo "$rules_content" >>"$claude_file"
-		echo "$RULES_MARKER" >>"$claude_file"
-		echo "Claude rules created: $claude_file"
+	if [[ ! -f "$global_claude_file" ]]; then
+		{
+			echo "$RULES_MARKER"
+			echo "$rules_content"
+			echo "$RULES_MARKER"
+		} >"$global_claude_file"
+		echo "Global Claude rules created: $global_claude_file"
 		return 0
 	fi
 
 	# Check if RULES_MARKER exists twice (complete rules section)
-	if grep -c "$RULES_MARKER" "$claude_file" | grep -q "^2$"; then
+	if grep -c "$RULES_MARKER" "$global_claude_file" | grep -q "^2$"; then
 		# Replace content between markers
 		local temp_file
 		temp_file="$(mktemp)"
 
 		# Write content up to first marker
-		sed "/^$RULES_MARKER$/,\$d" "$claude_file" >>"$temp_file"
+		sed "/^$RULES_MARKER$/,\$d" "$global_claude_file" >>"$temp_file"
 
 		# Write content after second marker
-		sed "1,/^$RULES_MARKER$/d" "$claude_file" | sed "1,/^$RULES_MARKER$/d" >>"$temp_file"
+		sed "1,/^$RULES_MARKER$/d" "$global_claude_file" | sed "1,/^$RULES_MARKER$/d" >>"$temp_file"
 
 		# Write new rules section
 		echo "$RULES_MARKER" >>"$temp_file"
 		echo "$rules_content" >>"$temp_file"
 		echo "$RULES_MARKER" >>"$temp_file"
 
-		mv "$temp_file" "$claude_file"
-		echo "Claude rules updated: $claude_file"
+		mv "$temp_file" "$global_claude_file"
+		echo "Global Claude rules updated: $global_claude_file"
 	else
-		# Append rules content
-		echo "$RULES_MARKER" >>"$claude_file"
-		echo "$rules_content" >>"$claude_file"
-		echo "$RULES_MARKER" >>"$claude_file"
-		echo "Claude rules appended: $claude_file"
+		{
+			echo "$RULES_MARKER"
+			echo "$rules_content"
+			echo "$RULES_MARKER"
+		} >"$global_claude_file"
+		echo "Global Claude rules appended: $global_claude_file"
 	fi
 
 	return 0
@@ -435,19 +452,14 @@ EOF
 		return 1
 	fi
 
-	# If the registry file .cursor array is not empty, setup Cursor rules
-	if [[ -n "${DB_PATH_DATA}" ]] && [[ $(jq -e '.cursor' <<<"${DB_PATH_DATA}") != "[]" ]]; then
-		if ! setup_cursor_rules "$GIT_ROOT" "$GANDALF_RULES_FILE"; then
-			return 1
-		fi
+	# Install Cursor rules locally
+	if ! setup_cursor_rules "$GIT_ROOT" "$GANDALF_RULES_FILE"; then
+		return 1
 	fi
 
-	# Setup Claude rules
-	# If the registry file .claude array is not empty, setup Claude rules
-	if [[ -n "${DB_PATH_DATA}" ]] && [[ $(jq -e '.claude' <<<"${DB_PATH_DATA}") != "[]" ]]; then
-		if ! setup_claude_rules "$GIT_ROOT" "$GANDALF_RULES_FILE"; then
-			return 1
-		fi
+	# Install Claude rules globally
+	if ! setup_global_claude_rules "$GANDALF_RULES_FILE"; then
+		return 1
 	fi
 
 	return 0

@@ -33,6 +33,7 @@ Repository = "https://github.com/bluekornchips/gandalf"
 
 [project.scripts]
 gandalf-server = "server.main:main"
+gandalf-query = "src.query_handler:main"
 
 [tool.setuptools]
 package-dir = {"" = "server"}

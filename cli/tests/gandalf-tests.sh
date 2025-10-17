@@ -73,3 +73,54 @@ EOF
 	run gandalf --install
 	[[ "$status" -eq 0 ]]
 }
+
+########################################################
+# handle_query
+########################################################
+@test "handle_query:: handles missing file argument" {
+	run handle_query
+	[[ "$status" -eq 1 ]]
+	echo "$output" | grep -q "requires a file path"
+}
+
+@test "handle_query:: handles invalid output format" {
+	local test_file="$(mktemp)"
+	echo '{"test": "value"}' >"$test_file"
+
+	# Mock the query database script to avoid actual execution
+	QUERY_DATABASE_SCRIPT="$(mktemp)"
+	cat <<EOF >"$QUERY_DATABASE_SCRIPT"
+#!/usr/bin/env bash
+echo "Invalid output format: invalid. Supported formats: json, yaml" >&2
+exit 1
+EOF
+	chmod +x "$QUERY_DATABASE_SCRIPT"
+
+	run handle_query "$test_file" --output invalid
+	[[ "$status" -eq 1 ]]
+	echo "$output" | grep -q "Invalid output format"
+
+	rm -f "$test_file" "$QUERY_DATABASE_SCRIPT"
+}
+
+@test "handle_query:: handles missing output format argument" {
+	local test_file="$(mktemp)"
+	echo '{"test": "value"}' >"$test_file"
+
+	run handle_query "$test_file" --output
+	[[ "$status" -eq 1 ]]
+	echo "$output" | grep -q "requires a format argument"
+
+	rm -f "$test_file"
+}
+
+@test "handle_query:: handles unknown query options" {
+	local test_file="$(mktemp)"
+	echo '{"test": "value"}' >"$test_file"
+
+	run handle_query "$test_file" --unknown
+	[[ "$status" -eq 1 ]]
+	echo "$output" | grep -q "Unknown query option"
+
+	rm -f "$test_file"
+}
