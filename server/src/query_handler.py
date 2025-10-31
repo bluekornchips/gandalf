@@ -92,8 +92,13 @@ class QueryHandler:
         # Extract query parameters
         keywords = query_data.get("keywords", "")
         limit = query_data.get("limit", 8)
+        from src.config.constants import DEFAULT_INCLUDE_EDITOR_HISTORY
+
         include_prompts = query_data.get("include_prompts", True)
         include_generations = query_data.get("include_generations", False)
+        include_editor_history = query_data.get(
+            "include_editor_history", DEFAULT_INCLUDE_EDITOR_HISTORY
+        )
 
         try:
             # Process database files
@@ -104,7 +109,11 @@ class QueryHandler:
             # Format results
             formatted_conversations = [
                 self.db_manager.format_conversation_entry(
-                    conv, include_prompts, include_generations, keywords
+                    conv,
+                    include_prompts,
+                    include_generations,
+                    keywords,
+                    include_editor_history,
                 )
                 for conv in all_conversations
             ]
@@ -136,10 +145,6 @@ class QueryHandler:
                     "include_generations": include_generations,
                 },
                 "results": {
-                    "total_conversations": sum(
-                        conv.get("total_conversations", 0)
-                        for conv in formatted_conversations
-                    ),
                     "conversations": formatted_conversations,
                     "search_info": {
                         "keywords": keywords if keywords else None,
