@@ -39,7 +39,7 @@ RECALL_CONVERSATIONS_QUERIES = {
 # Recall conversations tool specific constants
 MAX_CONVERSATIONS = 8
 MAX_KEYWORDS = 8
-MAX_RESULTS_LIMIT = 1000  # Hard cap on total results returned
+MAX_RESULTS_LIMIT = 16  # Hard cap on total results returned
 INCLUDE_PROMPTS_DEFAULT = True
 # Exclude the AI generations by default unless GANDALF_INCLUDE_GENERATIONS env var is set.
 # AI generations are verbose and not as useful as user prompts.
@@ -48,8 +48,16 @@ INCLUDE_GENERATIONS_DEFAULT = (
 )
 
 # Optimization constants for concise conversation recall
-MAX_SUMMARY_LENGTH = 200  # Truncate summaries to 200 chars for token efficiency
+MAX_SUMMARY_LENGTH = 2048  # Truncate summaries to 200 chars for token efficiency
 MAX_SUMMARY_ENTRIES = 2
+
+# Recency scoring configuration
+RECENCY_DECAY_RATE = float(os.getenv("GANDALF_RECENCY_DECAY_RATE", "0.1"))
+
+# History entry filtering default
+DEFAULT_INCLUDE_EDITOR_HISTORY = (
+    os.getenv("GANDALF_INCLUDE_EDITOR_HISTORY", "false").lower() == "true"
+)
 
 IGNORED_KEYWORDS = [
     # Articles

@@ -9,10 +9,11 @@ from typing import Any, Dict, List
 from src.tools.base_tool import BaseTool
 from src.protocol.models import ToolResult
 from src.config.constants import (
+    DEFAULT_INCLUDE_EDITOR_HISTORY,
     GANDALF_REGISTRY_FILE,
-    MAX_CONVERSATIONS,
-    INCLUDE_PROMPTS_DEFAULT,
     INCLUDE_GENERATIONS_DEFAULT,
+    INCLUDE_PROMPTS_DEFAULT,
+    MAX_CONVERSATIONS,
     MAX_KEYWORDS,
     MAX_RESULTS_LIMIT,
 )
@@ -63,6 +64,11 @@ class RecallConversationsTool(BaseTool):
                     "description": f"Include AI generations in results (default: {INCLUDE_GENERATIONS_DEFAULT})",
                     "default": INCLUDE_GENERATIONS_DEFAULT,
                 },
+                "include_editor_history": {
+                    "type": "boolean",
+                    "description": f"Include editor UI state entries in results (default: {DEFAULT_INCLUDE_EDITOR_HISTORY})",
+                    "default": DEFAULT_INCLUDE_EDITOR_HISTORY,
+                },
             },
         }
 
@@ -77,6 +83,9 @@ class RecallConversationsTool(BaseTool):
         include_prompts = args.get("include_prompts", INCLUDE_PROMPTS_DEFAULT)
         # Always use the environment variable setting for include_generations
         include_generations = INCLUDE_GENERATIONS_DEFAULT
+        include_editor_history = args.get(
+            "include_editor_history", DEFAULT_INCLUDE_EDITOR_HISTORY
+        )
 
         try:
             # Load registry data
@@ -97,7 +106,11 @@ class RecallConversationsTool(BaseTool):
         # Format results with better structure for agent chat
         formatted_conversations = [
             self.db_manager.format_conversation_entry(
-                conv, include_prompts, include_generations, keywords
+                conv,
+                include_prompts,
+                include_generations,
+                keywords,
+                include_editor_history,
             )
             for conv in all_conversations
         ]
@@ -108,12 +121,15 @@ class RecallConversationsTool(BaseTool):
             scored_conversations = []
             for conv in formatted_conversations:
                 if conv.get("conversations"):
-                    max_relevance = max(
-                        c.get("relevance", 0) for c in conv["conversations"]
-                    )
+                    relevances = [
+                        c.get("relevance", 0.0)
+                        for c in conv["conversations"]
+                        if c.get("relevance") is not None
+                    ]
+                    max_relevance = max(relevances) if relevances else 0.0
                     scored_conversations.append((conv, max_relevance))
                 else:
-                    scored_conversations.append((conv, 0))
+                    scored_conversations.append((conv, 0.0))
 
             # Sort by relevance and take top conversations
             scored_conversations.sort(key=lambda x: x[1], reverse=True)
@@ -122,9 +138,6 @@ class RecallConversationsTool(BaseTool):
         # Simplified result structure
         result = {
             "status": "success",
-            "total_conversations": sum(
-                conv.get("total_conversations", 0) for conv in formatted_conversations
-            ),
             "conversations": formatted_conversations,
             "search_info": {
                 "keywords": keywords if keywords else None,
