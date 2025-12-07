@@ -15,6 +15,7 @@ OPTIONS:
   -h, --help      Show this help message and exit
   -v, --version   Show version information and exit
   -f, --force     Force overwrite existing config
+  -y, --yes       Skip confirmation prompts (non-interactive mode)
 
 EOF
 }
@@ -72,8 +73,12 @@ setup_python_env() {
 	local should_create
 	should_create="false"
 
-	if [[ "${FORCE_INSTALL}" == "true" ]]; then
-		echo "Virtual environment not found, creating with --force flag..."
+	if [[ "${FORCE_INSTALL}" == "true" ]] || [[ "${SKIP_CONFIRMATION:-}" == "true" ]]; then
+		if [[ "${FORCE_INSTALL}" == "true" ]]; then
+			echo "Virtual environment not found, creating with --force flag..."
+		else
+			echo "Virtual environment not found, creating with --yes flag..."
+		fi
 		should_create="true"
 	else
 		cat <<EOF
@@ -172,6 +177,12 @@ setup_editor_config() {
 	local editor_name="$1"
 	local config_file="$2"
 
+	if ! command -v jq >/dev/null 2>&1; then
+		echo "jq is required for MCP configuration but not installed" >&2
+		echo "Install jq from: https://github.com/jqlang/jq" >&2
+		return 1
+	fi
+
 	local python_path="${PYTHON_PATH:-${DEFAULT_PYTHON_PATH}}"
 	local server_dir="${GANDALF_ROOT}/server"
 
@@ -233,6 +244,13 @@ setup_editor_config() {
 # Side Effects:
 # - Configures Claude Code MCP server for current project
 setup_claude_code_mcp() {
+
+	if ! command -v jq >/dev/null 2>&1; then
+		echo "jq is required for Claude Code MCP configuration but not installed" >&2
+		echo "Install jq from: https://github.com/jqlang/jq" >&2
+		return 1
+	fi
+
 	local python_path="${PYTHON_PATH:-${DEFAULT_PYTHON_PATH}}"
 	local server_path="${SERVER_PATH:-${DEFAULT_SERVER_PATH}}"
 	local server_dir="${GANDALF_ROOT}/server"
@@ -351,6 +369,8 @@ setup_global_claude_rules() {
 		# Replace content between markers
 		local temp_file
 		temp_file="$(mktemp)"
+		chmod 0600 "$temp_file"
+		trap 'rm -f "$temp_file"' EXIT ERR
 
 		# Write content up to first marker
 		sed "/^$RULES_MARKER$/,\$d" "$global_claude_file" >>"$temp_file"
@@ -364,6 +384,7 @@ setup_global_claude_rules() {
 		echo "$RULES_MARKER" >>"$temp_file"
 
 		mv "$temp_file" "$global_claude_file"
+		trap - EXIT ERR
 		echo "Global Claude rules updated: $global_claude_file"
 	else
 		{
@@ -388,6 +409,10 @@ install() {
 			;;
 		-f | --force)
 			FORCE_INSTALL="true"
+			shift
+			;;
+		-y | --yes)
+			SKIP_CONFIRMATION="true"
 			shift
 			;;
 		*)

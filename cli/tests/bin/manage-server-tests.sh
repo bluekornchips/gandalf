@@ -42,6 +42,18 @@ EOF
 	echo "0.1.0" >"$GANDALF_ROOT/VERSION"
 }
 
+teardown() {
+	local bg_pids
+	bg_pids=$(jobs -p 2>/dev/null || true)
+	if [[ -n "$bg_pids" ]]; then
+		kill "$bg_pids" 2>/dev/null || true
+		wait "$bg_pids" 2>/dev/null || true
+	fi
+
+	[[ -n "${GANDALF_ROOT:-}" && -d "$GANDALF_ROOT" ]] && rm -rf "$GANDALF_ROOT"
+	[[ -n "${GANDALF_HOME:-}" && -d "$GANDALF_HOME" ]] && rm -rf "$GANDALF_HOME"
+}
+
 ########################################################
 # Mocks
 ########################################################
@@ -106,8 +118,8 @@ mock_server_not_running() {
 	run is_server_running "$bg_pid"
 	[[ "$status" -eq 0 ]]
 
-	# Clean up
 	kill "$bg_pid" 2>/dev/null || true
+	wait "$bg_pid" 2>/dev/null || true
 }
 
 @test "is_server_running:: returns false for empty PID" {
@@ -133,8 +145,8 @@ mock_server_not_running() {
 	[[ "$status" -eq 0 ]]
 	echo "$output" | grep -q "Server is running"
 
-	# Clean up
 	kill "$bg_pid" 2>/dev/null || true
+	wait "$bg_pid" 2>/dev/null || true
 }
 
 @test "show_status:: reports server not running when no PID file" {
@@ -174,8 +186,8 @@ mock_server_not_running() {
 	[[ "$status" -eq 0 ]]
 	echo "$output" | grep -q "Server is already running"
 
-	# Clean up
 	kill "$bg_pid" 2>/dev/null || true
+	wait "$bg_pid" 2>/dev/null || true
 }
 
 @test "start_server:: fails when GANDALF_ROOT not set" {
@@ -218,8 +230,8 @@ mock_server_not_running() {
 	# Stop may fail in test environment, just check it doesn't crash
 	[[ "$status" -ge 0 ]]
 
-	# Clean up
 	kill "$bg_pid" 2>/dev/null || true
+	wait "$bg_pid" 2>/dev/null || true
 }
 
 @test "stop_server:: reports not running when no server" {

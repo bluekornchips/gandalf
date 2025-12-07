@@ -59,43 +59,59 @@ class TestOutputFormatter:
         assert summary == "chat message"
 
     def test_score_conversation_relevance(self) -> None:
-        """Test score_conversation_relevance method with keyword matching."""
+        """Test score_conversation_relevance method with exact phrase matching."""
         conversation = {"text": "python programming tutorial"}
 
-        # Test with matching keywords
+        # Test with single phrase match
         score = self.output_formatter.score_conversation_relevance(
-            conversation, "python"
+            conversation, ["python"]
         )
-        assert score > 0.0  # Should have positive score
+        assert score == 1.0  # Exact phrase found
 
-        # Test with partial match
+        # Test with exact multi-word phrase match
         score = self.output_formatter.score_conversation_relevance(
-            conversation, "python javascript"
+            conversation, ["python programming"]
         )
-        assert score > 0.0  # Should have positive score for partial match
+        assert score == 1.0  # Exact phrase found
+
+        # Test with phrase not in text
+        score = self.output_formatter.score_conversation_relevance(
+            conversation, ["python javascript"]
+        )
+        assert score == 0.0  # Exact phrase "python javascript" not in text
 
         # Test with no match
-        score = self.output_formatter.score_conversation_relevance(conversation, "java")
-        assert score >= 0.0  # May have low score
+        score = self.output_formatter.score_conversation_relevance(
+            conversation, ["java"]
+        )
+        assert score == 0.0  # "java" not in text
 
-    def test_score_conversation_relevance_empty_keywords(self) -> None:
-        """Test score_conversation_relevance with empty keywords."""
+        # Test with multiple phrases (OR logic - any match returns 1.0)
+        score = self.output_formatter.score_conversation_relevance(
+            conversation, ["java", "python"]
+        )
+        assert score == 1.0  # "python" matches
+
+    def test_score_conversation_relevance_empty_phrases(self) -> None:
+        """Test score_conversation_relevance with empty phrases."""
         conversation = {"text": "test"}
-        score = self.output_formatter.score_conversation_relevance(conversation, "")
-        # With no keywords, should use recency scoring.
+        score = self.output_formatter.score_conversation_relevance(conversation, [])
+        # With no phrases, should use recency scoring.
         assert score >= 0.0
 
     def test_score_conversation_relevance_empty_conversation(self) -> None:
         """Test score_conversation_relevance with empty conversation."""
         conversation: Dict[str, Any] = {}
-        score = self.output_formatter.score_conversation_relevance(conversation, "test")
+        score = self.output_formatter.score_conversation_relevance(
+            conversation, ["test"]
+        )
         assert score == 0.0
 
     def test_score_conversation_relevance_case_insensitive(self) -> None:
         """Test score_conversation_relevance is case insensitive."""
         conversation = {"text": "Python Programming"}
         score = self.output_formatter.score_conversation_relevance(
-            conversation, "python"
+            conversation, ["python"]
         )
         assert score == 1.0
 
@@ -111,13 +127,13 @@ class TestOutputFormatter:
 
         result = self.output_formatter.format_conversation_entry(error_data, True, True)
 
-        # In concise mode, should have different structure
-        assert "source" in result
+        # Flattened structure with status and conversations
         assert "status" in result
-        assert "total_conversations" in result
-        assert result["source"] == "path.db"
+        assert "conversations" in result
+        assert "error" in result
         assert result["status"] == "error"
         assert result["error"] == "Database error"
+        assert result["conversations"] == []
 
     def test_format_conversation_entry_success(self) -> None:
         """Test format_conversation_entry with successful data."""
@@ -133,15 +149,14 @@ class TestOutputFormatter:
         )
 
         assert result["status"] == "success"
-        assert result["source"] == "path.db"
-        assert result["total_conversations"] >= 1  # At least 1 conversation
         assert "conversations" in result
+        assert len(result["conversations"]) >= 1  # At least 1 conversation
         assert (
             len(result["conversations"]) <= MAX_SUMMARY_ENTRIES * 3
         )  # Max entries per type
 
-    def test_format_conversation_entry_with_keywords(self) -> None:
-        """Test format_conversation_entry with keywords for relevance scoring."""
+    def test_format_conversation_entry_with_phrases(self) -> None:
+        """Test format_conversation_entry with phrases for relevance scoring."""
         conversation_data = {
             "database_path": "/test/path.db",
             "prompts": [{"text": "python programming tutorial"}],
@@ -150,7 +165,7 @@ class TestOutputFormatter:
         }
 
         result = self.output_formatter.format_conversation_entry(
-            conversation_data, True, True, "python"
+            conversation_data, True, True, ["python"]
         )
 
         assert "conversations" in result
@@ -176,9 +191,8 @@ class TestOutputFormatter:
             True,  # exclude prompts
         )
 
-        assert result["total_conversations"] == 2  # Only generations + history
         conversations = result["conversations"]
-        assert len(conversations) == 2
+        assert len(conversations) == 2  # Only generations + history
         assert all(conv["type"] in ["generation", "history"] for conv in conversations)
 
     def test_format_conversation_entry_exclude_generations(self) -> None:
@@ -196,9 +210,8 @@ class TestOutputFormatter:
             False,  # exclude generations
         )
 
-        assert result["total_conversations"] == 2  # Only prompts + history
         conversations = result["conversations"]
-        assert len(conversations) == 2
+        assert len(conversations) == 2  # Only prompts + history
         assert all(conv["type"] in ["prompt", "history"] for conv in conversations)
 
     def test_format_conversation_entry_sample_limit(self) -> None:
@@ -270,7 +283,7 @@ class TestOutputFormatter:
 
         # Include editor history explicitly
         result = self.output_formatter.format_conversation_entry(
-            conversation_data, False, False, "", True
+            conversation_data, False, False, [], True
         )
 
         conversations = result["conversations"]
@@ -300,7 +313,7 @@ class TestOutputFormatter:
             conversation_data,
             True,
             True,
-            "",
+            [],
         )
 
         conversations = result["conversations"]

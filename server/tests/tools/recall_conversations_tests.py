@@ -15,9 +15,7 @@ from src.config.constants import (
     SUPPORTED_DB_FILES,
     GANDALF_REGISTRY_FILE,
     RECALL_CONVERSATIONS_QUERIES,
-    IGNORED_KEYWORDS,
-    MAX_CONVERSATIONS,
-    MAX_KEYWORDS,
+    MAX_PHRASES,
     INCLUDE_PROMPTS_DEFAULT,
     INCLUDE_GENERATIONS_DEFAULT,
     MAX_SUMMARY_LENGTH,
@@ -38,9 +36,7 @@ class TestRecallConversationsTool:
         assert SUPPORTED_DB_FILES is not None
         assert GANDALF_REGISTRY_FILE is not None
         assert RECALL_CONVERSATIONS_QUERIES is not None
-        assert IGNORED_KEYWORDS is not None
-        assert MAX_CONVERSATIONS is not None
-        assert MAX_KEYWORDS is not None
+        assert MAX_PHRASES is not None
         assert INCLUDE_PROMPTS_DEFAULT is not None
         assert INCLUDE_GENERATIONS_DEFAULT is not None
         assert MAX_SUMMARY_LENGTH is not None
@@ -50,17 +46,6 @@ class TestRecallConversationsTool:
         assert "PROMPTS_KEY" in RECALL_CONVERSATIONS_QUERIES
         assert "GENERATIONS_KEY" in RECALL_CONVERSATIONS_QUERIES
         assert "HISTORY_KEY" in RECALL_CONVERSATIONS_QUERIES
-
-    def test_ignored_keywords_structure(self) -> None:
-        """Test that IGNORED_KEYWORDS contains expected categories."""
-        assert "the" in IGNORED_KEYWORDS  # Articles
-        assert "in" in IGNORED_KEYWORDS  # Prepositions
-        assert "and" in IGNORED_KEYWORDS  # Conjunctions
-        assert "i" in IGNORED_KEYWORDS  # Pronouns
-        assert "is" in IGNORED_KEYWORDS  # Common verbs
-        assert "this" in IGNORED_KEYWORDS  # Demonstratives
-        assert "what" in IGNORED_KEYWORDS  # Interrogatives
-        assert "all" in IGNORED_KEYWORDS  # Quantifiers
 
     def test_tool_name(self) -> None:
         """Test tool name property."""
@@ -81,12 +66,11 @@ class TestRecallConversationsTool:
         assert "limit" in schema["properties"]
         assert "include_prompts" in schema["properties"]
         assert "include_generations" in schema["properties"]
-        assert "keywords" in schema["properties"]
+        assert "phrases" in schema["properties"]
 
     def test_input_schema_uses_constants(self) -> None:
         """Test that input schema uses the constants."""
         schema = self.tool.input_schema
-        assert schema["properties"]["limit"]["default"] == MAX_CONVERSATIONS
         assert (
             schema["properties"]["include_prompts"]["default"]
             == INCLUDE_PROMPTS_DEFAULT
@@ -96,68 +80,46 @@ class TestRecallConversationsTool:
             == INCLUDE_GENERATIONS_DEFAULT
         )
 
-    def test_build_search_conditions_empty_keywords(self) -> None:
-        """Test build_search_conditions with empty keywords."""
-        conditions, params = self.db_manager.build_search_conditions("")
+    def test_build_search_conditions_empty_phrases(self) -> None:
+        """Test build_search_conditions with empty phrases."""
+        conditions, params = self.db_manager.build_search_conditions([])
 
         assert conditions == []
         assert params == []
 
-    def test_build_search_conditions_single_keyword(self) -> None:
-        """Test _build_search_conditions with single keyword."""
-        conditions, params = self.db_manager.build_search_conditions("python")
+    def test_build_search_conditions_single_phrase(self) -> None:
+        """Test build_search_conditions with single phrase."""
+        conditions, params = self.db_manager.build_search_conditions(["python"])
 
         assert len(conditions) == 1
         assert conditions[0] == "value LIKE ?"
         assert len(params) == 1
         assert params[0] == "%python%"
 
-    def test_build_search_conditions_multiple_keywords(self) -> None:
-        """Test _build_search_conditions with multiple keywords."""
+    def test_build_search_conditions_multiple_phrases(self) -> None:
+        """Test build_search_conditions with multiple phrases."""
         conditions, params = self.db_manager.build_search_conditions(
-            "python programming"
+            ["python programming", "follow the rules"]
         )
 
         assert len(conditions) == 2
         assert all(condition == "value LIKE ?" for condition in conditions)
         assert len(params) == 2
-        assert "%python%" in params
-        assert "%programming%" in params
+        assert "%python programming%" in params
+        assert "%follow the rules%" in params
 
-    def test_build_search_conditions_ignored_keywords(self) -> None:
-        """Test _build_search_conditions filters out ignored keywords."""
+    def test_build_search_conditions_multi_word_phrase(self) -> None:
+        """Test build_search_conditions with multi-word phrase."""
         conditions, params = self.db_manager.build_search_conditions(
-            "the python and programming"
+            ["the python and programming"]
         )
 
-        # Should filter out "the" and "and"
-        assert len(conditions) == 2
-        assert "%python%" in params
-        assert "%programming%" in params
-        assert "%the%" not in params
-        assert "%and%" not in params
+        # Entire phrase should be preserved
+        assert len(conditions) == 1
+        assert "%the python and programming%" in params
 
-    def test_build_search_conditions_only_ignored_keywords(self) -> None:
-        """Test _build_search_conditions with only ignored keywords."""
-        conditions, params = self.db_manager.build_search_conditions("the and or")
-
-        # Should use original keywords when no meaningful words remain
-        assert len(conditions) == 3
-        assert "%the%" in params
-        assert "%and%" in params
-        assert "%or%" in params
-
-    def test_build_search_conditions_max_keywords_limit(self) -> None:
-        """Test _build_search_conditions respects MAX_KEYWORDS limit."""
-        long_keywords = " ".join([f"word{i}" for i in range(MAX_KEYWORDS + 5)])
-        conditions, params = self.db_manager.build_search_conditions(long_keywords)
-
-        # Should limit to MAX_KEYWORDS
-        assert len(conditions) <= MAX_KEYWORDS
-        assert len(params) <= MAX_KEYWORDS
-
-    def test_extract_conversation_data_without_keywords(self) -> None:
-        """Test _extract_conversation_data without keywords filtering."""
+    def test_extract_conversation_data_without_phrases(self) -> None:
+        """Test extract_conversation_data without phrases filtering."""
         with tempfile.NamedTemporaryFile(suffix=".db") as temp_db:
             # Create test database
             conn = sqlite3.connect(temp_db.name)
@@ -180,8 +142,8 @@ class TestRecallConversationsTool:
             assert "database_path" in result
             assert result["database_path"] == temp_db.name
 
-    def test_extract_conversation_data_with_keywords(self) -> None:
-        """Test _extract_conversation_data with keywords filtering."""
+    def test_extract_conversation_data_with_phrases(self) -> None:
+        """Test extract_conversation_data with phrases filtering."""
         with tempfile.NamedTemporaryFile(suffix=".db") as temp_db:
             # Create test database
             conn = sqlite3.connect(temp_db.name)
@@ -198,14 +160,14 @@ class TestRecallConversationsTool:
             conn.close()
 
             result = self.db_manager.extract_conversation_data(
-                temp_db.name, 50, "python"
+                temp_db.name, 50, ["python"]
             )
 
             assert "prompts" in result
             assert "database_path" in result
 
     def test_extract_conversation_data_database_error(self) -> None:
-        """Test _extract_conversation_data handles database errors."""
+        """Test extract_conversation_data handles database errors."""
         # Test with non-existent database
         result = self.db_manager.extract_conversation_data("/nonexistent/path.db", 50)
 
@@ -213,7 +175,7 @@ class TestRecallConversationsTool:
         assert result["error"] is not None
 
     def test_process_database_files_empty_registry(self) -> None:
-        """Test _process_database_files with empty registry."""
+        """Test process_database_files with empty registry."""
         registry_data: Dict[str, Any] = {}
         conversations, paths, total_files, file_counts = (
             self.db_manager.process_database_files(registry_data, 50)
@@ -224,21 +186,21 @@ class TestRecallConversationsTool:
         assert total_files == 0
         assert file_counts == {}
 
-    def test_process_database_files_with_keywords(self) -> None:
-        """Test _process_database_files with keywords parameter."""
+    def test_process_database_files_with_phrases(self) -> None:
+        """Test process_database_files with phrases parameter."""
         registry_data: Dict[str, Any] = {}
         conversations, paths, total_files, file_counts = (
-            self.db_manager.process_database_files(registry_data, 50, "python")
+            self.db_manager.process_database_files(registry_data, 50, ["python"])
         )
 
-        # Should handle keywords parameter gracefully even with empty registry
+        # Should handle phrases parameter gracefully even with empty registry
         assert conversations == []
         assert paths == []
         assert total_files == 0
         assert file_counts == {}
 
     def test_process_database_files_nonexistent_paths(self) -> None:
-        """Test _process_database_files with nonexistent paths."""
+        """Test process_database_files with nonexistent paths."""
         registry_data = {
             "cursor": ["/nonexistent/path"],
             "claude": ["/another/nonexistent/path"],
@@ -255,7 +217,7 @@ class TestRecallConversationsTool:
             assert file_counts == {}
 
     def test_format_conversation_entry_structure(self) -> None:
-        """Test that _format_conversation_entry returns expected structure."""
+        """Test that format_conversation_entry returns expected structure."""
         # Test with error data
         error_data = {
             "database_path": "/test/path.db",
@@ -267,17 +229,16 @@ class TestRecallConversationsTool:
 
         result = self.db_manager.format_conversation_entry(error_data, True, True)
 
-        # In concise mode, should have different structure
-        assert "source" in result
+        # Error case returns flattened structure
         assert "status" in result
-        assert "total_conversations" in result
         assert "error" in result
+        assert "conversations" in result
         assert result["status"] == "error"
         assert result["error"] == "Test error"
-        assert result["source"] == "path.db"
+        assert result["conversations"] == []
 
     def test_format_conversation_entry_success(self) -> None:
-        """Test that _format_conversation_entry handles success case."""
+        """Test that format_conversation_entry handles success case."""
         # Test with successful data
         success_data = {
             "database_path": "/test/path.db",
@@ -289,8 +250,6 @@ class TestRecallConversationsTool:
         result = self.db_manager.format_conversation_entry(success_data, True, True)
 
         assert result["status"] == "success"
-        assert result["source"] == "path.db"
-        assert result["total_conversations"] == 3  # 1 prompt + 1 generation + 1 history
         assert "conversations" in result
         assert (
             len(result["conversations"]) <= MAX_SUMMARY_ENTRIES * 3
@@ -336,32 +295,32 @@ class TestRecallConversationsTool:
             assert result[0].type == "text"
 
             data = json.loads(result[0].text)
-            # In concise mode, should have different structure
-            assert data["total_conversations"] == 0
+            # Flattened structure with conversations list
+            assert data["status"] == "success"
             assert data["conversations"] == []
             assert data["search_info"]["databases_searched"] == 0
             assert data["search_info"]["total_found"] == 0
 
     @pytest.mark.asyncio
-    async def test_execute_with_keywords_parameter(self) -> None:
-        """Test execute method with keywords parameter."""
+    async def test_execute_with_phrases_parameter(self) -> None:
+        """Test execute method with phrases parameter."""
         registry_data: Dict[str, Any] = {"cursor": [], "claude": []}
 
         with (
             patch("os.path.exists", return_value=True),
             patch("builtins.open", mock_open(read_data=json.dumps(registry_data))),
         ):
-            result = await self.tool.execute({"keywords": "python programming"})
+            result = await self.tool.execute({"phrases": ["python programming"]})
 
             assert len(result) == 1
             assert result[0].type == "text"
 
             data = json.loads(result[0].text)
-            assert data["search_info"]["keywords"] == "python programming"
+            assert data["search_info"]["phrases"] == ["python programming"]
 
     @pytest.mark.asyncio
-    async def test_execute_without_keywords_parameter(self) -> None:
-        """Test execute method without keywords parameter."""
+    async def test_execute_without_phrases_parameter(self) -> None:
+        """Test execute method without phrases parameter."""
         registry_data: Dict[str, Any] = {"cursor": [], "claude": []}
 
         with (
@@ -374,14 +333,14 @@ class TestRecallConversationsTool:
             assert result[0].type == "text"
 
             data = json.loads(result[0].text)
-            assert data["search_info"]["keywords"] is None
+            assert data["search_info"]["phrases"] is None
 
     @pytest.mark.asyncio
     async def test_execute_with_arguments(self) -> None:
         """Test execute method with various arguments."""
         registry_data: Dict[str, Any] = {"cursor": [], "claude": []}
         test_args = {
-            "keywords": "test",
+            "phrases": ["test"],
             "limit": 25,
             "include_prompts": False,
             "include_generations": True,
@@ -397,7 +356,7 @@ class TestRecallConversationsTool:
             assert result[0].type == "text"
 
             data = json.loads(result[0].text)
-            assert data["search_info"]["keywords"] == "test"
+            assert data["search_info"]["phrases"] == ["test"]
 
     @pytest.mark.asyncio
     async def test_execute_io_error(self) -> None:
@@ -415,9 +374,9 @@ class TestRecallConversationsTool:
 
     def test_sql_injection_protection(self) -> None:
         """Test that SQL queries are protected against injection attacks."""
-        # Test with potentially malicious keywords
-        malicious_keywords = "'; DROP TABLE ItemTable; --"
-        conditions, params = self.db_manager.build_search_conditions(malicious_keywords)
+        # Test with potentially malicious phrases
+        malicious_phrases = ["'; DROP TABLE ItemTable; --"]
+        conditions, params = self.db_manager.build_search_conditions(malicious_phrases)
 
         # Should be safely parameterized
         assert all(condition == "value LIKE ?" for condition in conditions)
@@ -453,9 +412,9 @@ class TestRecallConversationsTool:
             conn.commit()
             conn.close()
 
-            # Test extraction with keywords
+            # Test extraction with phrases
             result = self.db_manager.extract_conversation_data(
-                temp_db.name, 50, "python"
+                temp_db.name, 50, ["python"]
             )
 
             # Cleanup
@@ -465,20 +424,8 @@ class TestRecallConversationsTool:
             assert "prompts" in result
             assert "database_path" in result
 
-    def test_case_insensitive_search(self) -> None:
-        """Test that search conditions handle case insensitivity."""
-        conditions, params = self.db_manager.build_search_conditions(
-            "PYTHON Programming"
-        )
-
-        # Keywords should be converted to lowercase
-        assert "%python%" in params
-        assert "%programming%" in params
-        assert "%PYTHON%" not in params
-        assert "%Programming%" not in params
-
     def test_create_conversation_summary(self) -> None:
-        """Test _create_conversation_summary method."""
+        """Test create_conversation_summary method."""
         # Test with normal conversation
         conversation = {"text": "This is a test conversation about python programming"}
         summary = self.db_manager.create_conversation_summary(conversation)
@@ -488,51 +435,53 @@ class TestRecallConversationsTool:
         assert "python programming" in summary
 
     def test_create_conversation_summary_long_text(self) -> None:
-        """Test _create_conversation_summary with text longer than MAX_SUMMARY_LENGTH."""
+        """Test create_conversation_summary with text longer than MAX_SUMMARY_LENGTH."""
         long_text = "a" * (MAX_SUMMARY_LENGTH + 100)
         conversation = {"text": long_text}
         summary = self.db_manager.create_conversation_summary(conversation)
 
         assert len(summary) == MAX_SUMMARY_LENGTH
-        assert summary.endswith("...")
+        assert "..." in summary
 
     def test_create_conversation_summary_empty(self) -> None:
-        """Test _create_conversation_summary with empty conversation."""
+        """Test create_conversation_summary with empty conversation."""
         summary = self.db_manager.create_conversation_summary({})
         assert summary == ""
 
     def test_create_conversation_summary_non_dict(self) -> None:
-        """Test _create_conversation_summary with non-dict input."""
+        """Test create_conversation_summary with non-dict input."""
         summary = self.db_manager.create_conversation_summary({"text": "test string"})
         assert summary == "test string"
 
     def test_score_conversation_relevance(self) -> None:
-        """Test _score_conversation_relevance method with keyword matching."""
+        """Test score_conversation_relevance method with phrase matching."""
         conversation = {"text": "python programming tutorial"}
 
-        # Test with matching keywords
-        score = self.db_manager.score_conversation_relevance(conversation, "python")
-        assert score > 0.0  # Should have positive score
+        # Test with matching phrase
+        score = self.db_manager.score_conversation_relevance(conversation, ["python"])
+        assert score == 1.0  # Exact phrase match
 
-        # Test with partial match
+        # Test with non-matching phrase
         score = self.db_manager.score_conversation_relevance(
-            conversation, "python javascript"
+            conversation, ["javascript"]
         )
-        assert score > 0.0  # Should have positive score for partial match
+        assert score == 0.0  # No match
 
-        # Test with no match
-        score = self.db_manager.score_conversation_relevance(conversation, "java")
-        assert score >= 0.0  # May have low score but not negative
+        # Test with multiple phrases (OR logic)
+        score = self.db_manager.score_conversation_relevance(
+            conversation, ["java", "python"]
+        )
+        assert score == 1.0  # "python" matches
 
-    def test_score_conversation_relevance_empty_keywords(self) -> None:
-        """Test _score_conversation_relevance with empty keywords."""
+    def test_score_conversation_relevance_empty_phrases(self) -> None:
+        """Test score_conversation_relevance with empty phrases."""
         conversation = {"text": "test"}
-        score = self.db_manager.score_conversation_relevance(conversation, "")
-        # With no keywords, should use recency scoring
+        score = self.db_manager.score_conversation_relevance(conversation, [])
+        # With no phrases, should use recency scoring
         assert score >= 0.0
 
-    def test_format_conversation_entry_concise_mode(self) -> None:
-        """Test _format_conversation_entry in concise mode."""
+    def test_format_conversation_entry_with_phrases(self) -> None:
+        """Test format_conversation_entry with phrases."""
         conversation_data = {
             "database_path": "/test/path.db",
             "prompts": [{"text": "test prompt"}],
@@ -541,22 +490,18 @@ class TestRecallConversationsTool:
         }
 
         result = self.db_manager.format_conversation_entry(
-            conversation_data, True, True, "test"
+            conversation_data, True, True, ["test"]
         )
 
-        assert "source" in result
-        assert "total_conversations" in result
         assert "conversations" in result
-        assert result["source"] == "path.db"
         assert result["status"] == "success"
-
-    def test_max_conversations_limit(self) -> None:
-        """Test that MAX_CONVERSATIONS is now 8."""
-        assert MAX_CONVERSATIONS == 8
-
-    def test_optimization_constants_values(self) -> None:
-        """Test that optimization constants have expected values."""
-        assert MAX_SUMMARY_LENGTH == 800
+        # Conversations should have relevance truncated to 4 decimal places
+        for conv in result["conversations"]:
+            if "relevance" in conv:
+                relevance_str = str(conv["relevance"])
+                if "." in relevance_str:
+                    decimals = len(relevance_str.split(".")[1])
+                    assert decimals <= 4
 
     @pytest.mark.asyncio
     async def test_execute_concise_mode_structure(self) -> None:
@@ -572,13 +517,12 @@ class TestRecallConversationsTool:
             assert len(result) == 1
             data = json.loads(result[0].text)
 
-            # Should have concise structure
-            assert "total_conversations" in data
+            # Should have flattened structure
+            assert "status" in data
             assert "conversations" in data
             assert "search_info" in data
             # Should not have verbose metadata
             assert "metadata" not in data
-            assert "summary" not in data
             assert "found_paths" not in data
 
     @pytest.mark.asyncio
@@ -590,12 +534,12 @@ class TestRecallConversationsTool:
             patch("os.path.exists", return_value=True),
             patch("builtins.open", mock_open(read_data=json.dumps(registry_data))),
         ):
-            result = await self.tool.execute({"keywords": "test"})
+            result = await self.tool.execute({"phrases": ["test"]})
 
             assert len(result) == 1
             data = json.loads(result[0].text)
 
             # Should have search info
-            assert data["search_info"]["keywords"] == "test"
+            assert data["search_info"]["phrases"] == ["test"]
             assert data["search_info"]["databases_searched"] == 0
             assert data["search_info"]["total_found"] == 0

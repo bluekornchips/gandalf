@@ -20,7 +20,7 @@ test-sh:
 test-integration:
 	bats --timing ./cli/tests/integration/test_query_cli.sh
 
-test-all: test-py test-sh test-integration
+test: test-py test-sh test-integration
 
 typecheck-py:
 	$(PYTHON) -m mypy server/

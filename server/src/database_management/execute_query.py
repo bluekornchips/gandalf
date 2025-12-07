@@ -19,14 +19,14 @@ class QueryExecutor:
         self.filter_builder = SearchFilterBuilder()
 
     def execute_conversation_query(
-        self, db_path: str, limit: int, keywords: str = ""
+        self, db_path: str, limit: int, phrases: List[str] | None = None
     ) -> Dict[str, Any]:
         """Execute queries to extract conversation data from a database file.
 
         Args:
             db_path: Path to the database file
             limit: Maximum number of entries to return
-            keywords: Keywords to filter by (applied at SQL level)
+            phrases: List of phrases to filter by
 
         Returns:
             Dictionary containing extracted conversation data
@@ -40,7 +40,7 @@ class QueryExecutor:
         }
 
         search_conditions, search_params = self.filter_builder.build_search_conditions(
-            keywords
+            phrases or []
         )
 
         try:
@@ -51,7 +51,6 @@ class QueryExecutor:
                 base_query = "SELECT value FROM ItemTable WHERE key = ?"
 
                 if search_conditions:
-                    # Add search conditions with OR logic to find any matching term
                     where_clause = " AND (" + " OR ".join(search_conditions) + ")"
                     filtered_query = base_query + where_clause
                 else:

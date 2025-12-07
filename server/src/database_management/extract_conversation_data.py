@@ -16,29 +16,32 @@ class ConversationDataExtractor:
         self.query_executor = QueryExecutor()
 
     def extract_conversation_data(
-        self, db_path: str, limit: int = 50, keywords: str = ""
+        self, db_path: str, limit: int = 50, phrases: List[str] | None = None
     ) -> Dict[str, Any]:
-        """Extract conversation data from a database file with optional keyword filtering.
+        """Extract conversation data from a database file with optional phrase filtering.
 
         Args:
             db_path: Path to the database file
             limit: Maximum number of entries to return
-            keywords: Keywords to filter by (applied at SQL level)
+            phrases: List of phrases to filter by (applied at SQL level)
 
         Returns:
             Dictionary containing extracted conversation data
         """
-        return self.query_executor.execute_conversation_query(db_path, limit, keywords)
+        return self.query_executor.execute_conversation_query(db_path, limit, phrases)
 
     def process_database_files(
-        self, registry_data: Dict[str, Any], limit: int, keywords: str = ""
+        self,
+        registry_data: Dict[str, Any],
+        limit: int,
+        phrases: List[str] | None = None,
     ) -> tuple[List[Dict[str, Any]], List[str], int, Dict[str, int]]:
         """Process database files from registry and extract conversation data.
 
         Args:
             registry_data: The loaded registry data
             limit: Maximum number of conversations to return per database
-            keywords: Keywords to filter by
+            phrases: List of phrases to filter by
 
         Returns:
             Tuple of (all_conversations, found_paths, total_db_files, db_file_counts)
@@ -64,7 +67,7 @@ class ConversationDataExtractor:
 
                                     # Extract conversation data from this database
                                     conversation_data = self.extract_conversation_data(
-                                        db_path, limit, keywords
+                                        db_path, limit, phrases
                                     )
                                     all_conversations.append(conversation_data)
 

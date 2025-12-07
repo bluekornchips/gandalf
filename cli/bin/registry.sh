@@ -16,6 +16,13 @@ DEFAULT_GANDALF_REGISTRY_FILE="${HOME}/.gandalf/registry.json"
 # Side Effects:
 # - DB_PATH_DATA, sets array of found database folders
 find_database_folders() {
+
+	if ! command -v jq >/dev/null 2>&1; then
+		echo "jq is required for database folder detection but not installed" >&2
+		echo "Install jq from: https://github.com/jqlang/jq" >&2
+		return 1
+	fi
+
 	CURSOR_DB_PATHS=(
 		# Linux
 		"$HOME/.config/Cursor/User/workspaceStorage"
@@ -47,35 +54,57 @@ find_database_folders() {
 	for cursor_db_path in "${CURSOR_DB_PATHS[@]}"; do
 		if [[ -d "$cursor_db_path" ]]; then
 			# Check if any database files exist in subdirectories
+			local found_db=false
 			for db_file in "${SUPPORTED_DB_FILES[@]}"; do
-				if find "$cursor_db_path" -name "$db_file" -type f -quit; then
-					found_cursor_db_paths+=("$cursor_db_path")
+				if find "$cursor_db_path" -name "$db_file" -type f 2>/dev/null | head -n 1 | grep -q .; then
+					found_db=true
 					break
 				fi
 			done
+			if [[ "$found_db" == "true" ]]; then
+				found_cursor_db_paths+=("$cursor_db_path")
+			fi
 		fi
 	done
 
 	local found_claude_code_db_paths=()
 	for claude_code_db_path in "${CLAUDE_CODE_DB_PATHS[@]}"; do
 		if [[ -d "$claude_code_db_path" ]]; then
+			local found_db=false
 			for db_file in "${SUPPORTED_DB_FILES[@]}"; do
-				if find "$claude_code_db_path" -name "$db_file" -type f -quit; then
-					found_claude_code_db_paths+=("$claude_code_db_path")
+				if find "$claude_code_db_path" -name "$db_file" -type f 2>/dev/null | head -n 1 | grep -q .; then
+					found_db=true
 					break
 				fi
 			done
+			if [[ "$found_db" == "true" ]]; then
+				found_claude_code_db_paths+=("$claude_code_db_path")
+			fi
 		fi
 	done
 
-	# Combine into a json array
+	# Convert bash arrays to JSON arrays
+	local cursor_db_paths_json
+	if [[ ${#found_cursor_db_paths[@]} -eq 0 ]]; then
+		cursor_db_paths_json="[]"
+	else
+		cursor_db_paths_json=$(printf '%s\n' "${found_cursor_db_paths[@]}" | jq -R . | jq -s .)
+	fi
+
+	local claude_code_db_paths_json
+	if [[ ${#found_claude_code_db_paths[@]} -eq 0 ]]; then
+		claude_code_db_paths_json="[]"
+	else
+		claude_code_db_paths_json=$(printf '%s\n' "${found_claude_code_db_paths[@]}" | jq -R . | jq -s .)
+	fi
+
 	DB_PATH_DATA=$(
 		jq -n \
-			--arg cursor_db_paths "${found_cursor_db_paths[*]}" \
-			--arg claude_code_db_paths "${found_claude_code_db_paths[*]}" \
+			--argjson cursor_db_paths "$cursor_db_paths_json" \
+			--argjson claude_code_db_paths "$claude_code_db_paths_json" \
 			'{
-			cursor: $cursor_db_paths | split("\n"), 
-			claude: $claude_code_db_paths | split("\n")
+			cursor: $cursor_db_paths,
+			claude: $claude_code_db_paths
 			}'
 	)
 
@@ -123,6 +152,12 @@ init_registry() {
 update_registry() {
 	[[ -z "${GANDALF_REGISTRY_FILE}" ]] && echo "Registry file is required" >&2 && return 1
 	[[ -z "${DB_PATH_DATA}" ]] && echo "Database folders JSON date is required" >&2 && return 1
+
+	if ! command -v jq >/dev/null 2>&1; then
+		echo "jq is required for registry updates but not installed" >&2
+		echo "Install jq from: https://github.com/jqlang/jq" >&2
+		return 1
+	fi
 
 	if ! echo "${DB_PATH_DATA}" >"${GANDALF_REGISTRY_FILE}"; then
 		echo "Failed to write registry file: ${GANDALF_REGISTRY_FILE}" >&2

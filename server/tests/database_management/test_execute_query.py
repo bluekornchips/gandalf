@@ -60,7 +60,7 @@ class TestQueryExecutor:
             conn.close()
 
             result = self.query_executor.execute_conversation_query(
-                temp_db.name, 50, "python"
+                temp_db.name, 50, ["python"]
             )
 
             assert "prompts" in result
