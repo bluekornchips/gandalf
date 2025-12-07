@@ -1,5 +1,5 @@
 {
-  "keywords": "database sqlite",
+  "search": "database sqlite",
   "limit": 10,
   "include_prompts": true,
   "include_generations": true

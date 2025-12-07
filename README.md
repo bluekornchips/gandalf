@@ -16,6 +16,7 @@ In the Lord of the Rings, Gandalf is a powerful wizard, but he is not omnipotent
 ### Prerequisites
 
 - Python 3.10+
+- Bash 4.0+ (for shell scripts)
 - Git
 - IDE: Cursor or Claude Code with MCP support
 
@@ -187,11 +188,26 @@ gandalf/
 ### Running Tests
 
 ```bash
-# Run server tests
-cd server && python -m pytest
+# Run all tests (Python and Shell)
+make test-all
 
-# Run CLI tests
-cd cli && ./tests/bin/install-tests.sh
+# Run Python tests only
+make test-py
+
+# Run shell tests only
+make test-sh
+
+# Run integration tests
+make test-integration
+
+# Run individual test files
+bats cli/tests/bin/install-tests.sh
+bats cli/tests/bin/manage-server-tests.sh
+bats cli/tests/bin/query-database-tests.sh
+bats cli/tests/bin/registry-tests.sh
+bats cli/tests/bin/uninstall-tests.sh
+bats cli/tests/gandalf-tests.sh
+bats cli/tests/integration/test_query_cli.sh
 ```
 
 ## License

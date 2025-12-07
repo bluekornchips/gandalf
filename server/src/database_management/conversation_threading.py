@@ -120,7 +120,7 @@ class ConversationThreader:
                     score += 1.0
 
                 if score > best_match_score:
-                    best_match_score = score
+                    best_match_score = int(score)
                     best_match_idx = j
 
             if best_match_idx is not None and best_match_score > 0.5:

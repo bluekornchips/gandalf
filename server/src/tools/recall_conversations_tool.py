@@ -10,11 +10,11 @@ from src.tools.base_tool import BaseTool
 from src.protocol.models import ToolResult
 from src.config.constants import (
     DEFAULT_INCLUDE_EDITOR_HISTORY,
+    DEFAULT_RESULTS_LIMIT,
     GANDALF_REGISTRY_FILE,
     INCLUDE_GENERATIONS_DEFAULT,
     INCLUDE_PROMPTS_DEFAULT,
-    MAX_CONVERSATIONS,
-    MAX_KEYWORDS,
+    MAX_PHRASES,
     MAX_RESULTS_LIMIT,
 )
 from src.database_management.recall_conversations import ConversationDatabaseManager
@@ -45,14 +45,15 @@ class RecallConversationsTool(BaseTool):
         return {
             "type": "object",
             "properties": {
-                "keywords": {
-                    "type": "string",
-                    "description": f"Keywords to search for in conversations (optional, max {MAX_KEYWORDS} words)",
+                "phrases": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": f"Exact phrases to search for in conversations (optional, max {MAX_PHRASES} phrases)",
                 },
                 "limit": {
                     "type": "integer",
-                    "description": f"Maximum number of conversations to return (default: {MAX_CONVERSATIONS})",
-                    "default": MAX_CONVERSATIONS,
+                    "description": f"Maximum number of results to return (default: {DEFAULT_RESULTS_LIMIT}, max: {MAX_RESULTS_LIMIT})",
+                    "default": DEFAULT_RESULTS_LIMIT,
                 },
                 "include_prompts": {
                     "type": "boolean",
@@ -78,8 +79,10 @@ class RecallConversationsTool(BaseTool):
 
         # Parse arguments
         args = arguments or {}
-        keywords = args.get("keywords", "")
-        limit = min(args.get("limit", MAX_CONVERSATIONS), MAX_RESULTS_LIMIT)
+        phrases_input = args.get("phrases", [])
+        # Limit to MAX_PHRASES and filter empty strings
+        phrases: List[str] = [p for p in phrases_input if p][:MAX_PHRASES]
+        results_limit = min(args.get("limit", DEFAULT_RESULTS_LIMIT), MAX_RESULTS_LIMIT)
         include_prompts = args.get("include_prompts", INCLUDE_PROMPTS_DEFAULT)
         # Always use the environment variable setting for include_generations
         include_generations = INCLUDE_GENERATIONS_DEFAULT
@@ -100,53 +103,41 @@ class RecallConversationsTool(BaseTool):
 
         # Find and process database files using database manager
         all_conversations, _, total_db_files, _ = (
-            self.db_manager.process_database_files(registry_data, limit, keywords)
+            self.db_manager.process_database_files(
+                registry_data, results_limit, phrases
+            )
         )
 
-        # Format results with better structure for agent chat
-        formatted_conversations = [
-            self.db_manager.format_conversation_entry(
+        all_entries: List[Dict[str, Any]] = []
+        for conv in all_conversations:
+            formatted = self.db_manager.format_conversation_entry(
                 conv,
                 include_prompts,
                 include_generations,
-                keywords,
+                phrases,
                 include_editor_history,
             )
-            for conv in all_conversations
-        ]
+            if formatted.get("status") == "success":
+                all_entries.extend(formatted.get("conversations", []))
 
-        # Apply smart filtering to reduce total conversations if needed
-        if len(formatted_conversations) > 32:  # Limit to 32 total conversations
-            # Sort by relevance and take top conversations
-            scored_conversations = []
-            for conv in formatted_conversations:
-                if conv.get("conversations"):
-                    relevances = [
-                        c.get("relevance", 0.0)
-                        for c in conv["conversations"]
-                        if c.get("relevance") is not None
-                    ]
-                    max_relevance = max(relevances) if relevances else 0.0
-                    scored_conversations.append((conv, max_relevance))
-                else:
-                    scored_conversations.append((conv, 0.0))
+        if phrases:
+            # Filter to only exact phrase matches (relevance > 0)
+            all_entries = [e for e in all_entries if e.get("relevance", 0) > 0]
+            all_entries.sort(key=lambda x: x.get("relevance", 0), reverse=True)
 
-            # Sort by relevance and take top conversations
-            scored_conversations.sort(key=lambda x: x[1], reverse=True)
-            formatted_conversations = [conv for conv, _ in scored_conversations[:32]]
+        if len(all_entries) > results_limit:
+            all_entries = all_entries[:results_limit]
 
-        # Simplified result structure
         result = {
             "status": "success",
-            "conversations": formatted_conversations,
+            "conversations": all_entries,
             "search_info": {
-                "keywords": keywords if keywords else None,
+                "phrases": phrases if phrases else None,
                 "databases_searched": total_db_files,
-                "total_found": len(formatted_conversations),
+                "total_found": len(all_entries),
             },
         }
 
-        # Create a more readable JSON output with better formatting
         formatted_output = json.dumps(result, indent=2, ensure_ascii=False)
 
         return [ToolResult(text=formatted_output)]

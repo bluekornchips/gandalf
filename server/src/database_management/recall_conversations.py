@@ -44,16 +44,18 @@ class ConversationDatabaseManager:
             self._conversation_threader = ConversationThreader()
         return self._conversation_threader
 
-    def build_search_conditions(self, keywords: str) -> tuple[List[str], List[str]]:
-        """Build SQL search conditions and parameters for keywords.
+    def build_search_conditions(
+        self, phrases: List[str]
+    ) -> tuple[List[str], List[str]]:
+        """Build SQL search conditions and parameters for phrases.
 
         Args:
-            keywords: Keywords to search for
+            phrases: List of phrases to search for
 
         Returns:
             Tuple of (search_conditions, search_params)
         """
-        return self.filter_builder.build_search_conditions(keywords)
+        return self.filter_builder.build_search_conditions(phrases)
 
     def create_conversation_summary(self, conversation: Dict[str, Any]) -> str:
         """Create a concise summary of a conversation entry.
@@ -67,59 +69,58 @@ class ConversationDatabaseManager:
         return self.output_formatter.create_conversation_summary(conversation)
 
     def score_conversation_relevance(
-        self, conversation: Dict[str, Any], keywords: str
+        self, conversation: Dict[str, Any], phrases: List[str]
     ) -> float:
-        """Score conversation relevance using keyword matching.
+        """Score conversation relevance using phrase matching.
 
         Args:
             conversation: Conversation data
-            keywords: Search keywords
+            phrases: List of search phrases
 
         Returns:
             Relevance score (0.0 to 1.0)
         """
-        return self.output_formatter.score_conversation_relevance(
-            conversation, keywords
-        )
+        return self.output_formatter.score_conversation_relevance(conversation, phrases)
 
     def extract_conversation_data(
-        self, db_path: str, limit: int = 50, keywords: str = ""
+        self, db_path: str, limit: int = 50, phrases: List[str] | None = None
     ) -> Dict[str, Any]:
-        """Extract conversation data from a database file with optional keyword filtering.
+        """Extract conversation data from a database file with optional phrase filtering.
 
         Args:
             db_path: Path to the database file
             limit: Maximum number of entries to return
-            keywords: Keywords to filter by (applied at SQL level)
+            phrases: List of phrases to filter by (applied at SQL level)
 
         Returns:
             Dictionary containing extracted conversation data
         """
-        return self.data_extractor.extract_conversation_data(db_path, limit, keywords)
+        return self.data_extractor.extract_conversation_data(db_path, limit, phrases)
 
     def process_database_files(
-        self, registry_data: Dict[str, Any], limit: int, keywords: str = ""
+        self,
+        registry_data: Dict[str, Any],
+        limit: int,
+        phrases: List[str] | None = None,
     ) -> tuple[List[Dict[str, Any]], List[str], int, Dict[str, int]]:
         """Process database files from registry and extract conversation data.
 
         Args:
             registry_data: The loaded registry data
             limit: Maximum number of conversations to return per database
-            keywords: Keywords to filter by
+            phrases: List of phrases to filter by
 
         Returns:
             Tuple of (all_conversations, found_paths, total_db_files, db_file_counts)
         """
-        return self.data_extractor.process_database_files(
-            registry_data, limit, keywords
-        )
+        return self.data_extractor.process_database_files(registry_data, limit, phrases)
 
     def format_conversation_entry(
         self,
         conv_data: Dict[str, Any],
         include_prompts: bool,
         include_generations: bool,
-        keywords: str = "",
+        phrases: List[str] | None = None,
         include_editor_history: bool = False,
     ) -> Dict[str, Any]:
         """Format a conversation entry with concise output.
@@ -128,7 +129,7 @@ class ConversationDatabaseManager:
             conv_data: Conversation data dictionary
             include_prompts: Whether to include prompts in output
             include_generations: Whether to include generations in output
-            keywords: Search keywords for relevance scoring
+            phrases: List of search phrases for relevance scoring
             include_editor_history: Whether to include editor UI history entries
 
         Returns:
@@ -139,7 +140,7 @@ class ConversationDatabaseManager:
             conv_data,
             include_prompts,
             include_generations,
-            keywords,
+            phrases,
             include_editor_history,
             recency_scorer,
         )

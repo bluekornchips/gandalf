@@ -57,7 +57,6 @@ get_version() {
 	return 0
 }
 
-
 # Handle query command with optional output formatting
 #
 # Inputs:
@@ -70,9 +69,9 @@ handle_query() {
 		echo "--query-from-file requires a file path" >&2
 		return 1
 	fi
-	query_file="$1"
+	local query_file="$1"
 	shift
-	
+
 	# Collect any additional arguments for the query script
 	local query_args=("$query_file")
 	while [[ $# -gt 0 ]]; do
@@ -91,7 +90,7 @@ handle_query() {
 			;;
 		esac
 	done
-	
+
 	if ! "${QUERY_DATABASE_SCRIPT}" "${query_args[@]}"; then
 		return 1
 	fi

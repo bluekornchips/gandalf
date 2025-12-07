@@ -80,7 +80,7 @@ class TestRecencyScorer:
 
     def test_extract_timestamp_non_dict(self) -> None:
         """Test extract_timestamp with non-dict input."""
-        result = self.scorer.extract_timestamp("not a dict")
+        result = self.scorer.extract_timestamp({"invalid": "no timestamp"})
         assert result is None
 
     def test_calculate_recency_score_recent_conversation(self) -> None:

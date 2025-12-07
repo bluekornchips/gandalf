@@ -3,8 +3,9 @@ Direct database query handler for Gandalf.
 """
 
 import json
+import re
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from src.database_management.recall_conversations import ConversationDatabaseManager
 from src.config.constants import GANDALF_REGISTRY_FILE
@@ -17,63 +18,73 @@ class QueryHandler:
     def __init__(self) -> None:
         self.db_manager = ConversationDatabaseManager()
 
-    def load_query_file(self, query_file_path: str) -> Dict[str, Any]:
-        """Load and parse a query file.
+    def find_matches(self, text: str, search: str, regex: bool = False) -> List[str]:
+        """Find all matches in text.
 
         Args:
-            query_file_path: Path to the query file
+            text: Text to search in
+            search: Search string or regex pattern
+            regex: If True, treat search as regex pattern
 
         Returns:
-            Parsed query data
+            List of matched strings
         """
+        if not search or not text:
+            return []
+
+        if regex:
+            try:
+                return [m.group() for m in re.finditer(search, text, re.IGNORECASE)]
+            except re.error:
+                return []
+
+        # Simple case-insensitive substring matching
+        matches = []
+        text_lower = text.lower()
+        search_lower = search.lower()
+        pos = 0
+        while True:
+            pos = text_lower.find(search_lower, pos)
+            if pos == -1:
+                break
+            matches.append(text[pos : pos + len(search)])
+            pos += 1
+        return matches
+
+    def load_query_file(self, query_file_path: str) -> Dict[str, Any]:
+        """Load and parse a query file."""
         try:
             with open(query_file_path, "r", encoding="utf-8") as f:
-                query_data: Dict[str, Any] = json.load(f)
-            return query_data
+                data: Dict[str, Any] = json.load(f)
+                return data
         except FileNotFoundError:
             raise FileNotFoundError(f"Query file not found: {query_file_path}")
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in query file: {e}")
-        except Exception as e:
-            raise RuntimeError(f"Error loading query file: {e}")
 
     def validate_query(self, query_data: Dict[str, Any]) -> None:
-        """Validate query data structure.
+        """Validate and normalize query data."""
+        if "search" not in query_data:
+            raise ValueError("Missing required field: search")
 
-        Args:
-            query_data: Query data to validate
+        if "limit" not in query_data:
+            raise ValueError("Missing required field: limit")
 
-        Raises:
-            ValueError: If query data is invalid
-        """
-        required_fields = ["keywords", "limit"]
-        for field in required_fields:
-            if field not in query_data:
-                raise ValueError(f"Missing required field: {field}")
-
-        if not isinstance(query_data["keywords"], str):
-            raise ValueError("Keywords must be a string")
+        if not isinstance(query_data["search"], str):
+            raise ValueError("Search must be a string")
 
         if not isinstance(query_data["limit"], int) or query_data["limit"] <= 0:
             raise ValueError("Limit must be a positive integer")
 
-        # Optional fields with defaults
-        if "include_prompts" not in query_data:
-            query_data["include_prompts"] = True
-        if "include_generations" not in query_data:
-            query_data["include_generations"] = False
+        # Defaults
+        query_data.setdefault("include_prompts", True)
+        query_data.setdefault("include_generations", False)
+        query_data.setdefault("count_matches", False)
+        query_data.setdefault("regex", False)
 
     def execute_query(self, query_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a database query.
-
-        Args:
-            query_data: Query parameters
-
-        Returns:
-            Query results
-        """
+        """Execute a database query."""
         try:
-            # Load registry data
             with open(GANDALF_REGISTRY_FILE, "r", encoding="utf-8") as f:
                 registry_data = json.load(f)
         except FileNotFoundError:
@@ -86,75 +97,83 @@ class QueryHandler:
             return {
                 "status": "error",
                 "error": "Registry file error",
-                "message": f"Error reading registry file: {str(e)}",
+                "message": str(e),
             }
 
-        # Extract query parameters
-        keywords = query_data.get("keywords", "")
-        limit = query_data.get("limit", 8)
         from src.config.constants import DEFAULT_INCLUDE_EDITOR_HISTORY
 
+        search = query_data.get("search", "")
+        limit = query_data.get("limit", 8)
         include_prompts = query_data.get("include_prompts", True)
         include_generations = query_data.get("include_generations", False)
         include_editor_history = query_data.get(
             "include_editor_history", DEFAULT_INCLUDE_EDITOR_HISTORY
         )
+        count_matches = query_data.get("count_matches", False)
+        regex = query_data.get("regex", False)
 
         try:
-            # Process database files
             all_conversations, found_paths, total_db_files, db_file_counts = (
-                self.db_manager.process_database_files(registry_data, limit, keywords)
+                self.db_manager.process_database_files(registry_data, limit, search)
             )
 
-            # Format results
-            formatted_conversations = [
-                self.db_manager.format_conversation_entry(
+            # Flatten conversation entries from all databases
+            all_entries: List[Dict[str, Any]] = []
+            for conv in all_conversations:
+                formatted = self.db_manager.format_conversation_entry(
                     conv,
                     include_prompts,
                     include_generations,
-                    keywords,
+                    search,
                     include_editor_history,
                 )
-                for conv in all_conversations
-            ]
+                if formatted.get("status") == "success":
+                    all_entries.extend(formatted.get("conversations", []))
 
-            # Apply smart filtering if needed
-            if len(formatted_conversations) > 32:
-                scored_conversations = []
-                for conv in formatted_conversations:
-                    if conv.get("conversations"):
-                        max_relevance = max(
-                            c.get("relevance", 0) for c in conv["conversations"]
-                        )
-                        scored_conversations.append((conv, max_relevance))
-                    else:
-                        scored_conversations.append((conv, 0))
+            total_match_count = 0
+            if count_matches and search:
+                for entry in all_entries:
+                    summary = entry.get("summary", "")
+                    matches = self.find_matches(summary, search, regex)
+                    entry["match_count"] = len(matches)
+                    total_match_count += len(matches)
+                    if matches and regex:
+                        entry["matched_texts"] = matches[:5]
 
-                scored_conversations.sort(key=lambda x: x[1], reverse=True)
-                formatted_conversations = [
-                    conv for conv, _ in scored_conversations[:32]
+            # Filter to only matching if search provided
+            if search:
+                all_entries = [
+                    entry
+                    for entry in all_entries
+                    if self.find_matches(entry.get("summary", ""), search, regex)
+                    or entry.get("match_count", 0) > 0
                 ]
 
-            # Build result
-            result = {
+            # Sort by relevance if search provided
+            if search:
+                all_entries.sort(key=lambda x: x.get("relevance", 0), reverse=True)
+
+            # Limit results to 32
+            if len(all_entries) > 32:
+                all_entries = all_entries[:32]
+
+            result: Dict[str, Any] = {
                 "status": "success",
                 "query": {
-                    "keywords": keywords,
+                    "search": search,
                     "limit": limit,
-                    "include_prompts": include_prompts,
-                    "include_generations": include_generations,
+                    "regex": regex,
                 },
                 "results": {
-                    "conversations": formatted_conversations,
-                    "search_info": {
-                        "keywords": keywords if keywords else None,
-                        "databases_searched": total_db_files,
-                        "total_found": len(formatted_conversations),
-                        "database_paths": found_paths,
-                        "database_counts": db_file_counts,
-                    },
+                    "conversations": all_entries,
+                    "total_conversations": len(all_entries),
+                    "databases_searched": total_db_files,
+                    "total_found": len(all_entries),
                 },
             }
+
+            if count_matches:
+                result["results"]["total_match_count"] = total_match_count
 
             return result
 
@@ -167,23 +186,11 @@ class QueryHandler:
             }
 
     def process_query_file(self, query_file_path: str) -> Dict[str, Any]:
-        """Process a query file and return results.
-
-        Args:
-            query_file_path: Path to the query file
-
-        Returns:
-            Query results
-        """
+        """Process a query file and return results."""
         try:
-            # Load and validate query
             query_data = self.load_query_file(query_file_path)
             self.validate_query(query_data)
-
-            # Execute query
-            result = self.execute_query(query_data)
-            return result
-
+            return self.execute_query(query_data)
         except Exception as e:
             return {
                 "status": "error",
@@ -198,11 +205,8 @@ def main() -> None:
         print("Usage: python query_handler.py <query_file_path>", file=sys.stderr)
         sys.exit(1)
 
-    query_file_path = sys.argv[1]
     handler = QueryHandler()
-    result = handler.process_query_file(query_file_path)
-
-    # Output result as JSON
+    result = handler.process_query_file(sys.argv[1])
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
 

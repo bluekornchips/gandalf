@@ -62,7 +62,7 @@ class TestConversationDataExtractor:
             conn.close()
 
             result = self.data_extractor.extract_conversation_data(
-                temp_db.name, 50, "python"
+                temp_db.name, 50, ["python"]
             )
 
             assert "prompts" in result
@@ -94,14 +94,14 @@ class TestConversationDataExtractor:
         assert total_files == 0
         assert file_counts == {}
 
-    def test_process_database_files_with_keywords(self) -> None:
-        """Test process_database_files with keywords parameter."""
+    def test_process_database_files_with_phrases(self) -> None:
+        """Test process_database_files with phrases parameter."""
         registry_data: Dict[str, Any] = {}
         conversations, paths, total_files, file_counts = (
-            self.data_extractor.process_database_files(registry_data, 50, "python")
+            self.data_extractor.process_database_files(registry_data, 50, ["python"])
         )
 
-        # Should handle keywords parameter gracefully even with empty registry
+        # Should handle phrases parameter gracefully even with empty registry
         assert conversations == []
         assert paths == []
         assert total_files == 0

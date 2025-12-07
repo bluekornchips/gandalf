@@ -129,6 +129,8 @@ execute_rpc() {
 	local temp_stdout temp_stderr
 	temp_stdout=$(mktemp)
 	temp_stderr=$(mktemp)
+	chmod 0600 "$temp_stdout" "$temp_stderr"
+	trap 'rm -f "$temp_stdout" "$temp_stderr"' EXIT ERR
 
 	# Use timeout to prevent hanging and ensure proper process termination
 	timeout "$TEST_TIMEOUT_DEFAULT" bash -c "
@@ -142,6 +144,7 @@ execute_rpc() {
 	full_output=$(cat "$temp_stdout")
 
 	rm -f "$temp_stdout" "$temp_stderr"
+	trap - EXIT ERR
 
 	if [[ $exit_code -ne 0 ]]; then
 		return 1
@@ -149,6 +152,8 @@ execute_rpc() {
 
 	local temp_file response
 	temp_file=$(mktemp)
+	chmod 0600 "$temp_file"
+	trap 'rm -f "$temp_file"' EXIT ERR
 	echo "$full_output" >"$temp_file"
 
 	response=""
@@ -166,6 +171,7 @@ execute_rpc() {
 	done <"$temp_file"
 
 	rm -f "$temp_file"
+	trap - EXIT ERR
 	echo "$response"
 }
 
