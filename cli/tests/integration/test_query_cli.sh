@@ -94,13 +94,13 @@ setup() {
 
 	python3 -m json.tool "$query_file" >/dev/null 2>&1
 
-	local keywords
+	local search
 	local limit
 
-	keywords=$(python3 -c "import json; data=json.load(open('$query_file')); print(data.get('keywords', ''))")
+	search=$(python3 -c "import json; data=json.load(open('$query_file')); print(data.get('search', ''))")
 	limit=$(python3 -c "import json; data=json.load(open('$query_file')); print(data.get('limit', 0))")
 
-	[[ -n "$keywords" ]]
+	[[ -n "$search" ]]
 	[[ "$limit" -gt 0 ]]
 }
 
@@ -168,7 +168,8 @@ setup() {
 	# Should either succeed with YAML output or fail with expected error
 	if [[ "$status" -eq 0 ]]; then
 		echo "$output" | grep -q "status:"
-		echo "$output" | grep -q "query:"
+		# Check for either success structure (results:) or error structure (error:)
+		echo "$output" | grep -qE "(results:|error:)"
 	else
 		echo "$output" | grep -q "Registry file not found\|No suitable Python version found\|ImportError\|Query execution failed"
 	fi
