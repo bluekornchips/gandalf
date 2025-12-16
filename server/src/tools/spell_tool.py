@@ -265,7 +265,9 @@ class SpellTool(BaseTool):
 
         spell_name = arguments.get("spell_name")
         if not spell_name or not isinstance(spell_name, str):
-            return [ToolResult(text="Error: spell_name is required and must be a string")]
+            return [
+                ToolResult(text="Error: spell_name is required and must be a string")
+            ]
 
         # Check if tool is registered
         if not self._is_tool_registered(spell_name):

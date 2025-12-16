@@ -384,6 +384,12 @@ main() {
 		local timeout=""
 
 		while [[ $# -gt 0 ]]; do
+			# Skip empty arguments
+			if [[ -z "$1" ]]; then
+				shift || true
+				continue
+			fi
+
 			case "$1" in
 			--path)
 				path="$2"

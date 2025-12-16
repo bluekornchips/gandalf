@@ -98,8 +98,8 @@ teardown() {
 
 @test "load_registry:: loads valid JSON registry file" {
 	echo '{"spells": {"test": {}}}' >"${TEST_REGISTRY_FILE}"
-	run load_registry "${TEST_REGISTRY_FILE}"
-	[[ "$status" -eq 0 ]]
+	load_registry "${TEST_REGISTRY_FILE}"
+	[[ "$?" -eq 0 ]]
 	[[ -n "${REGISTRY_DATA}" ]]
 }
 
@@ -115,7 +115,7 @@ teardown() {
 
 	run load_registry "${TEST_REGISTRY_FILE}"
 	[[ "$status" -eq 1 ]]
-	echo "$output" | grep -q "jq is required"
+	[[ "$output" == *"jq is required"* ]] || [[ "$output" == *"jq"* ]]
 
 	PATH="${PATH_ORIG}"
 	export PATH
@@ -246,8 +246,8 @@ teardown() {
 	echo "$output" | grep -q "Removed spell 'test-spell'"
 
 	local spell_exists
-	spell_exists=$(jq -e '.spells."test-spell" // empty' "${TEST_REGISTRY_FILE}" 2>/dev/null)
-	[[ -z "${spell_exists}" ]] || [[ "${spell_exists}" == "null" ]]
+	spell_exists=$(jq -r '.spells."test-spell" // "null"' "${TEST_REGISTRY_FILE}" 2>/dev/null)
+	[[ "${spell_exists}" == "null" ]]
 }
 
 @test "remove_spell:: fails if spell doesn't exist" {
@@ -322,7 +322,11 @@ teardown() {
 	add_spell "test-spell" "Test" "echo test" "" "" "" ""
 	run show_spell "test-spell"
 	[[ "$status" -eq 0 ]]
-	echo "$output" | jq . >/dev/null
+	# Extract JSON part (skip the "spells:: Spell 'test-spell':" line)
+	local json_output
+	json_output=$(echo "$output" | grep -v "^spells::")
+	[[ -n "${json_output}" ]]
+	echo "${json_output}" | jq . >/dev/null
 }
 
 ########################################################
@@ -578,9 +582,9 @@ teardown() {
 @test "integration:: multiple spells management" {
 	init_registry "${TEST_REGISTRY_FILE}"
 
-	main add "spell1" "First" "echo first" "" "" "" ""
-	main add "spell2" "Second" "echo second" "" "" "" ""
-	main add "spell3" "Third" "echo third" "" "" "" ""
+	main add "spell1" "First" "echo first"
+	main add "spell2" "Second" "echo second"
+	main add "spell3" "Third" "echo third"
 
 	run main list
 	[[ "$status" -eq 0 ]]

@@ -14,5 +14,6 @@ venv
 __pycache__
 .ruff_cache
 build
+.__mypy_cache__
 
 .DS_Store

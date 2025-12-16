@@ -4,18 +4,13 @@ import asyncio
 import json
 import tempfile
 from pathlib import Path
-from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, patch, mock_open
 
 import pytest
 
 from src.tools.spell_tool import SpellTool
-from src.protocol.models import ToolResult
 from src.config.constants import (
-    GANDALF_REGISTRY_FILE,
     SPELLS_REGISTRY_KEY,
-    DEFAULT_ALLOWED_PATHS,
-    DEFAULT_TIMEOUT_SECONDS,
     MAX_TIMEOUT_SECONDS,
 )
 
@@ -394,7 +389,9 @@ class TestSpellTool:
         mock_process.communicate = AsyncMock(return_value=(b"output", b""))
         mock_process.returncode = 0
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=mock_process
+        ) as mock_exec:
             spell_config = {"command": "echo test", "timeout": 30}
             arguments = {"key1": "value1", "key2": "value2"}
             await self.tool._execute_spell(spell_config, arguments)
@@ -414,7 +411,9 @@ class TestSpellTool:
         mock_process.communicate = AsyncMock(return_value=(b"output", b""))
         mock_process.returncode = 0
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=mock_process
+        ) as mock_exec:
             spell_config = {"command": "echo test", "timeout": 30}
             arguments = {"data": {"nested": "value"}, "list": [1, 2, 3]}
             await self.tool._execute_spell(spell_config, arguments)
@@ -433,7 +432,9 @@ class TestSpellTool:
         mock_process.communicate = AsyncMock(return_value=(b"output", b""))
         mock_process.returncode = 0
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=mock_process
+        ) as mock_exec:
             spell_config = {"command": "echo test", "path": "/some/dir", "timeout": 30}
             await self.tool._execute_spell(spell_config, None)
 
@@ -528,7 +529,9 @@ class TestSpellTool:
     @pytest.mark.asyncio
     async def test_execute_invalid_config(self) -> None:
         """Test execute method with invalid spell configuration."""
-        self.tool._spells = {"test_spell": {"name": "test_spell"}}  # Missing required fields
+        self.tool._spells = {
+            "test_spell": {"name": "test_spell"}
+        }  # Missing required fields
         result = await self.tool.execute({"spell_name": "test_spell"})
         assert len(result) == 1
         assert "Invalid spell configuration" in result[0].text
@@ -659,14 +662,16 @@ class TestSpellTool:
         }
         self.tool._spells = {"test_spell": spell_config}
 
-        with patch.object(self.tool, "_execute_spell", side_effect=RuntimeError("Unexpected")):
+        with patch.object(
+            self.tool, "_execute_spell", side_effect=RuntimeError("Unexpected")
+        ):
             result = await self.tool.execute({"spell_name": "test_spell"})
             assert len(result) == 1
             assert "error" in result[0].text.lower()
 
     def test_timeout_clamping(self) -> None:
         """Test that timeout values are clamped to maximum."""
-        spell_config = {
+        {
             "command": "echo test",
             "timeout": MAX_TIMEOUT_SECONDS + 100,
         }
