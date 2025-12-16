@@ -2,52 +2,50 @@
 
 ## Overview
 
-Spells allow users to register external API tools and scripts that can be executed through the Gandalf MCP server. Spells are stored in the registry.json file under the `spells` key.
+Spells allow users to register external API tools and scripts that can be executed through the Gandalf MCP server. Spells are defined as YAML files in the `spells/` directory at the project root. Simply create a `{spell_name}.yaml` file and the spell will be automatically discovered and available without server restart.
 
 ## Schema Definition
 
 ### Spell Configuration
 
-Each spell is a JSON object with the following structure:
+Each spell is a YAML file with the following structure:
 
-```json
-{
-  "spells": {
-    "spell_name": {
-      "name": "spell_name",
-      "description": "Human-readable description of what the spell does",
-      "command": "command to execute",
-      "path": "/optional/working/directory",
-      "allowed_paths": ["/path1", "/path2"],
-      "allowed_commands": ["curl", "python3"],
-      "timeout": 30
-    }
-  }
-}
+```yaml
+name: spell_name
+description: Human-readable description of what the spell does
+command: command to execute
+flags:
+  - flag1
+  - flag2
+paths:
+  - /path1
+  - /path2
+timeout: 30
 ```
+
+File Location: `spells/{spell_name}.yaml` (filename must match spell name)
 
 ### Required Fields
 
-- **name** (string): Unique identifier for the spell. Must match the key in the spells object.
-- **description** (string): Human-readable description of the spell's purpose.
-- **command** (string): Command to execute. Can include arguments and flags.
+- name (string): Unique identifier for the spell. Must match the filename (without extension).
+- description (string): Human-readable description of the spell's purpose.
+- command (string): Base command to execute. Each spell handles one command with strict usage.
 
 ### Optional Fields
 
-- **path** (string): Working directory for command execution. If specified, must be in `allowed_paths`.
-- **allowed_paths** (array of strings): List of permitted paths for the spell. If `path` is specified, it must be in this list. Empty by default (no paths allowed).
-- **allowed_commands** (array of strings): List of permitted base commands. The command's base (first word) must match one of these. Empty by default (no commands allowed).
-- **timeout** (integer): Execution timeout in seconds. Default: 30, Maximum: 300.
+- flags (array of strings): List of permitted flags and arguments for the command. Empty array means no flags allowed. Each command requires its own handling for strict usage.
+- paths (array of strings): List of permitted paths where the command can execute. Empty array means no paths allowed.
+- timeout (integer): Execution timeout in seconds. Default: 30, Maximum: 300.
 
 ## Security Model
 
 ### Path Validation
 
-If a spell specifies a `path`, it must be included in the `allowed_paths` list. Paths are resolved to absolute paths before comparison.
+Commands can only execute within paths specified in the `paths` array. Paths are resolved to absolute paths before comparison. If `paths` is empty, execution is not permitted in any path.
 
-### Command Validation
+### Flag Validation
 
-If `allowed_commands` is specified, the base command (first word) must match one of the allowed commands.
+Only flags specified in the `flags` array are permitted. Each command requires its own handling for strict usage validation. If `flags` is empty, no flags or arguments are allowed beyond the base command.
 
 ### Execution Environment
 
@@ -60,94 +58,79 @@ Spell arguments are passed as environment variables prefixed with `SPELL_ARG_`:
 
 ### Example 1: Simple API Call
 
-```bash
-cli/lib/spells.sh add weather-api "Get weather data" \
-  "curl -X GET https://api.weather.com/v1/current" \
-  --allowed-commands "curl"
+Create `spells/weather-api.yaml`:
+
+```yaml
+name: weather-api
+description: Get weather data using curl
+command: curl
+flags:
+  - -X
+  - GET
+  - -H
+paths: []
+timeout: 30
 ```
 
 ### Example 2: Script Execution
 
-```bash
-cli/lib/spells.sh add my-script "Run custom script" \
-  "./scripts/my-tool.sh" \
-  --path "/home/user/scripts" \
-  --allowed-paths "/home/user/scripts" \
-  --allowed-commands "bash,sh" \
-  --timeout 60
+Create `spells/my-script.yaml`:
+
+```yaml
+name: my-script
+description: Run custom script
+command: bash
+flags:
+  - -c
+paths:
+  - /home/user/scripts
+timeout: 60
 ```
 
 ### Example 3: Python Script
 
-```bash
-cli/lib/spells.sh add data-processor "Process data files" \
-  "python3 /home/user/tools/process.py" \
-  --path "/home/user/tools" \
-  --allowed-paths "/home/user/tools" \
-  --allowed-commands "python3" \
-  --timeout 120
+Create `spells/data-processor.yaml`:
+
+```yaml
+name: data-processor
+description: Process data files with Python
+command: python3
+flags:
+  - -u
+paths:
+  - /home/user/tools
+timeout: 120
 ```
 
-## Registry File Structure
+### Example 4: OS Command (pwd)
 
-The registry.json file structure:
+Create `spells/pwd.yaml`:
 
-```json
-{
-  "cursor": [...],
-  "claude": [...],
-  "spells": {
-    "spell_name": {
-      "name": "spell_name",
-      "description": "...",
-      "command": "...",
-      "path": "...",
-      "allowed_paths": [...],
-      "allowed_commands": [...],
-      "timeout": 30
-    }
-  }
-}
+```yaml
+name: pwd
+description: Print working directory
+command: pwd
+flags: []
+paths:
+  - ${HOME}
+timeout: 10
 ```
 
-## CLI Commands
+This example demonstrates a spell for the `pwd` command restricted to the home directory. Environment variables like `${HOME}` are automatically expanded. Each command requires its own spell definition for strict usage control.
 
-### Add Spell
+## File Structure
 
-```bash
-cli/lib/spells.sh add <name> <description> <command> [options]
+Spells are stored as individual YAML files in the `spells/` directory:
+
+```
+project-root/
+  spells/
+    os-commands.yaml
+    weather-api.yaml
+    my-script.yaml
 ```
 
-Options:
-
-- `--path <path>`: Working directory
-- `--allowed-paths <path1,path2,...>`: Comma-separated allowed paths
-- `--allowed-commands <cmd1,cmd2,...>`: Comma-separated allowed commands
-- `--timeout <seconds>`: Execution timeout
-
-### Remove Spell
-
-```bash
-cli/lib/spells.sh remove <name>
-```
-
-### List Spells
-
-```bash
-cli/lib/spells.sh list
-```
-
-### Show Spell Details
-
-```bash
-cli/lib/spells.sh show <name>
-```
-
-### Validate Spell
-
-```bash
-cli/lib/spells.sh validate <name>
-```
+Each YAML file defines one spell. The filename (without extension) should match the spell name.
 
 ## MCP Tool Usage
 
@@ -176,11 +159,11 @@ Arguments are passed to the spell as environment variables:
 
 ## Best Practices
 
-1. **Security**: Always specify `allowed_paths` and `allowed_commands` to restrict spell execution.
-2. **Timeouts**: Set appropriate timeouts based on expected execution time.
-3. **Descriptions**: Provide clear, descriptive spell descriptions.
-4. **Validation**: Use `validate` command before relying on a spell.
-5. **Testing**: Test spells manually before registering them.
+1. Security: Always specify `paths` and `flags` arrays to restrict spell execution. Each command requires its own spell definition for strict usage.
+2. Timeouts: Set appropriate timeouts based on expected execution time.
+3. Descriptions: Provide clear, descriptive spell descriptions.
+4. One Command Per Spell: Each spell should handle only one command with strict flag and path validation.
+5. Testing: Test spells manually before relying on them.
 
 ## Error Handling
 
@@ -188,7 +171,7 @@ The spell tool returns structured error messages:
 
 - Spell not registered
 - Invalid configuration
-- Path/command not permitted
+- Path or command not permitted
 - Execution timeout
 - Execution failure
 

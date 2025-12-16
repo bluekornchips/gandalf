@@ -1,0 +1,7 @@
+name: os-commands
+description: Run basic OS commands (pwd, ls, whoami) in home directory
+command: pwd
+flags: []
+paths:
+  - ${HOME}
+timeout: 10

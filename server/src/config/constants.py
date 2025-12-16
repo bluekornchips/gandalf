@@ -61,7 +61,9 @@ DEFAULT_INCLUDE_EDITOR_HISTORY = (
 )
 
 # Spell system constants
-SPELLS_REGISTRY_KEY = "spells"  # Key in registry.json for spells
+SPELLS_DIRECTORY = (
+    "spells"  # Directory name for spell YAML files (relative to project root)
+)
 DEFAULT_ALLOWED_PATHS: list[str] = []  # Empty by default, must be explicitly configured
 DEFAULT_TIMEOUT_SECONDS = 30  # Default timeout for spell execution
 MAX_TIMEOUT_SECONDS = 300  # Maximum allowed timeout
