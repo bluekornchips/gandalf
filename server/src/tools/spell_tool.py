@@ -364,6 +364,10 @@ class SpellTool(BaseTool):
         return {
             "type": "object",
             "properties": {
+                "list": {
+                    "type": "boolean",
+                    "description": "When true, return the list of available spells",
+                },
                 "spell_name": {
                     "type": "string",
                     "description": "Name of the spell to cast (matches YAML filename)",
@@ -373,24 +377,49 @@ class SpellTool(BaseTool):
                     "description": "Arguments to pass to the spell (available as environment variables)",
                 },
             },
-            "required": ["spell_name"],
+            "required": [],
         }
 
     async def execute(self, arguments: Dict[str, Any] | None) -> List[ToolResult]:
         """Execute the spell tool."""
         log_info("Spell tool called")
 
-        # Reload spells on each execution to pick up new files
-        self._load_spells()
-
         if not arguments:
             return [ToolResult(text="Error: No arguments provided")]
+
+        # List available spells without requiring spell_name
+        if arguments.get("list"):
+            self._load_spells()
+            spells_summary = []
+            for name, config in sorted(self._spells.items()):
+                spells_summary.append(
+                    {
+                        "name": name,
+                        "description": config.get("description", ""),
+                        "paths": config.get("paths", []),
+                    }
+                )
+
+            return [
+                ToolResult(
+                    text=json.dumps(
+                        {"status": "success", "spells": spells_summary},
+                        indent=2,
+                        ensure_ascii=False,
+                    )
+                )
+            ]
 
         spell_name = arguments.get("spell_name")
         if not spell_name or not isinstance(spell_name, str):
             return [
                 ToolResult(text="Error: spell_name is required and must be a string")
             ]
+
+        previous_spells = self._spells.copy()
+        self._load_spells()
+        if not self._is_spell_registered(spell_name) and spell_name in previous_spells:
+            self._spells = previous_spells
 
         # Check if spell is registered
         if not self._is_spell_registered(spell_name):

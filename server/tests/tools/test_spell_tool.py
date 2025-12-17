@@ -32,9 +32,10 @@ class TestSpellTool:
         schema = self.tool.input_schema
         assert schema["type"] == "object"
         assert "properties" in schema
+        assert "list" in schema["properties"]
         assert "spell_name" in schema["properties"]
         assert "arguments" in schema["properties"]
-        assert schema["required"] == ["spell_name"]
+        assert schema["required"] == []
 
     def test_load_spells_directory_not_found(self) -> None:
         """Test loading spells when spells directory doesn't exist."""
@@ -270,6 +271,41 @@ class TestSpellTool:
         is_valid, error_msg = self.tool._validate_spell_config(config)
         assert is_valid is False
         assert "command" in error_msg.lower()
+
+    @pytest.mark.asyncio
+    async def test_list_spells(self) -> None:
+        """Test listing available spells."""
+        self.tool._spells = {
+            "test_spell": {
+                "name": "test_spell",
+                "description": "Test",
+                "command": "echo test",
+                "paths": ["/tmp"],
+                "flags": [],
+            }
+        }
+
+        with patch.object(self.tool, "_load_spells", lambda: None):
+            result = await self.tool.execute({"list": True})
+
+        assert len(result) == 1
+        data = json.loads(result[0].text)
+        assert data["status"] == "success"
+        assert data["spells"][0]["name"] == "test_spell"
+        assert data["spells"][0]["description"] == "Test"
+
+    @pytest.mark.asyncio
+    async def test_list_spells_empty(self) -> None:
+        """Test listing spells when none are available."""
+        self.tool._spells = {}
+
+        with patch.object(self.tool, "_load_spells", lambda: None):
+            result = await self.tool.execute({"list": True})
+
+        assert len(result) == 1
+        data = json.loads(result[0].text)
+        assert data["status"] == "success"
+        assert data["spells"] == []
 
     @pytest.mark.asyncio
     async def test_execute_spell_success(self) -> None:
