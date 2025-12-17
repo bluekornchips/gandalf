@@ -324,13 +324,18 @@ manage_server() {
 		;;
 	-h | --help)
 		usage
+		return 0
 		;;
 	*)
-		echo "Unknown command: $command" >&2
-		echo "Use '$(basename "$0") --help' for usage information" >&2
+		echo "manage_server:: Unknown command: $command" >&2
+		echo "manage_server:: Use '$(basename "$0") --help' for usage information" >&2
 		return 1
 		;;
 	esac
+
+	return $?
 }
 
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; 
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	manage_server "$@"
+fi

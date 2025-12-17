@@ -196,7 +196,7 @@ mock_server_not_running() {
 
 	run start_server
 	[[ "$status" -eq 1 ]]
-	echo "$output" | grep -q "GANDALF_ROOT not set"
+	echo "$output" | grep -q "GANDALF_ROOT is not set"
 }
 
 @test "start_server:: fails when server file not found" {
