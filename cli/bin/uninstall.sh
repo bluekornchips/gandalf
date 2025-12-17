@@ -61,13 +61,28 @@ remove_editor_config() {
 	config_file="$1"
 	editor_name="$2"
 
+	if [[ -z "$config_file" ]]; then
+		echo "remove_editor_config:: config_file is required" >&2
+		return 1
+	fi
+
+	if [[ -z "$editor_name" ]]; then
+		echo "remove_editor_config:: editor_name is required" >&2
+		return 1
+	fi
+
+	if ! command -v jq >/dev/null 2>&1; then
+		echo "remove_editor_config:: jq is required but not installed" >&2
+		return 1
+	fi
+
 	if [[ ! -f "$config_file" ]]; then
-		echo "$editor_name MCP configuration not found: $config_file"
+		echo "remove_editor_config:: $editor_name MCP configuration not found: $config_file"
 		return 0
 	fi
 
 	if ! jq -e '.mcpServers.gandalf' "$config_file" >/dev/null 2>&1; then
-		echo "$editor_name MCP configuration does not contain gandalf config: $config_file"
+		echo "remove_editor_config:: $editor_name MCP configuration does not contain gandalf config: $config_file"
 		return 0
 	fi
 
@@ -75,7 +90,7 @@ remove_editor_config() {
 	existing_content="$(cat "$config_file")"
 
 	jq 'del(.mcpServers.gandalf)' <<<"$existing_content" >"$config_file"
-	echo "$editor_name MCP configuration updated: $config_file"
+	echo "remove_editor_config:: $editor_name MCP configuration updated: $config_file"
 
 	return 0
 }
@@ -89,14 +104,14 @@ remove_editor_config() {
 # - Removes Claude Code MCP server for current project
 remove_claude_code_mcp() {
 	if ! command -v claude >/dev/null 2>&1; then
-		echo "Claude Code CLI not found, skipping Claude Code MCP removal"
+		echo "remove_claude_code_mcp:: Claude Code CLI not found, skipping Claude Code MCP removal"
 		return 0
 	fi
 
 	if claude mcp remove gandalf 2>/dev/null; then
-		echo "Claude Code MCP configuration removed successfully"
+		echo "remove_claude_code_mcp:: Claude Code MCP configuration removed successfully"
 	else
-		echo "Failed to remove Claude Code MCP configuration. This is optional and can be done manually later" >&2
+		echo "remove_claude_code_mcp:: Failed to remove Claude Code MCP configuration. This is optional and can be done manually later" >&2
 	fi
 
 	return 0
@@ -110,13 +125,18 @@ remove_claude_code_mcp() {
 # Side Effects:
 # - Removes $GANDALF_HOME directory and all contents
 remove_gandalf_home() {
+	if [[ -z "${GANDALF_HOME:-}" ]]; then
+		echo "remove_gandalf_home:: GANDALF_HOME is not set" >&2
+		return 1
+	fi
+
 	if [[ ! -d "$GANDALF_HOME" ]]; then
-		echo "Gandalf home directory not found: $GANDALF_HOME"
+		echo "remove_gandalf_home:: Gandalf home directory not found: $GANDALF_HOME"
 		return 0
 	fi
 
 	rm -rf "$GANDALF_HOME"
-	echo "Removed Gandalf home directory: $GANDALF_HOME"
+	echo "remove_gandalf_home:: Removed Gandalf home directory: $GANDALF_HOME"
 
 	return 0
 }
@@ -129,16 +149,21 @@ remove_gandalf_home() {
 # Side Effects:
 # - Removes .venv directory from GANDALF_ROOT
 remove_python_env() {
+	if [[ -z "${GANDALF_ROOT:-}" ]]; then
+		echo "remove_python_env:: GANDALF_ROOT is not set" >&2
+		return 1
+	fi
+
 	local venv_dir
 	venv_dir="${GANDALF_ROOT}/.venv"
 
 	if [[ ! -d "$venv_dir" ]]; then
-		echo "Python virtual environment not found: $venv_dir"
+		echo "remove_python_env:: Python virtual environment not found: $venv_dir"
 		return 0
 	fi
 
 	rm -rf "$venv_dir"
-	echo "Removed Python virtual environment: $venv_dir"
+	echo "remove_python_env:: Removed Python virtual environment: $venv_dir"
 
 	return 0
 }
@@ -172,19 +197,19 @@ Gandalf Uninstallation
 
 EOF
 
-	if [[ -z "${GANDALF_ROOT}" ]]; then
-		echo "GANDALF_ROOT is not set" >&2
+	if [[ -z "${GANDALF_ROOT:-}" ]]; then
+		echo "uninstall:: GANDALF_ROOT is not set" >&2
 		return 1
 	fi
 
 	GANDALF_HOME="${DEFAULT_GANDALF_HOME:-${DEFAULT_GANDALF_HOME}}"
 
 	if [[ -z "${FORCE_UNINSTALL}" ]]; then
-		echo "This will remove Gandalf MCP Server and all its configurations."
-		echo "Are you sure you want to continue? (y/N)"
+		echo "uninstall:: This will remove Gandalf MCP Server and all its configurations."
+		echo "uninstall:: Are you sure you want to continue? (y/N)"
 		read -r response
 		if [[ "$response" != "y" && "$response" != "Y" ]]; then
-			echo "Uninstallation cancelled."
+			echo "uninstall:: Uninstallation cancelled."
 			return 0
 		fi
 	fi
@@ -201,7 +226,7 @@ EOF
 		return 1
 	fi
 
-	echo "Gandalf MCP Server has been successfully uninstalled."
+	echo "uninstall:: Gandalf MCP Server has been successfully uninstalled."
 
 	return 0
 }

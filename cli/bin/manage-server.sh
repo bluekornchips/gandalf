@@ -30,7 +30,6 @@ EOF
 
 # Defaults
 DEFAULT_GANDALF_HOME="${HOME}/.gandalf"
-DEFAULT_SERVER_PID_FILE="$GANDALF_HOME/server.pid"
 # Safety guard, set it here.
 GANDALF_HOME="${GANDALF_HOME:-$DEFAULT_GANDALF_HOME}"
 
@@ -42,6 +41,11 @@ GANDALF_HOME="${GANDALF_HOME:-$DEFAULT_GANDALF_HOME}"
 # Returns:
 # - 0 always, prints PID if found, empty if not
 get_server_pid() {
+	if [[ -z "${GANDALF_HOME:-}" ]]; then
+		echo "get_server_pid:: GANDALF_HOME is not set" >&2
+		return 1
+	fi
+
 	local pid_file="$GANDALF_HOME/server.pid"
 	if [[ -f "$pid_file" ]]; then
 		cat "$pid_file"
@@ -77,8 +81,13 @@ is_server_running() {
 # Returns:
 # - 0 if server started successfully, 1 if failed
 start_server() {
-	if [[ -z "${GANDALF_ROOT}" ]]; then
-		echo "GANDALF_ROOT not set" >&2
+	if [[ -z "${GANDALF_ROOT:-}" ]]; then
+		echo "start_server:: GANDALF_ROOT is not set" >&2
+		return 1
+	fi
+
+	if [[ -z "${GANDALF_HOME:-}" ]]; then
+		echo "start_server:: GANDALF_HOME is not set" >&2
 		return 1
 	fi
 
@@ -90,17 +99,17 @@ start_server() {
 	local current_pid
 	current_pid=$(get_server_pid)
 	if [[ -n "$current_pid" ]] && is_server_running "$current_pid"; then
-		echo "Server is already running (PID: $current_pid)"
+		echo "start_server:: Server is already running (PID: $current_pid)"
 		return 0
 	fi
 
 	if [[ ! -f "$server_path" ]]; then
-		echo "Server file not found: $server_path" >&2
+		echo "start_server:: Server file not found: $server_path" >&2
 		return 1
 	fi
 
 	if [[ ! -f "$python_path" ]]; then
-		echo "Python executable not found: $python_path" >&2
+		echo "start_server:: Python executable not found: $python_path" >&2
 		return 1
 	fi
 
@@ -116,10 +125,10 @@ start_server() {
 	sleep 1
 
 	if is_server_running "$server_pid"; then
-		echo "Server started successfully (PID: $server_pid)"
+		echo "start_server:: Server started successfully (PID: $server_pid)"
 		return 0
 	else
-		echo "Failed to start server" >&2
+		echo "start_server:: Failed to start server" >&2
 		rm -f "$pid_file"
 		return 1
 	fi
@@ -138,12 +147,12 @@ stop_server() {
 	current_pid=$(get_server_pid)
 
 	if [[ -z "$current_pid" ]]; then
-		echo "Server is not running"
+		echo "stop_server:: Server is not running"
 		return 0
 	fi
 
 	if ! is_server_running "$current_pid"; then
-		echo "Server is not running"
+		echo "stop_server:: Server is not running"
 		rm -f "$pid_file"
 		return 0
 	fi
@@ -164,10 +173,10 @@ stop_server() {
 	rm -f "$pid_file"
 
 	if is_server_running "$current_pid"; then
-		echo "Failed to stop server" >&2
+		echo "stop_server:: Failed to stop server" >&2
 		return 1
 	else
-		echo "Server stopped"
+		echo "stop_server:: Server stopped"
 		return 0
 	fi
 }
@@ -184,7 +193,7 @@ show_pid() {
 	current_pid=$(get_server_pid)
 
 	if [[ -z "$current_pid" ]]; then
-		echo "No PID file found" >&2
+		echo "show_pid:: No PID file found" >&2
 		return 1
 	fi
 
@@ -200,8 +209,8 @@ show_pid() {
 # Returns:
 # - 0 if server works correctly, 1 if not
 test_server() {
-	if [[ -z "${GANDALF_ROOT}" ]]; then
-		echo "GANDALF_ROOT not set" >&2
+	if [[ -z "${GANDALF_ROOT:-}" ]]; then
+		echo "test_server:: GANDALF_ROOT is not set" >&2
 		return 1
 	fi
 
@@ -209,12 +218,12 @@ test_server() {
 	local python_path="$GANDALF_ROOT/.venv/bin/python3"
 
 	if [[ ! -f "$server_path" ]]; then
-		echo "Server file not found: $server_path" >&2
+		echo "test_server:: Server file not found: $server_path" >&2
 		return 1
 	fi
 
 	if [[ ! -f "$python_path" ]]; then
-		echo "Python executable not found: $python_path" >&2
+		echo "test_server:: Python executable not found: $python_path" >&2
 		return 1
 	fi
 
@@ -225,11 +234,12 @@ test_server() {
 	result=$(echo "$test_input" | GANDALF_HOME="$GANDALF_HOME" "$python_path" "$server_path" 2>&1)
 
 	if ! echo "$result" | grep -q '"result"'; then
-		echo -e "Server test failed.\nResponse: $result"
+		echo "test_server:: Server test failed." >&2
+		echo "test_server:: Response: $result" >&2
 		return 1
 	fi
 
-	echo "Server responds to initialize request, server is working correctly"
+	echo "test_server:: Server responds to initialize request, server is working correctly"
 
 	return 0
 }
@@ -246,10 +256,10 @@ show_status() {
 	current_pid=$(get_server_pid)
 
 	if [[ -n "$current_pid" ]] && is_server_running "$current_pid"; then
-		echo "Server is running (PID: $current_pid)"
+		echo "show_status:: Server is running (PID: $current_pid)"
 		return 0
 	else
-		echo "Server is not running"
+		echo "show_status:: Server is not running"
 		return 1
 	fi
 }
@@ -262,8 +272,13 @@ show_status() {
 # Side Effects:
 # - Prints version information to stdout
 show_version() {
+	if [[ -z "${GANDALF_ROOT:-}" ]]; then
+		echo "show_version:: GANDALF_ROOT is not set" >&2
+		return 1
+	fi
+
 	if [[ ! -f "$GANDALF_ROOT/VERSION" ]]; then
-		echo "Version file not found" >&2
+		echo "show_version:: Version file not found" >&2
 		return 1
 	fi
 
@@ -318,6 +333,4 @@ manage_server() {
 	esac
 }
 
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-	manage_server "$@"
-fi
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; 

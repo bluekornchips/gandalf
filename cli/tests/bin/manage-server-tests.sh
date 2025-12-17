@@ -25,7 +25,7 @@ setup() {
 #!/usr/bin/env python
 import time
 import sys
-print("Gandalf MCP Server starting...")
+print("Gandalf MCP Server starting,")
 time.sleep(0.1)
 print("Server running")
 EOF
