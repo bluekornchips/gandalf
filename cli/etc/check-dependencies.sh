@@ -49,12 +49,27 @@ check_command() {
 	local link="$2"
 	local description="$3"
 
+	if [[ -z "$command" ]]; then
+		echo "check_command:: command is required" >&2
+		return 1
+	fi
+
+	if [[ -z "$link" ]]; then
+		echo "check_command:: link is required" >&2
+		return 1
+	fi
+
+	if [[ -z "$description" ]]; then
+		echo "check_command:: description is required" >&2
+		return 1
+	fi
+
 	if command -v "${command}" >/dev/null 2>&1; then
-		echo "${description} found" >&2
+		echo "check_command:: ${description} found" >&2
 		return 0
 	fi
 
-	echo "${description} not installed, go to ${link} to install" >&2
+	echo "check_command:: ${description} not installed, go to ${link} to install" >&2
 	return 1
 }
 
@@ -117,8 +132,8 @@ main() {
 			return 0
 			;;
 		*)
-			echo "Unknown option '$1'" >&2
-			echo "Use '$(basename "$0") --help' for usage information" >&2
+			echo "main:: Unknown option '$1'" >&2
+			echo "main:: Use '$(basename "$0") --help' for usage information" >&2
 			return 1
 			;;
 		esac
@@ -132,7 +147,7 @@ main() {
 	check_shellcheck || ((failed_checks++))
 
 	if [[ "${failed_checks}" -ne 0 ]]; then
-		echo "Missing ${failed_checks} dependencies" >&2
+		echo "main:: Missing ${failed_checks} dependencies" >&2
 		return 1
 	fi
 

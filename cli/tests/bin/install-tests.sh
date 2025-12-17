@@ -545,7 +545,7 @@ EOF
 	cd "$GIT_ROOT"
 	run ./gandalf.sh --server status
 	[[ "$status" -eq 1 ]]
-	echo "$output" | grep -q "Server is not running"
+	echo "$output" | grep -q "show_status::.*Server is not running"
 }
 
 @test "gandalf.sh:: --server version works" {
@@ -559,7 +559,7 @@ EOF
 	cd "$GIT_ROOT"
 	run ./gandalf.sh --server pid
 	[[ "$status" -eq 1 ]]
-	echo "$output" | grep -q "No PID file found"
+	echo "$output" | grep -q "show_pid::.*No PID file found"
 }
 
 ########################################################
@@ -622,9 +622,9 @@ EOF
 	export RULES_SOURCE
 
 	run setup_cursor_rules "$GANDALF_ROOT" "/nonexistent/rules.md"
-	[[ "$status" -eq 0 ]]
-	# Should still create the rules file with empty content
-	[[ -f "$GANDALF_ROOT/.cursor/rules/rules-gandalf.mdc" ]]
+	[[ "$status" -eq 1 ]]
+	# Should not create the rules file when source doesn't exist
+	echo "$output" | grep -q "setup_cursor_rules::.*Rules file not found"
 }
 
 @test "setup_cursor_rules:: overwrites existing rules file" {

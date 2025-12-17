@@ -3,7 +3,7 @@
 # Gandalf gandalf CLI entry point
 # Provides command-line interface for the Gandalf project
 #
-set -eo pipefail
+set -euo pipefail
 
 usage() {
 	cat <<EOF
@@ -44,6 +44,11 @@ DEFAULT_QUERY_DATABASE_SCRIPT="$DEFAULT_GANDALF_ROOT/cli/bin/query-database.sh"
 # Side Effects:
 # - None
 get_version() {
+	if [[ -z "${GANDALF_ROOT:-}" ]]; then
+		echo "get_version:: GANDALF_ROOT is not set" >&2
+		return 1
+	fi
+
 	local version_file
 	version_file="$GANDALF_ROOT/VERSION"
 
@@ -66,9 +71,15 @@ get_version() {
 # - Executes query and outputs results
 handle_query() {
 	if [[ $# -eq 0 ]]; then
-		echo "--query-from-file requires a file path" >&2
+		echo "handle_query:: --query-from-file requires a file path" >&2
 		return 1
 	fi
+
+	if [[ -z "${QUERY_DATABASE_SCRIPT:-}" ]]; then
+		echo "handle_query:: QUERY_DATABASE_SCRIPT is not set" >&2
+		return 1
+	fi
+
 	local query_file="$1"
 	shift
 
@@ -78,14 +89,14 @@ handle_query() {
 		case $1 in
 		-o | --output)
 			if [[ $# -lt 2 ]]; then
-				echo "--output requires a format argument" >&2
+				echo "handle_query:: --output requires a format argument" >&2
 				return 1
 			fi
 			query_args+=("$1" "$2")
 			shift 2
 			;;
 		*)
-			echo "Unknown query option $1" >&2
+			echo "handle_query:: Unknown query option $1" >&2
 			return 1
 			;;
 		esac
@@ -153,7 +164,7 @@ gandalf() {
 			return 1
 			;;
 		*)
-			echo "Unknown option: $1" >&2
+			echo "gandalf:: Unknown option: $1" >&2
 			usage
 			return 1
 			;;

@@ -184,7 +184,8 @@ setup() {
 	# Should either succeed with YAML output or fail with expected error
 	if [[ "$status" -eq 0 ]]; then
 		echo "$output" | grep -q "status:"
-		echo "$output" | grep -q "query:"
+		# Check for either success structure (results:) or error structure (error:)
+		echo "$output" | grep -qE "(results:|error:)"
 	else
 		echo "$output" | grep -q "Registry file not found\|No suitable Python version found\|ImportError\|Query execution failed"
 	fi

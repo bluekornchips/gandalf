@@ -107,20 +107,34 @@ EOF
 	local test_file="$(mktemp)"
 	echo '{"test": "value"}' >"$test_file"
 
+	QUERY_DATABASE_SCRIPT="$(mktemp)"
+	cat <<EOF >"$QUERY_DATABASE_SCRIPT"
+#!/usr/bin/env bash
+exit 0
+EOF
+	chmod +x "$QUERY_DATABASE_SCRIPT"
+
 	run handle_query "$test_file" --output
 	[[ "$status" -eq 1 ]]
-	echo "$output" | grep -q "requires a format argument"
+	echo "$output" | grep -q "handle_query:: --output requires a format argument"
 
-	rm -f "$test_file"
+	rm -f "$test_file" "$QUERY_DATABASE_SCRIPT"
 }
 
 @test "handle_query:: handles unknown query options" {
 	local test_file="$(mktemp)"
 	echo '{"test": "value"}' >"$test_file"
 
+	QUERY_DATABASE_SCRIPT="$(mktemp)"
+	cat <<EOF >"$QUERY_DATABASE_SCRIPT"
+#!/usr/bin/env bash
+exit 0
+EOF
+	chmod +x "$QUERY_DATABASE_SCRIPT"
+
 	run handle_query "$test_file" --unknown
 	[[ "$status" -eq 1 ]]
-	echo "$output" | grep -q "Unknown query option"
+	echo "$output" | grep -q "handle_query:: Unknown query option"
 
-	rm -f "$test_file"
+	rm -f "$test_file" "$QUERY_DATABASE_SCRIPT"
 }

@@ -43,6 +43,11 @@ DEFAULT_GANDALF_RULES_FILE="$GANDALF_ROOT/spec/gandalf-rules.md"
 # - logs/
 #	- registry/
 setup_gandalf_home() {
+	if [[ -z "${GANDALF_HOME:-}" ]]; then
+		echo "setup_gandalf_home:: GANDALF_HOME is not set" >&2
+		return 1
+	fi
+
 	if [[ "$FORCE_INSTALL" == "true" && -d "$GANDALF_HOME" ]]; then
 		rm -rf "$GANDALF_HOME"
 	fi
@@ -62,11 +67,16 @@ setup_gandalf_home() {
 # - Creates .venv directory if user confirms or if FORCE_INSTALL is set
 # - Installs gandalf-server package in editable mode
 setup_python_env() {
+	if [[ -z "${GANDALF_ROOT:-}" ]]; then
+		echo "setup_python_env:: GANDALF_ROOT is not set" >&2
+		return 1
+	fi
+
 	local python_path
 	python_path="${GANDALF_ROOT}/.venv/bin/python3"
 
 	if [[ -x "${python_path}" ]]; then
-		echo "Virtual environment Python found at ${python_path}"
+		echo "setup_python_env:: Virtual environment Python found at ${python_path}"
 		return 0
 	fi
 
@@ -75,9 +85,9 @@ setup_python_env() {
 
 	if [[ "${FORCE_INSTALL}" == "true" ]] || [[ "${SKIP_CONFIRMATION:-}" == "true" ]]; then
 		if [[ "${FORCE_INSTALL}" == "true" ]]; then
-			echo "Virtual environment not found, creating with --force flag..."
+			echo "setup_python_env:: Virtual environment not found, creating with --force flag,"
 		else
-			echo "Virtual environment not found, creating with --yes flag..."
+			echo "setup_python_env:: Virtual environment not found, creating with --yes flag,"
 		fi
 		should_create="true"
 	else
@@ -98,7 +108,7 @@ EOF
 	fi
 
 	if [[ "${should_create}" != "true" ]]; then
-		echo "Python environment setup skipped. Install manually with:" >&2
+		echo "setup_python_env:: Python environment setup skipped. Install manually with:" >&2
 		cat >&2 <<EOF
 
 pushd ${GANDALF_ROOT} >/dev/null
@@ -111,7 +121,7 @@ EOF
 		return 1
 	fi
 
-	echo "Creating Python virtual environment..."
+	echo "setup_python_env:: Creating Python virtual environment,"
 
 	# Try to find the best available Python version
 	local python_cmd=""
@@ -125,23 +135,23 @@ EOF
 	done
 
 	if [[ -z "$python_cmd" ]]; then
-		echo "No suitable Python version found. Please install Python 3.8 or later." >&2
+		echo "setup_python_env:: No suitable Python version found. Please install Python 3.8 or later." >&2
 		return 1
 	fi
 
-	echo "Using Python: $python_cmd"
+	echo "setup_python_env:: Using Python: $python_cmd"
 	if ! "$python_cmd" -m venv "${GANDALF_ROOT}/.venv"; then
-		echo "Failed to create virtual environment with $python_cmd" >&2
+		echo "setup_python_env:: Failed to create virtual environment with $python_cmd" >&2
 		return 1
 	fi
 
-	echo "Installing gandalf-server package..."
+	echo "setup_python_env:: Installing gandalf-server package,"
 	if ! "${GANDALF_ROOT}/.venv/bin/pip" install -e "${GANDALF_ROOT}"; then
-		echo "Failed to install gandalf-server package" >&2
+		echo "setup_python_env:: Failed to install gandalf-server package" >&2
 		return 1
 	fi
 
-	echo "Python environment setup complete"
+	echo "setup_python_env:: Python environment setup complete"
 	return 0
 }
 
@@ -177,9 +187,29 @@ setup_editor_config() {
 	local editor_name="$1"
 	local config_file="$2"
 
+	if [[ -z "$editor_name" ]]; then
+		echo "setup_editor_config:: editor_name is required" >&2
+		return 1
+	fi
+
+	if [[ -z "$config_file" ]]; then
+		echo "setup_editor_config:: config_file is required" >&2
+		return 1
+	fi
+
+	if [[ -z "${GANDALF_ROOT:-}" ]]; then
+		echo "setup_editor_config:: GANDALF_ROOT is not set" >&2
+		return 1
+	fi
+
+	if [[ -z "${GANDALF_HOME:-}" ]]; then
+		echo "setup_editor_config:: GANDALF_HOME is not set" >&2
+		return 1
+	fi
+
 	if ! command -v jq >/dev/null 2>&1; then
-		echo "jq is required for MCP configuration but not installed" >&2
-		echo "Install jq from: https://github.com/jqlang/jq" >&2
+		echo "setup_editor_config:: jq is required for MCP configuration but not installed" >&2
+		echo "setup_editor_config:: Install jq from: https://github.com/jqlang/jq" >&2
 		return 1
 	fi
 
@@ -208,7 +238,7 @@ setup_editor_config() {
 					}
 				}
 			}' >"$config_file"
-		echo "$editor_name MCP configuration created: $config_file"
+		echo "setup_editor_config:: $editor_name MCP configuration created: $config_file"
 	elif [[ -n "${FORCE_INSTALL}" ]] || ! jq -e '.mcpServers.gandalf' "$config_file" >/dev/null 2>&1; then
 		# File exists and either force flag is set or gandalf config doesn't exist, update it
 		# Read existing file content to variable, modify it, and write back
@@ -228,9 +258,9 @@ setup_editor_config() {
 					"GANDALF_HOME": $gandalf_home
 				}
 			}' <<<"$existing_content" >"$config_file"
-		echo "$editor_name MCP configuration updated: $config_file"
+		echo "setup_editor_config:: $editor_name MCP configuration updated: $config_file"
 	else
-		echo "$editor_name MCP configuration already exists: $config_file"
+		echo "setup_editor_config:: $editor_name MCP configuration already exists: $config_file"
 	fi
 
 	return 0
@@ -244,10 +274,19 @@ setup_editor_config() {
 # Side Effects:
 # - Configures Claude Code MCP server for current project
 setup_claude_code_mcp() {
+	if [[ -z "${GANDALF_ROOT:-}" ]]; then
+		echo "setup_claude_code_mcp:: GANDALF_ROOT is not set" >&2
+		return 1
+	fi
+
+	if [[ -z "${GANDALF_HOME:-}" ]]; then
+		echo "setup_claude_code_mcp:: GANDALF_HOME is not set" >&2
+		return 1
+	fi
 
 	if ! command -v jq >/dev/null 2>&1; then
-		echo "jq is required for Claude Code MCP configuration but not installed" >&2
-		echo "Install jq from: https://github.com/jqlang/jq" >&2
+		echo "setup_claude_code_mcp:: jq is required for Claude Code MCP configuration but not installed" >&2
+		echo "setup_claude_code_mcp:: Install jq from: https://github.com/jqlang/jq" >&2
 		return 1
 	fi
 
@@ -256,7 +295,7 @@ setup_claude_code_mcp() {
 	local server_dir="${GANDALF_ROOT}/server"
 
 	if ! command -v claude >/dev/null 2>&1; then
-		echo "Claude Code CLI not found, skipping Claude Code MCP configuration"
+		echo "setup_claude_code_mcp:: Claude Code CLI not found, skipping Claude Code MCP configuration"
 		return 0
 	fi
 
@@ -279,9 +318,9 @@ setup_claude_code_mcp() {
 		}')"
 
 	if claude mcp add-json gandalf "$mcp_config" 2>/dev/null; then
-		echo "Claude Code MCP configuration added successfully"
+		echo "setup_claude_code_mcp:: Claude Code MCP configuration added successfully"
 	else
-		echo "Failed to configure Claude Code MCP. This is optional and can be done manually later" >&2
+		echo "setup_claude_code_mcp:: Failed to configure Claude Code MCP. This is optional and can be done manually later" >&2
 		return 1
 	fi
 
@@ -300,6 +339,16 @@ setup_claude_code_mcp() {
 setup_cursor_rules() {
 	local installation_root="$1"
 	local rules_file="$2"
+
+	if [[ -z "$rules_file" ]]; then
+		echo "setup_cursor_rules:: rules_file is required" >&2
+		return 1
+	fi
+
+	if [[ ! -f "$rules_file" ]]; then
+		echo "setup_cursor_rules:: Rules file not found: $rules_file" >&2
+		return 1
+	fi
 
 	RULES_HEADER=$(
 		cat <<EOF
@@ -331,7 +380,7 @@ EOF
 		echo "$RULES_HEADER"
 		echo "$rules_content"
 	} >"$rules_dest"
-	echo "Cursor rules installed: $rules_dest"
+	echo "setup_cursor_rules:: Cursor rules installed: $rules_dest"
 
 	return 0
 }
@@ -345,6 +394,16 @@ EOF
 # - Creates or updates ~/.claude/CLAUDE.md with rules content
 setup_global_claude_rules() {
 	local rules_file="$1"
+
+	if [[ -z "$rules_file" ]]; then
+		echo "setup_global_claude_rules:: rules_file is required" >&2
+		return 1
+	fi
+
+	if [[ ! -f "$rules_file" ]]; then
+		echo "setup_global_claude_rules:: Rules file not found: $rules_file" >&2
+		return 1
+	fi
 
 	local global_claude_dir="$HOME/.claude"
 	local global_claude_file="$global_claude_dir/CLAUDE.md"
@@ -360,7 +419,7 @@ setup_global_claude_rules() {
 			echo "$rules_content"
 			echo "$RULES_MARKER"
 		} >"$global_claude_file"
-		echo "Global Claude rules created: $global_claude_file"
+		echo "setup_global_claude_rules:: Global Claude rules created: $global_claude_file"
 		return 0
 	fi
 
@@ -385,14 +444,14 @@ setup_global_claude_rules() {
 
 		mv "$temp_file" "$global_claude_file"
 		trap - EXIT ERR
-		echo "Global Claude rules updated: $global_claude_file"
+		echo "setup_global_claude_rules:: Global Claude rules updated: $global_claude_file"
 	else
 		{
 			echo "$RULES_MARKER"
 			echo "$rules_content"
 			echo "$RULES_MARKER"
 		} >"$global_claude_file"
-		echo "Global Claude rules appended: $global_claude_file"
+		echo "setup_global_claude_rules:: Global Claude rules appended: $global_claude_file"
 	fi
 
 	return 0

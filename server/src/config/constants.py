@@ -59,3 +59,11 @@ RECENCY_DECAY_RATE = float(os.getenv("GANDALF_RECENCY_DECAY_RATE", "0.1"))
 DEFAULT_INCLUDE_EDITOR_HISTORY = (
     os.getenv("GANDALF_INCLUDE_EDITOR_HISTORY", "false").lower() == "true"
 )
+
+# Spell system constants
+SPELLS_DIRECTORY = (
+    "spells"  # Directory name for spell YAML files (relative to project root)
+)
+DEFAULT_ALLOWED_PATHS: list[str] = []  # Empty by default, must be explicitly configured
+DEFAULT_TIMEOUT_SECONDS = 30  # Default timeout for spell execution
+MAX_TIMEOUT_SECONDS = 300  # Maximum allowed timeout

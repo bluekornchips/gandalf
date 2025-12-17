@@ -1,0 +1,7 @@
+name: pwd
+description: Run pwd command in home directory
+command: pwd
+flags: []
+paths:
+  - ${HOME}
+timeout: 10

@@ -13,6 +13,11 @@ set -eo pipefail
 # Side Effects:
 # - GANDALF_PLATFORM, sets the global platform variable
 detect_platform() {
+	if ! command -v uname >/dev/null 2>&1; then
+		echo "detect_platform:: uname command not found" >&2
+		return 1
+	fi
+
 	local uname_output
 	uname_output="$(uname -s)"
 
@@ -29,7 +34,7 @@ detect_platform() {
 		;;
 	esac
 
-	echo "Detected platform: $GANDALF_PLATFORM"
+	echo "detect_platform:: Detected platform: $GANDALF_PLATFORM"
 
 	export GANDALF_PLATFORM
 

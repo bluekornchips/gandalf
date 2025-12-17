@@ -1,5 +1,8 @@
-# Set the python version to use
-PYTHON := $(shell command -v python3.10 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3.12 2>/dev/null || command -v python3 2>/dev/null)
+# Set the python version to use (prefer project venv; use absolute path so cd doesn't break)
+PYTHON := $(shell \
+	if [ -x "$(CURDIR)/.venv/bin/python" ]; then echo "$(CURDIR)/.venv/bin/python"; \
+	else command -v python3 2>/dev/null || command -v python3.12 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3.10 2>/dev/null; \
+	fi)
 
 format-py:
 	$(PYTHON) -m ruff check --fix --unsafe-fixes server/

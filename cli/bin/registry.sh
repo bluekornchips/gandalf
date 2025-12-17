@@ -16,10 +16,14 @@ DEFAULT_GANDALF_REGISTRY_FILE="${HOME}/.gandalf/registry.json"
 # Side Effects:
 # - DB_PATH_DATA, sets array of found database folders
 find_database_folders() {
-
 	if ! command -v jq >/dev/null 2>&1; then
-		echo "jq is required for database folder detection but not installed" >&2
-		echo "Install jq from: https://github.com/jqlang/jq" >&2
+		echo "find_database_folders:: jq is required for database folder detection but not installed" >&2
+		echo "find_database_folders:: Install jq from: https://github.com/jqlang/jq" >&2
+		return 1
+	fi
+
+	if ! command -v find >/dev/null 2>&1; then
+		echo "find_database_folders:: find command is required but not installed" >&2
 		return 1
 	fi
 
@@ -123,21 +127,26 @@ find_database_folders() {
 init_registry() {
 	local registry_file="$1"
 
+	if [[ -z "$registry_file" ]]; then
+		echo "init_registry:: registry_file is required" >&2
+		return 1
+	fi
+
 	[[ -f "${registry_file}" ]] && return 0
 
-	echo "Creating registry file: ${registry_file}"
+	echo "init_registry:: Creating registry file: ${registry_file}"
 
 	local registry_dir
 	registry_dir="$(dirname "${registry_file}")"
 
 	if ! mkdir -p "${registry_dir}"; then
-		echo "Failed to create registry directory: ${registry_dir}" >&2
+		echo "init_registry:: Failed to create registry directory: ${registry_dir}" >&2
 		return 1
 	fi
 
 	echo "{}" >"${registry_file}"
 
-	echo "Created registry file: ${registry_file}"
+	echo "init_registry:: Created registry file: ${registry_file}"
 
 	return 0
 }
@@ -150,21 +159,28 @@ init_registry() {
 # Side Effects:
 # - REGISTRY_FILE, updates the registry file with database folders
 update_registry() {
-	[[ -z "${GANDALF_REGISTRY_FILE}" ]] && echo "Registry file is required" >&2 && return 1
-	[[ -z "${DB_PATH_DATA}" ]] && echo "Database folders JSON date is required" >&2 && return 1
+	if [[ -z "${GANDALF_REGISTRY_FILE:-}" ]]; then
+		echo "update_registry:: Registry file is required" >&2
+		return 1
+	fi
+
+	if [[ -z "${DB_PATH_DATA:-}" ]]; then
+		echo "update_registry:: Database folders JSON data is required" >&2
+		return 1
+	fi
 
 	if ! command -v jq >/dev/null 2>&1; then
-		echo "jq is required for registry updates but not installed" >&2
-		echo "Install jq from: https://github.com/jqlang/jq" >&2
+		echo "update_registry:: jq is required for registry updates but not installed" >&2
+		echo "update_registry:: Install jq from: https://github.com/jqlang/jq" >&2
 		return 1
 	fi
 
 	if ! echo "${DB_PATH_DATA}" >"${GANDALF_REGISTRY_FILE}"; then
-		echo "Failed to write registry file: ${GANDALF_REGISTRY_FILE}" >&2
+		echo "update_registry:: Failed to write registry file: ${GANDALF_REGISTRY_FILE}" >&2
 		return 1
 	fi
 
-	echo "Updated registry file: ${GANDALF_REGISTRY_FILE}"
+	echo "update_registry:: Updated registry file: ${GANDALF_REGISTRY_FILE}"
 	jq . "${GANDALF_REGISTRY_FILE}"
 
 	return 0
@@ -184,7 +200,7 @@ registry() {
 	fi
 
 	if ! update_registry; then
-		echo "Failed to update registry" >&2
+		echo "registry:: Failed to update registry" >&2
 		return 1
 	fi
 
