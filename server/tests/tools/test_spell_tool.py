@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 import yaml
-
 from src.tools.spell_tool import SpellTool
 
 

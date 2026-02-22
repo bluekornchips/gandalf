@@ -37,4 +37,4 @@ clean:
 	find . -type d \( -name ".pytest_cache" -o -name "htmlcov" -o -name ".mypy_cache" -o -name "*.egg-info" -o -name ".ruff_cache" -o -name "htmlcov_server" \) -exec rm -rf {} +
 	find . -type f -name ".coverage" -exec rm -f {} +
 
-all: format-py format-sh lint-py typecheck-py test-py test-sh
+all: install-py format-py format-sh lint-py typecheck-py test-py test-sh

@@ -61,3 +61,7 @@ testpaths = ["server/tests"]
 addopts = ["-v", "--tb=short"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+[tool.pyright]
+extraPaths = ["server"]
+typeCheckingMode = "strict"
+pythonVersion = "3.10"

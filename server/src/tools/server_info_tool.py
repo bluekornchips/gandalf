@@ -4,9 +4,9 @@ Server info tool implementation.
 
 from typing import Any, Dict, List
 
-from src.tools.base_tool import BaseTool
-from src.protocol.models import ToolResult
 from src.config.constants import SERVER_CAPABILITIES, SERVER_DESCRIPTION, SERVER_NAME
+from src.protocol.models import ToolResult
+from src.tools.base_tool import BaseTool
 from src.utils.common import get_version
 from src.utils.logger import log_info
 

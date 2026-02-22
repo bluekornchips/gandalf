@@ -5,22 +5,21 @@ import sqlite3
 import tempfile
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
 
 import pytest
-
-from src.tools.recall_conversations_tool import RecallConversationsTool
-from src.database_management.recall_conversations import ConversationDatabaseManager
 from src.config.constants import (
-    SUPPORTED_DB_FILES,
     GANDALF_REGISTRY_FILE,
-    RECALL_CONVERSATIONS_QUERIES,
-    MAX_PHRASES,
-    INCLUDE_PROMPTS_DEFAULT,
     INCLUDE_GENERATIONS_DEFAULT,
-    MAX_SUMMARY_LENGTH,
+    INCLUDE_PROMPTS_DEFAULT,
+    MAX_PHRASES,
     MAX_SUMMARY_ENTRIES,
+    MAX_SUMMARY_LENGTH,
+    RECALL_CONVERSATIONS_QUERIES,
+    SUPPORTED_DB_FILES,
 )
+from src.database_management.recall_conversations import ConversationDatabaseManager
+from src.tools.recall_conversations_tool import RecallConversationsTool
 
 
 class TestRecallConversationsTool:

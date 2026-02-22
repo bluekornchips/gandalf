@@ -7,8 +7,8 @@ import re
 import sys
 from typing import Any, Dict, List
 
-from src.database_management.recall_conversations import ConversationDatabaseManager
 from src.config.constants import GANDALF_REGISTRY_FILE
+from src.database_management.recall_conversations import ConversationDatabaseManager
 from src.utils.logger import log_error
 
 

@@ -1,13 +1,12 @@
 """Test suite for tool registry implementation."""
 
-from unittest.mock import patch
 from typing import Any, Dict, List
+from unittest.mock import patch
 
 import pytest
-
-from src.tools.registry import ToolRegistry
-from src.tools.base_tool import BaseTool
 from src.protocol.models import ToolResult
+from src.tools.base_tool import BaseTool
+from src.tools.registry import ToolRegistry
 
 
 class MockTool(BaseTool):

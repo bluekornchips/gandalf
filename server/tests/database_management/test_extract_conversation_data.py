@@ -5,13 +5,11 @@ Tests for extract_conversation_data module.
 import json
 import sqlite3
 import tempfile
+from typing import Any, Dict
 from unittest.mock import patch
 
-
-from typing import Any, Dict
-
-from src.database_management.extract_conversation_data import ConversationDataExtractor
 from src.config.constants import RECALL_CONVERSATIONS_QUERIES
+from src.database_management.extract_conversation_data import ConversationDataExtractor
 
 
 class TestConversationDataExtractor:

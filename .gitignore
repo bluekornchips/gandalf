@@ -1,5 +1,6 @@
 # Cursor
 .cursor
+.agent
 
 # Claude
 CLAUDE.md

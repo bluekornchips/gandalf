@@ -2,9 +2,9 @@
 Lightweight JSON-RPC server implementation.
 """
 
+import asyncio
 import json
 import sys
-import asyncio
 import traceback
 from typing import Any, Dict, Optional
 

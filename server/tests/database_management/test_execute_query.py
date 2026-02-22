@@ -7,9 +7,8 @@ import sqlite3
 import tempfile
 
 import pytest
-
-from src.database_management.execute_query import QueryExecutor
 from src.config.constants import RECALL_CONVERSATIONS_QUERIES
+from src.database_management.execute_query import QueryExecutor
 
 
 class TestQueryExecutor:

@@ -5,9 +5,9 @@ Output formatting for conversation recall operations.
 from typing import Any, Dict, List, Optional, TypedDict
 
 from src.config.constants import (
+    DEFAULT_INCLUDE_EDITOR_HISTORY,
     MAX_SUMMARY_ENTRIES,
     MAX_SUMMARY_LENGTH,
-    DEFAULT_INCLUDE_EDITOR_HISTORY,
 )
 
 
@@ -59,13 +59,19 @@ class OutputFormatter:
         return summary
 
     def _is_editor_state(self, history_entry: Dict[str, Any]) -> bool:
-        """Return True if entry looks like editor UI state (not conversational)."""
-        entry_str = str(history_entry).lower()
-        # Check for editor state patterns
-        if "editor" in entry_str and (
-            "resource" in entry_str or "forcefile" in entry_str
-        ):
+        """Return True if entry is editor UI state (not conversational)."""
+        if not isinstance(history_entry, dict):
+            return False
+        # Check top-level keys for editor state markers
+        keys_lower = {str(k).lower() for k in history_entry}
+        if "editor" in keys_lower:
             return True
+        # Check for nested resource/forceFile indicators in known positions
+        for val in history_entry.values():
+            if isinstance(val, dict):
+                sub_keys = {str(k).lower() for k in val}
+                if "resource" in sub_keys or "forcefile" in sub_keys:
+                    return True
         return False
 
     def _extract_text_content(self, conversation: Dict[str, Any]) -> str:
@@ -112,11 +118,12 @@ class OutputFormatter:
         # If phrases provided, use exact phrase matching
         if phrases:
             conversation_text = self._extract_text_content(conversation).lower()
-
-            for phrase in phrases:
-                if phrase and phrase.lower() in conversation_text:
-                    return 1.0
-            return 0.0
+            matched = sum(
+                1
+                for phrase in phrases
+                if phrase and phrase.lower() in conversation_text
+            )
+            return matched / len(phrases) if phrases else 0.0
 
         # No phrases: use recency scoring
         if recency_scorer:
@@ -148,6 +155,8 @@ class OutputFormatter:
         phrases: List[str] | None = None,
         include_editor_history: bool = DEFAULT_INCLUDE_EDITOR_HISTORY,
         recency_scorer: Optional[Any] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Format a conversation entry with concise output for reduced context window impact.
 
@@ -176,6 +185,8 @@ class OutputFormatter:
                 "prompt",
                 phrases,
                 recency_scorer,
+                date_from,
+                date_to,
             )
             conversations.extend(prompt_entries)
 
@@ -185,6 +196,8 @@ class OutputFormatter:
                 "generation",
                 phrases,
                 recency_scorer,
+                date_from,
+                date_to,
             )
             conversations.extend(generation_entries)
 
@@ -197,6 +210,8 @@ class OutputFormatter:
                 "history",
                 phrases,
                 recency_scorer,
+                date_from,
+                date_to,
             )
             conversations.extend(history_entries)
 
@@ -211,6 +226,8 @@ class OutputFormatter:
         entry_type: str,
         phrases: List[str],
         recency_scorer: Optional[Any],
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Process entries with phrase-aware limiting.
 
@@ -238,6 +255,20 @@ class OutputFormatter:
                     )
                 )
                 if relevance > 0:
+                    # Apply date filtering if requested
+                    if date_from or date_to:
+                        ts = (
+                            recency_scorer.extract_timestamp(entry_data)
+                            if recency_scorer
+                            else None
+                        )
+                        if ts:
+                            ts_iso = ts.isoformat()
+                            if date_from and ts_iso < date_from:
+                                continue
+                            if date_to and ts_iso > date_to:
+                                continue
+
                     summary = self.create_conversation_summary(entry_data)
                     result.append(
                         {
@@ -255,6 +286,20 @@ class OutputFormatter:
                         entry_data, phrases, recency_scorer
                     )
                 )
+                # Apply date filtering if requested
+                if date_from or date_to:
+                    ts = (
+                        recency_scorer.extract_timestamp(entry_data)
+                        if recency_scorer
+                        else None
+                    )
+                    if ts:
+                        ts_iso = ts.isoformat()
+                        if date_from and ts_iso < date_from:
+                            continue
+                        if date_to and ts_iso > date_to:
+                            continue
+
                 entry: Dict[str, Any] = {
                     "summary": summary,
                     "type": entry_type,

@@ -4,7 +4,6 @@ Database management for conversation recall operations.
 
 from typing import Any, Dict, List
 
-from src.database_management.conversation_threading import ConversationThreader
 from src.database_management.create_filters import SearchFilterBuilder
 from src.database_management.execute_query import QueryExecutor
 from src.database_management.extract_conversation_data import ConversationDataExtractor
@@ -22,7 +21,6 @@ class ConversationDatabaseManager:
         self.output_formatter = OutputFormatter()
 
         self._recency_scorer: RecencyScorer | None = None
-        self._conversation_threader: ConversationThreader | None = None
 
     def _get_recency_scorer(self) -> RecencyScorer:
         """Get or create recency scorer instance.
@@ -33,16 +31,6 @@ class ConversationDatabaseManager:
         if self._recency_scorer is None:
             self._recency_scorer = RecencyScorer()
         return self._recency_scorer
-
-    def _get_conversation_threader(self) -> ConversationThreader:
-        """Get or create conversation threader instance.
-
-        Returns:
-            ConversationThreader instance.
-        """
-        if self._conversation_threader is None:
-            self._conversation_threader = ConversationThreader()
-        return self._conversation_threader
 
     def build_search_conditions(
         self, phrases: List[str]
@@ -122,6 +110,8 @@ class ConversationDatabaseManager:
         include_generations: bool,
         phrases: List[str] | None = None,
         include_editor_history: bool = False,
+        date_from: str | None = None,
+        date_to: str | None = None,
     ) -> Dict[str, Any]:
         """Format a conversation entry with concise output.
 
@@ -131,6 +121,8 @@ class ConversationDatabaseManager:
             include_generations: Whether to include generations in output
             phrases: List of search phrases for relevance scoring
             include_editor_history: Whether to include editor UI history entries
+            date_from: Optional start date for filtering (ISO format)
+            date_to: Optional end date for filtering (ISO format)
 
         Returns:
             Formatted conversation entry dictionary
@@ -143,4 +135,6 @@ class ConversationDatabaseManager:
             phrases,
             include_editor_history,
             recency_scorer,
+            date_from,
+            date_to,
         )

@@ -189,9 +189,11 @@ class TestConversationThreader:
 
         # Check that results are sorted (most recent first)
         timestamps = [
-            t["timestamp"]
-            if t["timestamp"]
-            else datetime.min.replace(tzinfo=timezone.utc)
+            (
+                t["timestamp"]
+                if t["timestamp"]
+                else datetime.min.replace(tzinfo=timezone.utc)
+            )
             for t in result
         ]
         for i in range(len(timestamps) - 1):

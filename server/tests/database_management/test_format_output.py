@@ -4,8 +4,8 @@ Tests for format_output module.
 
 from typing import Any, Dict
 
+from src.config.constants import MAX_SUMMARY_ENTRIES, MAX_SUMMARY_LENGTH
 from src.database_management.format_output import OutputFormatter
-from src.config.constants import MAX_SUMMARY_LENGTH, MAX_SUMMARY_ENTRIES
 
 
 class TestOutputFormatter:
@@ -90,7 +90,7 @@ class TestOutputFormatter:
         score = self.output_formatter.score_conversation_relevance(
             conversation, ["java", "python"]
         )
-        assert score == 1.0  # "python" matches
+        assert score == 0.5  # Only "python" matches (1/2)
 
     def test_score_conversation_relevance_empty_phrases(self) -> None:
         """Test score_conversation_relevance with empty phrases."""
