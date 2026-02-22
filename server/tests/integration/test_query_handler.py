@@ -9,7 +9,6 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-
 from src.query_handler import QueryHandler
 
 

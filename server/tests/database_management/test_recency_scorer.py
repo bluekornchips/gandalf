@@ -4,8 +4,8 @@ Tests for recency_scorer module.
 
 from datetime import datetime, timedelta, timezone
 
-from src.database_management.recency_scorer import RecencyScorer
 from src.config.constants import RECENCY_DECAY_RATE
+from src.database_management.recency_scorer import RecencyScorer
 
 
 class TestRecencyScorer:

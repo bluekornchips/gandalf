@@ -4,7 +4,6 @@ import json
 from unittest.mock import patch
 
 import pytest
-
 from src.tools.list_spells_tool import ListSpellsTool
 from src.tools.spell_tool import SpellTool
 

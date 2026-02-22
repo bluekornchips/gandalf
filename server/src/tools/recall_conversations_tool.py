@@ -6,8 +6,6 @@ import json
 import traceback
 from typing import Any, Dict, List
 
-from src.tools.base_tool import BaseTool
-from src.protocol.models import ToolResult
 from src.config.constants import (
     DEFAULT_INCLUDE_EDITOR_HISTORY,
     DEFAULT_RESULTS_LIMIT,
@@ -18,7 +16,9 @@ from src.config.constants import (
     MAX_RESULTS_LIMIT,
 )
 from src.database_management.recall_conversations import ConversationDatabaseManager
-from src.utils.logger import log_info, log_error
+from src.protocol.models import ToolResult
+from src.tools.base_tool import BaseTool
+from src.utils.logger import log_error, log_info
 
 
 class RecallConversationsTool(BaseTool):
@@ -70,6 +70,14 @@ class RecallConversationsTool(BaseTool):
                     "description": f"Include editor UI state entries in results (default: {DEFAULT_INCLUDE_EDITOR_HISTORY})",
                     "default": DEFAULT_INCLUDE_EDITOR_HISTORY,
                 },
+                "date_from": {
+                    "type": "string",
+                    "description": "Start date for results (ISO-8601 format, e.g., '2024-01-01')",
+                },
+                "date_to": {
+                    "type": "string",
+                    "description": "End date for results (ISO-8601 format, e.g., '2024-12-31')",
+                },
             },
         }
 
@@ -84,11 +92,14 @@ class RecallConversationsTool(BaseTool):
         phrases: List[str] = [p for p in phrases_input if p][:MAX_PHRASES]
         results_limit = min(args.get("limit", DEFAULT_RESULTS_LIMIT), MAX_RESULTS_LIMIT)
         include_prompts = args.get("include_prompts", INCLUDE_PROMPTS_DEFAULT)
-        # Always use the environment variable setting for include_generations
-        include_generations = INCLUDE_GENERATIONS_DEFAULT
+        include_generations = args.get(
+            "include_generations", INCLUDE_GENERATIONS_DEFAULT
+        )
         include_editor_history = args.get(
             "include_editor_history", DEFAULT_INCLUDE_EDITOR_HISTORY
         )
+        date_from = args.get("date_from")
+        date_to = args.get("date_to")
 
         try:
             # Load registry data
@@ -116,6 +127,8 @@ class RecallConversationsTool(BaseTool):
                 include_generations,
                 phrases,
                 include_editor_history,
+                date_from,
+                date_to,
             )
             if formatted.get("status") == "success":
                 all_entries.extend(formatted.get("conversations", []))
@@ -138,6 +151,6 @@ class RecallConversationsTool(BaseTool):
             },
         }
 
-        formatted_output = json.dumps(result, indent=2, ensure_ascii=False)
+        formatted_output = json.dumps(result, ensure_ascii=False)
 
         return [ToolResult(text=formatted_output)]

@@ -5,9 +5,9 @@ Tool to list available spells without executing them.
 import json
 from typing import Any, Dict, List
 
+from src.protocol.models import ToolResult
 from src.tools.base_tool import BaseTool
 from src.tools.spell_tool import SpellTool
-from src.protocol.models import ToolResult
 from src.utils.logger import log_error, log_info
 
 

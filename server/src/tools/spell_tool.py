@@ -11,15 +11,14 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import yaml
-
-from src.tools.base_tool import BaseTool
-from src.protocol.models import ToolResult
 from src.config.constants import (
     DEFAULT_TIMEOUT_SECONDS,
     MAX_TIMEOUT_SECONDS,
     SPELLS_DIRECTORY,
 )
-from src.utils.logger import log_info, log_error
+from src.protocol.models import ToolResult
+from src.tools.base_tool import BaseTool
+from src.utils.logger import log_error, log_info
 
 
 def _get_project_root() -> Path:
@@ -52,6 +51,7 @@ class SpellTool(BaseTool):
         """Initialize the spell tool."""
         super().__init__()
         self._spells: Dict[str, Dict[str, Any]] = {}
+        self._spells_mtime: Dict[str, float] = {}
         self._spells_directory = SPELLS_DIRECTORY
         self._load_spells()
 
@@ -70,21 +70,30 @@ class SpellTool(BaseTool):
                 return
 
             self._spells = {}
+            # Clear spells that might have been deleted
+            current_spell_files = set()
             yaml_files = list(spells_dir.glob("*.yaml")) + list(
                 spells_dir.glob("*.yml")
             )
 
             for yaml_file in yaml_files:
                 try:
+                    file_path = str(yaml_file.resolve())
+                    current_mtime = yaml_file.stat().st_mtime
+                    current_spell_files.add(file_path)
+
+                    # Skip if already loaded and file hasn't changed
+                    if (
+                        yaml_file.stem in self._spells
+                        and self._spells_mtime.get(file_path) == current_mtime
+                    ):
+                        continue
+
                     with open(yaml_file, "r", encoding="utf-8") as f:
                         content = f.read()
-                        # Expand environment variables in the YAML content
+                        # Expand environment variables once in the raw YAML content
                         content = os.path.expandvars(content)
                         spell_data = yaml.safe_load(content)
-
-                    # Expand environment variables in nested values (lists, dicts)
-                    if isinstance(spell_data, dict):
-                        spell_data = self._expand_env_vars_recursive(spell_data)
 
                     if not isinstance(spell_data, dict):
                         log_error(
@@ -113,6 +122,7 @@ class SpellTool(BaseTool):
                         spell_data["name"] = spell_name
 
                     self._spells[spell_name] = spell_data
+                    self._spells_mtime[file_path] = current_mtime
                     log_info(f"Loaded spell '{spell_name}' from {yaml_file}")
 
                 except yaml.YAMLError as e:
@@ -122,33 +132,33 @@ class SpellTool(BaseTool):
                     log_error(f"Error reading spell file {yaml_file}: {str(e)}")
                     continue
 
+            # Remove spells that no longer exist on disk
+            spells_to_remove = [
+                name
+                for name, config in self._spells.items()
+                if str(
+                    (project_root / self._spells_directory / f"{name}.yaml").resolve()
+                )
+                not in current_spell_files
+                and str(
+                    (project_root / self._spells_directory / f"{name}.yml").resolve()
+                )
+                not in current_spell_files
+            ]
+            for spell_name in spells_to_remove:
+                log_info(f"Removing deleted spell '{spell_name}'")
+                self._spells.pop(spell_name, None)
+                # Also remove from mtime cache if it was there
+                for path, mtime in list(self._spells_mtime.items()):
+                    if Path(path).stem == spell_name:
+                        self._spells_mtime.pop(path, None)
+
             log_info(f"Loaded {len(self._spells)} spell(s) from {spells_dir}")
 
         except Exception as e:
             error_msg = f"Error loading spells from directory: {str(e)}"
             log_error(error_msg, {"traceback": traceback.format_exc()})
             self._spells = {}
-
-    def _expand_env_vars_recursive(self, data: Any) -> Any:
-        """Recursively expand environment variables in data structures.
-
-        Args:
-            data: Data structure (dict, list, or str) to expand
-
-        Returns:
-            Data structure with environment variables expanded
-        """
-        if isinstance(data, dict):
-            return {
-                key: self._expand_env_vars_recursive(value)
-                for key, value in data.items()
-            }
-        elif isinstance(data, list):
-            return [self._expand_env_vars_recursive(item) for item in data]
-        elif isinstance(data, str):
-            return os.path.expandvars(data)
-        else:
-            return data
 
     def _is_spell_registered(self, spell_name: str) -> bool:
         """Check if a spell is registered.
@@ -419,9 +429,9 @@ class SpellTool(BaseTool):
         previous_spells = self._spells.copy()
         self._load_spells()
         if not self._is_spell_registered(spell_name) and spell_name in previous_spells:
-            self._spells = previous_spells
+            # Fallback for programmatically registered spells (useful for tests)
+            self._spells[spell_name] = previous_spells[spell_name]
 
-        # Check if spell is registered
         if not self._is_spell_registered(spell_name):
             return [
                 ToolResult(

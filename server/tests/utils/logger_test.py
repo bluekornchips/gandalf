@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from src.utils.logger import write_log, log_info, log_error
+from src.utils.logger import log_error, log_info, write_log
 
 
 class TestLogger:

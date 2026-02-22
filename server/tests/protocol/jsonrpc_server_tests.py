@@ -1,10 +1,9 @@
 """Test suite for JSON-RPC server implementation."""
 
-from unittest.mock import AsyncMock, patch
 from typing import Any, Dict
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from src.protocol.jsonrpc_server import JSONRPCServer
 from src.protocol.models import ToolResult
 

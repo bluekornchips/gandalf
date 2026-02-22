@@ -7,10 +7,10 @@ import asyncio
 import sys
 import traceback
 
+from src.config.constants import SERVER_NAME
 from src.protocol.jsonrpc_server import JSONRPCServer
 from src.tools.registry import ToolRegistry
-from src.config.constants import SERVER_NAME
-from src.utils.logger import log_info, log_error
+from src.utils.logger import log_error, log_info
 
 
 class GandalfServer:
